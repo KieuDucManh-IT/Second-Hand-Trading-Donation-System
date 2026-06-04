@@ -35,12 +35,6 @@ export function LoginPage() {
     }
   };
 
-  const demoAccounts = [
-    { email: 'user@demo.com', password: 'demo123', role: 'User' },
-    { email: 'manager@demo.com', password: 'demo123', role: 'Manager' },
-    { email: 'admin@demo.com', password: 'demo123', role: 'Admin' },
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl">
@@ -122,24 +116,6 @@ export function LoginPage() {
                 Demo Accounts
               </span>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            {demoAccounts.map((account) => (
-              <Button
-                key={account.email}
-                type="button"
-                variant="outline"
-                className="w-full justify-between"
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword(account.password);
-                }}
-              >
-                <span>{account.role} Account</span>
-                <span className="text-xs text-gray-500">{account.email}</span>
-              </Button>
-            ))}
           </div>
 
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
