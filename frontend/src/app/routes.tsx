@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter } from "react-router-dom";
+
 import { RootLayout } from "./components/layouts/RootLayout";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -13,7 +14,6 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
 import { ManagerDashboard } from "./pages/ManagerDashboard";
-import { AdminDashboard } from "./pages/AdminDashboard";
 import { ExchangeRequestsPage } from "./pages/ExchangeRequestsPage";
 import { ExchangeDetailPage } from "./pages/ExchangeDetailPage";
 import { ExchangeHistoryPage } from "./pages/ExchangeHistoryPage";
@@ -25,29 +25,28 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: RootLayout,
+    element: <RootLayout />,
     children: [
-      { index: true, Component: HomePage },
-      { path: "login", Component: LoginPage },
-      { path: "register", Component: RegisterPage },
-      { path: "forgot-password", Component: ForgotPasswordPage },
-      { path: "verify-email", Component: EmailVerificationPage },
-      { path: "products", Component: ProductListingPage },
-      { path: "products/:id", Component: ProductDetailPage },
-      { path: "create-product", Component: CreateProductPage },
-      { path: "donations", Component: DonationPage },
-      { path: "messages", Component: MessagesPage },
-      { path: "profile/:userId", Component: ProfilePage },
-      { path: "orders", Component: OrderHistoryPage },
-      { path: "exchanges", Component: ExchangeRequestsPage },
-      { path: "exchanges/:id", Component: ExchangeDetailPage },
-      { path: "exchange-history", Component: ExchangeHistoryPage },
-      { path: "create-order", Component: CreateOrderPage },
-      { path: "transactions", Component: TransactionHistoryPage },
-      { path: "transactions/:id", Component: TransactionDetailPage },
-      { path: "manager", Component: ManagerDashboard },
-      { path: "admin", Component: AdminDashboard },
-      { path: "*", Component: NotFoundPage },
+      { index: true, element: <HomePage /> },
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+      { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "verify-email", element: <EmailVerificationPage /> },
+      { path: "products", element: <ProductListingPage /> },
+      { path: "products/:id", element: <ProductDetailPage /> },
+      { path: "create-product", element: <CreateProductPage /> },
+      { path: "donations", element: <DonationPage /> },
+      { path: "messages", element: <MessagesPage /> },
+      { path: "profile/:userId", element: <ProfilePage /> },
+      { path: "orders", element: <OrderHistoryPage /> },
+      { path: "exchanges", element: <ExchangeRequestsPage /> },
+      { path: "exchanges/:id", element: <ExchangeDetailPage /> },
+      { path: "exchange-history", element: <ExchangeHistoryPage /> },
+      { path: "create-order", element: <CreateOrderPage /> },
+      { path: "transactions", element: <TransactionHistoryPage /> },
+      { path: "transactions/:id", element: <TransactionDetailPage /> },
+      { path: "manager", element: <ManagerDashboard /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

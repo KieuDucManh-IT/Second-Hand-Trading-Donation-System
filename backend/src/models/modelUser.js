@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema(
             unique: true,
             lowercase: true,
             trim: true,
-            match: [/.+\@.+\..+/, 'Please fill a valid email address']
+            match: [/.+\@.+\..+/, "Please fill a valid email address"]
         },
 
         password: {
@@ -40,13 +40,26 @@ const userSchema = new mongoose.Schema(
         },
 
         birthday: {
-            type: Date,
+            type: Date
         },
 
         role: {
             type: String,
             enum: ["user", "manager"],
             default: "user"
+        },
+
+        rating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5
+        },
+
+        UML_Image: {
+            type: String,
+            default: "",
+            trim: true
         }
     },
     {
@@ -55,12 +68,12 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) {
-    return;
-  }
+    if (!this.isModified("password")) {
+        return;
+    }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
 });
 
 module.exports = mongoose.model("User", userSchema);
