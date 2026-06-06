@@ -195,9 +195,341 @@ const login = async (req, res) => {
     });
   }
 };
+
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: "Vui lòng nhập đầy đủ thông tin"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Mật khẩu mới phải có ít nhất 6 ký tự"
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: "Xác nhận mật khẩu không khớp"
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        message: "Mật khẩu mới không được trùng với mật khẩu hiện tại"
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Không tìm thấy tài khoản"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Mật khẩu hiện tại không đúng"
+      });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Đổi mật khẩu thành công"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Đổi mật khẩu thất bại",
+      error: error.message
+    });
+  };
+
+  const sendForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Vui lòng nhập email"
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Email không tồn tại trong hệ thống"
+      });
+    }
+
+    const otp = generateOTP();
+
+    saveOTP(email, otp);
+
+    await sendEmail({
+      to: email,
+      subject: "Mã OTP đặt lại mật khẩu Fashion Ecommerce",
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>Đặt lại mật khẩu</h2>
+          <p>Mã OTP của bạn là:</p>
+          <h1 style="letter-spacing: 4px;">${otp}</h1>
+          <p>Mã này sẽ hết hạn sau 5 phút.</p>
+          <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+        </div>
+      `
+    });
+
+    return res.status(200).json({
+      message: "OTP đặt lại mật khẩu đã được gửi đến email của bạn"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Không thể gửi OTP đặt lại mật khẩu",
+      error: error.message
+    });
+  }
+};
+
+const verifyForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body;
+
+    if (!email || !otp || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: "Vui lòng nhập đầy đủ thông tin"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Mật khẩu mới phải có ít nhất 6 ký tự"
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: "Xác nhận mật khẩu không khớp"
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Email không tồn tại trong hệ thống"
+      });
+    }
+
+    const otpData = getOTP(email);
+
+    if (!otpData) {
+      return res.status(400).json({
+        message: "OTP không tồn tại hoặc đã hết hạn"
+      });
+    }
+
+    if (otpData.expiresAt < Date.now()) {
+      deleteOTP(email);
+
+      return res.status(400).json({
+        message: "OTP đã hết hạn"
+      });
+    }
+
+    if (otpData.attempts >= 5) {
+      deleteOTP(email);
+
+      return res.status(400).json({
+        message: "Bạn đã nhập sai OTP quá nhiều lần. Vui lòng gửi lại OTP"
+      });
+    }
+
+    const inputOtpHash = hashOTP(otp);
+
+    if (inputOtpHash !== otpData.otpHash) {
+      increaseAttempts(email);
+
+      return res.status(400).json({
+        message: "OTP không chính xác"
+      });
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+
+    if (isSamePassword) {
+      return res.status(400).json({
+        message: "Mật khẩu mới không được trùng với mật khẩu cũ"
+      });
+    }
+
+    user.password = newPassword;
+
+    await user.save();
+
+    deleteOTP(email);
+
+    return res.status(200).json({
+      message: "Đặt lại mật khẩu thành công"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Đặt lại mật khẩu thất bại",
+      error: error.message
+    });
+  }
+};
+};
+
+const sendForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Vui lòng nhập email"
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Email không tồn tại trong hệ thống"
+      });
+    }
+
+    const otp = generateOTP();
+
+    saveOTP(email, otp);
+
+    await sendEmail({
+      to: email,
+      subject: "Mã OTP đặt lại mật khẩu Fashion Ecommerce",
+      html: `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>Đặt lại mật khẩu</h2>
+          <p>Mã OTP của bạn là:</p>
+          <h1 style="letter-spacing: 4px;">${otp}</h1>
+          <p>Mã này sẽ hết hạn sau 5 phút.</p>
+          <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+        </div>
+      `
+    });
+
+    return res.status(200).json({
+      message: "OTP đặt lại mật khẩu đã được gửi đến email của bạn"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Không thể gửi OTP đặt lại mật khẩu",
+      error: error.message
+    });
+  }
+};
+
+const verifyForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body;
+
+    if (!email || !otp || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: "Vui lòng nhập đầy đủ thông tin"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Mật khẩu mới phải có ít nhất 6 ký tự"
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: "Xác nhận mật khẩu không khớp"
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Email không tồn tại trong hệ thống"
+      });
+    }
+
+    const otpData = getOTP(email);
+
+    if (!otpData) {
+      return res.status(400).json({
+        message: "OTP không tồn tại hoặc đã hết hạn"
+      });
+    }
+
+    if (otpData.expiresAt < Date.now()) {
+      deleteOTP(email);
+
+      return res.status(400).json({
+        message: "OTP đã hết hạn"
+      });
+    }
+
+    if (otpData.attempts >= 5) {
+      deleteOTP(email);
+
+      return res.status(400).json({
+        message: "Bạn đã nhập sai OTP quá nhiều lần. Vui lòng gửi lại OTP"
+      });
+    }
+
+    const inputOtpHash = hashOTP(otp);
+
+    if (inputOtpHash !== otpData.otpHash) {
+      increaseAttempts(email);
+
+      return res.status(400).json({
+        message: "OTP không chính xác"
+      });
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+
+    if (isSamePassword) {
+      return res.status(400).json({
+        message: "Mật khẩu mới không được trùng với mật khẩu cũ"
+      });
+    }
+
+    user.password = newPassword;
+
+    await user.save();
+
+    deleteOTP(email);
+
+    return res.status(200).json({
+      message: "Đặt lại mật khẩu thành công"
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Đặt lại mật khẩu thất bại",
+      error: error.message
+    });
+  }
+};
 module.exports = {
     login,
     sendRegisterOTP,
     verifyRegisterOTP,
-    // completeRegister
+    changePassword,
+    sendForgotPasswordOTP,
+    verifyForgotPasswordOTP
 };

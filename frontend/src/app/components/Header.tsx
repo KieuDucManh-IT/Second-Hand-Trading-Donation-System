@@ -204,7 +204,7 @@ export function Header() {
                       Favorites
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </DropdownMenuItem>

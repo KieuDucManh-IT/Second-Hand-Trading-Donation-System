@@ -21,6 +21,7 @@ import { CreateOrderPage } from "./pages/CreateOrderPage";
 import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +48,8 @@ export const router = createBrowserRouter([
       { path: "transactions/:id", element: <TransactionDetailPage /> },
       { path: "manager", element: <ManagerDashboard /> },
       { path: "*", element: <NotFoundPage /> },
+      { path: "account-settings", element: <AccountSettingsPage /> },
+      { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
     ],
   },
 ]);
