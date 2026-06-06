@@ -8,10 +8,11 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { Package, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { GoogleLogin } from "@react-oauth/google";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +31,28 @@ export function LoginPage() {
     } catch (err) {
       setError('Invalid email or password');
       toast.error('Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async (credential?: string) => {
+    if (!credential) {
+      toast.error("Google login failed");
+      return;
+    }
+
+    try {
+      setError("");
+      setIsLoading(true);
+
+      await loginWithGoogle(credential);
+
+      toast.success("Google login successful!");
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message || "Google login failed");
+      toast.error(err.message || "Google login failed");
     } finally {
       setIsLoading(false);
     }
@@ -113,9 +136,20 @@ export function LoginPage() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
-                Demo Accounts
+                Login with Google
               </span>
             </div>
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                handleGoogleLogin(credentialResponse.credential);
+              }}
+              onError={() => {
+                toast.error("Google login failed");
+              }}
+            />
           </div>
 
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
