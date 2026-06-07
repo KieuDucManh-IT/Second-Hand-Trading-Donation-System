@@ -38,6 +38,7 @@ export function Header() {
   const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const unreadNotifications = mockNotifications.filter(n => !n.isRead).length;
 
@@ -161,42 +162,53 @@ export function Header() {
                 {/* User Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="rounded-full">
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={user?.avatar} />
                         <AvatarFallback>{user?.name?.[0] || 'U'}</AvatarFallback>
                       </Avatar>
-                    </Button>
+                    </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+
+                  <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[9999]">
                     <div className="px-4 py-3 border-b">
                       <p className="font-medium">{user?.name}</p>
                       <p className="text-sm text-gray-500">{user?.email}</p>
                     </div>
+
                     <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
                       <User className="w-4 h-4 mr-2" />
                       My Profile
                     </DropdownMenuItem>
+
                     <DropdownMenuItem onClick={() => navigate('/orders')}>
                       <Package className="w-4 h-4 mr-2" />
                       My Orders
                     </DropdownMenuItem>
+
                     <DropdownMenuItem onClick={() => navigate('/exchanges')}>
                       <ArrowLeftRight className="w-4 h-4 mr-2" />
                       Exchanges
                     </DropdownMenuItem>
+
                     <DropdownMenuItem onClick={() => navigate('/transactions')}>
                       <ShieldCheck className="w-4 h-4 mr-2" />
                       Transactions
                     </DropdownMenuItem>
+
                     <DropdownMenuItem>
                       <Heart className="w-4 h-4 mr-2" />
                       Favorites
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+
+                    <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </DropdownMenuItem>
+
                     {user?.role === 'manager' && (
                       <>
                         <DropdownMenuSeparator />
@@ -205,15 +217,9 @@ export function Header() {
                         </DropdownMenuItem>
                       </>
                     )}
-                    {user?.role === 'admin' && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => navigate('/admin')}>
-                          Admin Dashboard
-                        </DropdownMenuItem>
-                      </>
-                    )}
+
                     <DropdownMenuSeparator />
+
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="w-4 h-4 mr-2" />
                       Logout
