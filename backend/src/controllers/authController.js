@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const cloudinary = require("../config/cloudinary");
 
 const {
   generateOTP,
@@ -556,6 +557,57 @@ const googleLogin = async (req, res) => {
   }
 };
 
+const updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Vui lòng chọn ảnh avatar",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Không tìm thấy tài khoản",
+      });
+    }
+
+    const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+
+    const uploadResult = await cloudinary.uploader.upload(base64Image, {
+      folder: "secondlife/avatars",
+      public_id: `avatar_${user._id}_${Date.now()}`,
+      resource_type: "image",
+    });
+
+    user.avatar = uploadResult.secure_url;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Cập nhật avatar thành công",
+      user: {
+        id: user._id,
+        email: user.email,
+        userName: user.userName,
+        role: user.role,
+        rating: user.rating,
+        avatar: user.avatar,
+        locations: user.locations,
+        authProvider: user.authProvider,
+        hasPassword: !!user.password,
+      },
+    });
+  } catch (error) {
+    console.error("UPDATE AVATAR ERROR:", error);
+
+    return res.status(500).json({
+      message: "Cập nhật avatar thất bại",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   login,
   sendRegisterOTP,
@@ -564,5 +616,6 @@ module.exports = {
   sendForgotPasswordOTP,
   verifyForgotPasswordOTP,
   addLocation,
-  googleLogin
+  googleLogin,
+  updateAvatar
 };

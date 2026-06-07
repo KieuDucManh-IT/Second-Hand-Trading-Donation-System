@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
+import { toast } from 'sonner';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,11 +36,14 @@ import { mockNotifications } from '../data/mockData';
 
 export function Header() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, updateProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const unreadNotifications = mockNotifications.filter(n => !n.isRead).length;
 
@@ -55,6 +60,74 @@ export function Header() {
     navigate('/');
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    toast.error("Please select an image file");
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error("Image must be smaller than 2MB");
+    return;
+  }
+
+  try {
+    setAvatarUploading(true);
+
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      throw new Error("You are not logged in");
+    }
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const res = await fetch("http://localhost:5000/api/auth/update-avatar", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const contentType = res.headers.get("content-type");
+
+    let data: any;
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await res.json();
+    } else {
+      const text = await res.text();
+      console.error("SERVER RETURNED NON JSON:", text);
+      throw new Error("Backend trả về HTML, kiểm tra lại route update-avatar hoặc lỗi server backend");
+    }
+
+    console.log("UPDATE AVATAR RESPONSE:", data);
+
+    if (!res.ok) {
+      throw new Error(data.message || "Upload avatar failed");
+    }
+
+    const newAvatarUrl = `${data.user.avatar}?t=${Date.now()}`;
+
+    updateProfile({
+      avatar: newAvatarUrl,
+    });
+
+    toast.success(data.message || "Avatar updated successfully");
+  } catch (err: any) {
+    console.error("UPLOAD AVATAR ERROR:", err);
+    toast.error(err.message || "Upload avatar failed");
+  } finally {
+    setAvatarUploading(false);
+    e.target.value = "";
+  }
+};
   return (
     <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -160,72 +233,95 @@ export function Header() {
                 </DropdownMenu>
 
                 {/* User Menu */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                <div className="relative">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage key={user?.avatar} src={user?.avatar} />
+                          <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </DropdownMenuTrigger>
+
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      disabled={avatarUploading}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        avatarInputRef.current?.click();
+                      }}
+                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-green-500 to-blue-500 text-white flex items-center justify-center border-2 border-white dark:border-gray-800 shadow hover:scale-105 transition disabled:opacity-60"
+                      title="Change avatar"
                     >
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={user?.avatar} />
-                        <AvatarFallback>{user?.name?.[0] || 'U'}</AvatarFallback>
-                      </Avatar>
+                      <Plus className="w-3 h-3" />
                     </button>
-                  </DropdownMenuTrigger>
 
-                  <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[9999]">
-                    <div className="px-4 py-3 border-b">
-                      <p className="font-medium">{user?.name}</p>
-                      <p className="text-sm text-gray-500">{user?.email}</p>
-                    </div>
+                    <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[9999]">
+                      <div className="px-4 py-3 border-b">
+                        <p className="font-medium">{user?.name}</p>
+                        <p className="text-sm text-gray-500">{user?.email}</p>
+                      </div>
 
-                    <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
-                      <User className="w-4 h-4 mr-2" />
-                      My Profile
-                    </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
+                        <User className="w-4 h-4 mr-2" />
+                        My Profile
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => navigate('/orders')}>
-                      <Package className="w-4 h-4 mr-2" />
-                      My Orders
-                    </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/orders')}>
+                        <Package className="w-4 h-4 mr-2" />
+                        My Orders
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => navigate('/exchanges')}>
-                      <ArrowLeftRight className="w-4 h-4 mr-2" />
-                      Exchanges
-                    </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/exchanges')}>
+                        <ArrowLeftRight className="w-4 h-4 mr-2" />
+                        Exchanges
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => navigate('/transactions')}>
-                      <ShieldCheck className="w-4 h-4 mr-2" />
-                      Transactions
-                    </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/transactions')}>
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        Transactions
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem>
-                      <Heart className="w-4 h-4 mr-2" />
-                      Favorites
-                    </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Heart className="w-4 h-4 mr-2" />
+                        Favorites
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => navigate('/account-settings')}>
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/account-settings')}>
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </DropdownMenuItem>
 
-                    {user?.role === 'manager' && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => navigate('/manager')}>
-                          Manager Dashboard
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                      {user?.role === 'manager' && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => navigate('/manager')}>
+                            Manager Dashboard
+                          </DropdownMenuItem>
+                        </>
+                      )}
 
-                    <DropdownMenuSeparator />
+                      <DropdownMenuSeparator />
 
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </>
             ) : (
               <>
