@@ -8,7 +8,7 @@ import { CustomerAuthModal } from './CustomerAuthModal';
 
 export function Navbar() {
   const { getCartCount } = useCart();
-  const { user, logout, isCustomer } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -72,8 +72,8 @@ export function Navbar() {
                   <span className="text-sm text-muted-foreground">
                     Hi, {user.name.split(' ')[0]}
                   </span>
-                  {user.role === 'admin' && (
-                    <Link to="/admin">
+                  {user.role === 'manager' && (
+                    <Link to="/manager">
                       <Button variant="outline" className="rounded-full">
                         Dashboard
                       </Button>
@@ -144,9 +144,9 @@ export function Navbar() {
                   <div className="text-sm text-muted-foreground py-2">
                     Hi, {user.name}
                   </div>
-                  {user.role === 'admin' && (
+                  {user.role === 'manager' && (
                     <Link
-                      to="/admin"
+                      to="/manager"
                       className="block py-2 hover:text-primary"
                       onClick={() => setMobileMenuOpen(false)}
                     >
