@@ -10,7 +10,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const uploadAvatar = multer({
+const uploadAvatarMiddleware = multer({
   storage,
   fileFilter,
   limits: {
@@ -18,4 +18,4 @@ const uploadAvatar = multer({
   },
 });
 
-module.exports = uploadAvatar;
+module.exports = uploadAvatarMiddleware;

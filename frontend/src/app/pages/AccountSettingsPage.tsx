@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -11,9 +11,15 @@ import {
     CardTitle,
 } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Eye, EyeOff, Lock, MapPin, Phone, Package } from "lucide-react";
+import { Eye, EyeOff, Lock, MapPin, Phone, Package, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+
+type LocationItem = {
+    _id: string;
+    phoneNumber: string;
+    address: string;
+};
 
 export function AccountSettingsPage() {
     const [activeTab, setActiveTab] = useState<"password" | "location">("password");
@@ -34,8 +40,101 @@ export function AccountSettingsPage() {
 
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [locationLoading, setLocationLoading] = useState(false);
+    const [locations, setLocations] = useState<LocationItem[]>([]);
+    const [listLoading, setListLoading] = useState(false);
+    const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
 
     const { user, updateProfile } = useAuth();
+
+    const fetchMyLocations = async () => {
+        try {
+            setListLoading(true);
+            setLocationError("");
+
+            const token = sessionStorage.getItem("token");
+
+            if (!token) {
+                throw new Error("You are not logged in");
+            }
+
+            const res = await fetch("http://localhost:5000/api/location/my-locations", {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            const text = await res.text();
+
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                throw new Error("Backend không trả về JSON. Kiểm tra lại API get locations.");
+            }
+
+            if (!res.ok) {
+                throw new Error(data.message || "Get locations failed");
+            }
+
+            setLocations(data.locations || []);
+        } catch (err: any) {
+            setLocationError(err.message || "Get locations failed");
+            toast.error(err.message || "Get locations failed");
+        } finally {
+            setListLoading(false);
+        }
+    };
+
+    const handleDeleteLocation = async (locationId: string) => {
+        try {
+            setDeleteLoadingId(locationId);
+            setLocationError("");
+
+            const token = sessionStorage.getItem("token");
+
+            if (!token) {
+                throw new Error("You are not logged in");
+            }
+
+            const res = await fetch(
+                `http://localhost:5000/api/location/delete-location/${locationId}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            const text = await res.text();
+
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                throw new Error("Backend không trả về JSON. Kiểm tra lại API delete location.");
+            }
+
+            if (!res.ok) {
+                throw new Error(data.message || "Delete location failed");
+            }
+
+            toast.success(data.message || "Location deleted successfully!");
+
+            setLocations(data.locations || []);
+        } catch (err: any) {
+            setLocationError(err.message || "Delete location failed");
+            toast.error(err.message || "Delete location failed");
+        } finally {
+            setDeleteLoadingId(null);
+        }
+    };
+    useEffect(() => {
+        if (activeTab === "location") {
+            fetchMyLocations();
+        }
+    }, [activeTab]);
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -114,62 +213,67 @@ export function AccountSettingsPage() {
     };
 
     const handleUpdateLocation = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLocationError("");
+    e.preventDefault();
+    setLocationError("");
 
-        if (!phoneNumber.trim()) {
-            setLocationError("Please enter your phone number");
-            return;
+    if (!phoneNumber.trim()) {
+        setLocationError("Please enter your phone number");
+        return;
+    }
+
+    if (!location.trim()) {
+        setLocationError("Please enter your address");
+        return;
+    }
+
+    try {
+        setLocationLoading(true);
+
+        const token = sessionStorage.getItem("token");
+
+        if (!token) {
+            throw new Error("You are not logged in");
         }
 
-        if (!location.trim()) {
-            setLocationError("Please enter your address");
-            return;
-        }
+        const res = await fetch("http://localhost:5000/api/location/add-location", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                phoneNumber,
+                address: location,
+            }),
+        });
 
+        const text = await res.text();
+
+        let data;
         try {
-            setLocationLoading(true);
-
-            const token = sessionStorage.getItem("token");
-
-            const res = await fetch("http://localhost:5000/api/auth/add-location", {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    phoneNumber,
-                    address: location,
-                }),
-            });
-
-            const text = await res.text();
-
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch {
-                throw new Error("Backend không trả về JSON. Kiểm tra lại API URL hoặc route backend.");
-            }
-
-            if (!res.ok) {
-                throw new Error(data.message || "Update location failed");
-            }
-
-            toast.success(data.message || "Location added successfully!");
-
-            localStorage.setItem("user", JSON.stringify(data.user));
-
-            setPhoneNumber("");
-            setLocation("");
-        } catch (err: any) {
-            setLocationError(err.message || "Update location failed");
-            toast.error(err.message || "Update location failed");
-        } finally {
-            setLocationLoading(false);
+            data = JSON.parse(text);
+        } catch {
+            throw new Error("Backend không trả về JSON. Kiểm tra lại API URL hoặc route backend.");
         }
-    };
+
+        if (!res.ok) {
+            throw new Error(data.message || "Update location failed");
+        }
+
+        toast.success(data.message || "Location added successfully!");
+
+        await fetchMyLocations();
+
+        setPhoneNumber("");
+        setLocation("");
+    } catch (err: any) {
+        setLocationError(err.message || "Update location failed");
+        toast.error(err.message || "Update location failed");
+    } finally {
+        setLocationLoading(false);
+    }
+};
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
@@ -319,55 +423,113 @@ export function AccountSettingsPage() {
                     )}
 
                     {activeTab === "location" && (
-                        <form onSubmit={handleUpdateLocation} className="space-y-4">
-                            {locationError && (
-                                <Alert variant="destructive">
-                                    <AlertDescription>{locationError}</AlertDescription>
-                                </Alert>
-                            )}
+                        <div className="space-y-6">
+                            <form onSubmit={handleUpdateLocation} className="space-y-4">
+                                {locationError && (
+                                    <Alert variant="destructive">
+                                        <AlertDescription>{locationError}</AlertDescription>
+                                    </Alert>
+                                )}
 
-                            <div className="space-y-2">
-                                <Label htmlFor="phoneNumber">Phone Number</Label>
+                                <div className="space-y-2">
+                                    <Label htmlFor="phoneNumber">Phone Number</Label>
 
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 
-                                    <Input
-                                        id="phoneNumber"
-                                        type="text"
-                                        placeholder="Enter your phone number"
-                                        value={phoneNumber}
-                                        onChange={(e) => setPhoneNumber(e.target.value)}
-                                        className="pl-10"
-                                    />
+                                        <Input
+                                            id="phoneNumber"
+                                            type="text"
+                                            placeholder="Enter your phone number"
+                                            value={phoneNumber}
+                                            onChange={(e) => setPhoneNumber(e.target.value)}
+                                            className="pl-10"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="location">Address</Label>
+                                <div className="space-y-2">
+                                    <Label htmlFor="location">Address</Label>
 
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 
-                                    <Input
-                                        id="location"
-                                        type="text"
-                                        placeholder="Enter your address"
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                        className="pl-10"
-                                    />
+                                        <Input
+                                            id="location"
+                                            type="text"
+                                            placeholder="Enter your address"
+                                            value={location}
+                                            onChange={(e) => setLocation(e.target.value)}
+                                            className="pl-10"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <Button
-                                type="submit"
-                                className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
-                                disabled={locationLoading}
-                            >
-                                {locationLoading ? "Saving..." : "Save Location"}
-                            </Button>
-                        </form>
+                                <Button
+                                    type="submit"
+                                    className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                                    disabled={locationLoading}
+                                >
+                                    {locationLoading ? "Saving..." : "Save Location"}
+                                </Button>
+                            </form>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold">My Locations</h3>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={fetchMyLocations}
+                                        disabled={listLoading}
+                                    >
+                                        {listLoading ? "Loading..." : "Refresh"}
+                                    </Button>
+                                </div>
+
+                                {listLoading ? (
+                                    <p className="text-sm text-gray-500">Loading locations...</p>
+                                ) : locations.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-4 text-center text-sm text-gray-500">
+                                        You do not have any saved locations yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {locations.map((item) => (
+                                            <div
+                                                key={item._id}
+                                                className="flex items-start justify-between gap-3 rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-900"
+                                            >
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <Phone className="w-4 h-4 text-green-500" />
+                                                        <span className="font-medium">{item.phoneNumber}</span>
+                                                    </div>
+
+                                                    <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                                        <MapPin className="w-4 h-4 text-blue-500 mt-0.5" />
+                                                        <span>{item.address}</span>
+                                                    </div>
+                                                </div>
+
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteLocation(item._id)}
+                                                    disabled={deleteLoadingId === item._id}
+                                                >
+                                                    <Trash2 className="w-4 h-4 mr-1" />
+                                                    {deleteLoadingId === item._id ? "Deleting..." : "Delete"}
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     )}
 
                     <div className="text-center">

@@ -331,58 +331,6 @@ const sendForgotPasswordOTP = async (req, res) => {
   }
 };
 
-const addLocation = async (req, res) => {
-  try {
-    const { phoneNumber, address } = req.body;
-
-    if (!phoneNumber || !address) {
-      return res.status(400).json({
-        message: "Vui lòng nhập số điện thoại và địa chỉ",
-      });
-    }
-
-    if (!req.user) {
-      return res.status(401).json({
-        message: "Bạn chưa đăng nhập",
-      });
-    }
-
-    const user = await User.findById(req.user._id);
-
-    if (!user) {
-      return res.status(404).json({
-        message: "Không tìm thấy tài khoản",
-      });
-    }
-
-    user.locations.push({
-      phoneNumber,
-      address,
-    });
-
-    await user.save();
-
-    return res.status(200).json({
-      message: "Thêm địa chỉ thành công",
-      user: {
-        id: user._id,
-        userName: user.userName,
-        email: user.email,
-        role: user.role,
-        rating: user.rating,
-        locations: user.locations,
-      },
-    });
-  } catch (error) {
-    console.error("ADD LOCATION ERROR:", error);
-
-    return res.status(500).json({
-      message: "Thêm địa chỉ thất bại",
-      error: error.message,
-    });
-  }
-};
-
 const verifyForgotPasswordOTP = async (req, res) => {
   try {
     const { email, otp, newPassword, confirmPassword } = req.body;
@@ -615,7 +563,6 @@ module.exports = {
   changePassword,
   sendForgotPasswordOTP,
   verifyForgotPasswordOTP,
-  addLocation,
   googleLogin,
   updateAvatar
 };

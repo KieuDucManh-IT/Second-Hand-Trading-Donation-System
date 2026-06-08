@@ -18,8 +18,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoute);
-// app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/location", require("./src/routes/manageLocationRoute"));
 
 const PORT = process.env.PORT || 5000;
 
