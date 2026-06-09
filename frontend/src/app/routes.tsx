@@ -40,7 +40,6 @@ export const router = createBrowserRouter([
       { path: "messages", element: <MessagesPage /> },
       { path: "profile/:userId", element: <ProfilePage /> },
       { path: "orders", element: <OrderHistoryPage /> },
-      { path: "admin", element: <ManagerDashboard /> },
       { path: "exchanges", element: <ExchangeRequestsPage /> },
       { path: "exchanges/:id", element: <ExchangeDetailPage /> },
       { path: "exchange-history", element: <ExchangeHistoryPage /> },
