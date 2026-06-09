@@ -19,6 +19,21 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const getPostLoginPath = () => {
+    const storedUser = sessionStorage.getItem("user");
+
+    if (!storedUser) {
+      return "/";
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUser) as { role?: string };
+      return parsedUser.role === "manager" ? "/manager" : "/";
+    } catch {
+      return "/";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -27,7 +42,7 @@ export function LoginPage() {
     try {
       await login(email, password);
       toast.success("Login successful!");
-      navigate("/");
+      navigate(getPostLoginPath());
     } catch (err) {
       setError("Invalid email or password");
       toast.error("Login failed");
@@ -49,7 +64,7 @@ export function LoginPage() {
       await loginWithGoogle(credential);
 
       toast.success("Google login successful!");
-      navigate("/");
+      navigate(getPostLoginPath());
     } catch (err: any) {
       setError(err.message || "Google login failed");
       toast.error(err.message || "Google login failed");

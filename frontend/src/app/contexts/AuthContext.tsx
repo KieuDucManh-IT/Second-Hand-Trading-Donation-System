@@ -34,6 +34,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAuthReady: boolean;
   isCustomer: boolean;
   isManager: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -49,6 +50,7 @@ const API_URL = "http://localhost:5000/api/auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
     const storedUser = sessionStorage.getItem("user");
@@ -61,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionStorage.removeItem("token");
       }
     }
+
+    setIsAuthReady(true);
   }, []);
 
   const mapBackendUserToFrontendUser = (backendUser: any): User => {
@@ -70,10 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       id: backendUser.id || backendUser._id,
       email: backendUser.email,
-      name: backendUser.userName || backendUser.name || backendUser.email,
-      userName: backendUser.userName || backendUser.name || backendUser.email,
+      name: backendUser.userName || backendUser.fullName || backendUser.name || backendUser.email,
+      userName: backendUser.userName || backendUser.fullName || backendUser.name || backendUser.email,
       avatar: backendUser.avatar || "",
-      role: backendUser.role || "user",
+      role: backendUser.role === "admin" ? "manager" : backendUser.role || "user",
       rating: backendUser.rating || 0,
       totalReviews: backendUser.totalReviews || 0,
       joinedDate:
@@ -166,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user && !!sessionStorage.getItem("token"),
+        isAuthReady,
         isCustomer: user?.role === "user",
         isManager: user?.role === "manager",
         login,

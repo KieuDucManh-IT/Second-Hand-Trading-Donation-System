@@ -22,7 +22,7 @@ const locationSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema(
   {
-    userName: {
+    fullName: {
       type: String,
       required: true,
       trim: true,
@@ -42,14 +42,10 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
-    sex: {
+    phone: {
       type: String,
-      enum: ["male", "female", "other"],
-      default: "other",
-    },
-
-    birthday: {
-      type: Date,
+      default: "",
+      trim: true,
     },
 
     role: {
@@ -63,6 +59,28 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 5,
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "suspended", "banned"],
+      default: "active",
+    },
+
+    warningsCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastWarningAt: {
+      type: Date,
+      default: null,
+    },
+
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
 
     locations: {
@@ -87,9 +105,27 @@ const userSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   }
 );
+
+userSchema.virtual("userName").get(function () {
+  return this.fullName;
+});
+
+userSchema.virtual("userName").set(function (value) {
+  if (!this.fullName) {
+    this.fullName = value;
+  }
+});
+
+userSchema.set("toJSON", {
+  virtuals: true,
+});
+
+userSchema.set("toObject", {
+  virtuals: true,
+});
 
 userSchema.pre("save", async function () {
   if (!this.password || !this.isModified("password")) {

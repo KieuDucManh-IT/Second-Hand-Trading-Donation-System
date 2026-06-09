@@ -21,7 +21,7 @@ export function LoginPage() {
     try {
       await login(email, password);
       toast.success('Welcome back!');
-      navigate('/admin');
+      navigate('/manager');
     } catch (err: any) {
       toast.error(err.message || 'Login failed');
     } finally {

@@ -6,6 +6,7 @@ dotenv.config();
 
 const connectDB = require("./src/config/db");
 const authRoute = require("./src/routes/authRoute");
+const managerRoute = require("./src/routes/managerRoute");
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoute);
+app.use("/api/manager", managerRoute);
 
 const PORT = process.env.PORT || 5000;
 
