@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Ban, ShieldAlert, UserCheck } from 'lucide-react';
+import { Ban, ShieldAlert, UserCheck, Search } from 'lucide-react';
+import { Input } from '../ui/input';
 import type { ManagerDashboardData } from './managerDashboardTypes';
 
 type UsersTabProps = {
@@ -16,15 +18,32 @@ type UsersTabProps = {
 export function UsersTab({
   data,
   currentUser,
-  handleEditUser,
   warnUser,
   updateUserStatus,
 }: UsersTabProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredUsers = data.users.filter((user) =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Card className="border-slate-200/80 bg-white/85 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/40">
-      <CardHeader>
-        <CardTitle>User management</CardTitle>
-        <CardDescription>Adjust roles, warnings, and account state.</CardDescription>
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle>User management</CardTitle>
+        </div>
+        <div className="relative w-full sm:w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search users by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-4 rounded-xl h-9 w-full"
+          />
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <Table>
@@ -40,8 +59,8 @@ export function UsersTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.users.length ? (
-              data.users.map((member) => (
+            {filteredUsers.length ? (
+              filteredUsers.map((member) => (
                 <TableRow key={member.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
                   <TableCell className="pl-6 align-top font-medium">{member.name}</TableCell>
                   <TableCell className="align-top">{member.email}</TableCell>
@@ -51,13 +70,9 @@ export function UsersTab({
                     </Badge>
                   </TableCell>
                   <TableCell className="align-top">
-                    {member.status === 'active' ? (
+                    {(!member.status || member.status === 'active') ? (
                       <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600 capitalize">
-                        {member.status}
-                      </Badge>
-                    ) : member.status === 'suspended' ? (
-                      <Badge className="rounded-full bg-amber-500 text-white hover:bg-amber-500 capitalize">
-                        {member.status}
+                        active
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="rounded-full capitalize">
@@ -71,30 +86,18 @@ export function UsersTab({
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
+                      hour12: false,
                     })}
                   </TableCell>
                   <TableCell className="pr-6 align-top">
                     {member.id !== currentUser?.id ? (
                       <div className="flex flex-wrap justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEditUser(member)}>
-                          Edit
-                        </Button>
-                        {member.status === 'active' ? (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => warnUser(member.id)}>
-                              <ShieldAlert className="h-4 w-4" />
-                              Warn
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                              onClick={() => updateUserStatus(member.id, 'suspended')}
-                            >
-                              Suspend
-                            </Button>
-                          </>
-                        ) : null}
+                        {member.status === 'active' && (
+                          <Button size="sm" variant="outline" onClick={() => warnUser(member.id)}>
+                            <ShieldAlert className="h-4 w-4" />
+                            Warn
+                          </Button>
+                        )}
                         {member.status !== 'banned' ? (
                           <Button
                             size="sm"
@@ -109,7 +112,7 @@ export function UsersTab({
                             Ban
                           </Button>
                         ) : null}
-                        {member.status === 'suspended' || member.status === 'banned' ? (
+                        {(member.status === 'suspended' || member.status === 'banned') ? (
                           <Button
                             size="sm"
                             className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -129,7 +132,7 @@ export function UsersTab({
             ) : (
               <TableRow>
                 <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                  No users loaded.
+                  {data.users.length ? 'No users found matching your search.' : 'No users loaded.'}
                 </TableCell>
               </TableRow>
             )}
@@ -139,3 +142,4 @@ export function UsersTab({
     </Card>
   );
 }
+
