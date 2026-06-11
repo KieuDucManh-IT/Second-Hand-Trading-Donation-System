@@ -10,7 +10,7 @@ const buildProductResponse = (product) => ({
   description: product.description,
   price: product.price,
   condition: product.condition || "",
-  isDonation: product.type === "donation",
+  isDonation: product.type === "donate",
   status: product.status,
   createdAt: product.createdAt,
   sellerName: product.ownerId?.userName || product.ownerId?.fullName || "Unknown",
@@ -56,7 +56,7 @@ const getDashboard = async (req, res) => {
         Category.countDocuments(),
       ]);
 
-    const totalDonations = await Product.countDocuments({ type: "donation" });
+    const totalDonations = await Product.countDocuments({ type: "donate" });
     const totalTransactions = await Order.countDocuments({
       $or: [{ status: "completed" }, { paymentStatus: "paid" }],
     });
@@ -296,7 +296,7 @@ const getStatistics = async (req, res) => {
         User.countDocuments(),
         Product.countDocuments(),
         Order.countDocuments(),
-        Product.countDocuments({ type: "donation" }),
+        Product.countDocuments({ type: "donate" }),
         Order.countDocuments({ $or: [{ status: "completed" }, { paymentStatus: "paid" }] }),
         Report.countDocuments(),
         User.countDocuments({ status: "active" }),

@@ -19,9 +19,9 @@ const {
   getStatistics,
 } = require("../controllers/managerController");
 
-const { protect, requireManager } = require("../middlewares/authMiddleware");
+const { protect, authorize } = require("../middlewares/authMiddleware");
 
-router.use(protect, requireManager);
+router.use(protect, authorize("manager"));
 
 // Dashboard
 router.get("/dashboard", getDashboard);
