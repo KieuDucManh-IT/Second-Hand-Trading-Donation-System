@@ -29,7 +29,7 @@ export function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== 'manager') {
     navigate('/');
     return null;
   }
