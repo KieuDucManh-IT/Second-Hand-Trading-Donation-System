@@ -67,7 +67,7 @@ const getDashboard = async (req, res) => {
         User.find().sort({ createdAt: -1 }).select("-password").lean(),
         Category.find().sort({ name: 1 }).lean(),
         Report.find().sort({ createdAt: -1 }).populate("reporterId", "userName fullName").lean(),
-        Product.find({ status: "pending" })
+        Product.find({ pendingApproval: true })
           .sort({ createdAt: -1 })
           .populate("ownerId", "userName fullName")
           .populate("categoryId", "name")
@@ -239,7 +239,7 @@ const getAllProducts = async (req, res) => {
 
 const getPendingProducts = async (req, res) => {
   try {
-    const products = await Product.find({ status: "pending" })
+    const products = await Product.find({ pendingApproval: true })
       .sort({ createdAt: -1 })
       .populate("ownerId", "userName fullName")
       .populate("categoryId", "name");
@@ -252,7 +252,7 @@ const getPendingProducts = async (req, res) => {
 const updateProductStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!["draft", "pending", "active", "sold", "archived"].includes(status)) {
+    if (!["available", "sold", "reserved", "hidden"].includes(status)) {
       return res.status(400).json({ message: "Trạng thái sản phẩm không hợp lệ" });
     }
 
@@ -262,6 +262,13 @@ const updateProductStatus = async (req, res) => {
     if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
 
     product.status = status;
+    if (status === "available") {
+      product.isAvailable = true;
+      product.pendingApproval = false;
+    } else {
+      product.isAvailable = false;
+      product.pendingApproval = false;
+    }
     await product.save();
     res.status(200).json({ message: "Cập nhật trạng thái sản phẩm thành công", product: buildProductResponse(product) });
   } catch (error) {

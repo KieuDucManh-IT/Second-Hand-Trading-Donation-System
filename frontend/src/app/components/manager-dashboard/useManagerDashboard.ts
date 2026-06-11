@@ -26,7 +26,7 @@ export function useManagerDashboard() {
   const [categoryName, setCategoryName] = useState('');
   const [categoryDescription, setCategoryDescription] = useState('');
 
-  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(true);
   const [allProductsList, setAllProductsList] = useState<Array<any>>([]);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function useManagerDashboard() {
     }
   };
 
-  const updateProductStatus = async (productId: string, status: 'active' | 'archived') => {
+  const updateProductStatus = async (productId: string, status: 'available' | 'hidden') => {
     try {
       const response = await fetch(`${API_URL}/products/${productId}/status`, {
         method: 'PATCH',
@@ -92,7 +92,7 @@ export function useManagerDashboard() {
         throw new Error(result.message || 'Unable to update product');
       }
 
-      toast.success(status === 'active' ? 'Product approved' : 'Product archived');
+      toast.success(status === 'available' ? 'Product is now visible' : 'Product is now hidden');
       await refreshDashboard();
     } catch (err: any) {
       toast.error(err.message || 'Unable to update product');

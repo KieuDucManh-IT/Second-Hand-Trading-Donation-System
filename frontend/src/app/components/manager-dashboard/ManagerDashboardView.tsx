@@ -19,8 +19,6 @@ type DashboardViewProps = {
   setActiveTab: (tab: DashboardTab) => void;
   data: ManagerDashboardData;
   isAuthReady: boolean;
-  showAllProducts: boolean;
-  setShowAllProducts: (value: boolean) => void;
   allProductsList: Array<any>;
   productViewList: Array<any>;
   pendingReportsCount: number;
@@ -37,7 +35,7 @@ type DashboardViewProps = {
   submitCategoryForm: (e: React.FormEvent) => Promise<void>;
   handleDeleteCategory: (categoryId: string) => Promise<void>;
   updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => Promise<void>;
-  updateProductStatus: (productId: string, status: 'active' | 'archived') => Promise<void>;
+  updateProductStatus: (productId: string, status: 'available' | 'hidden') => Promise<void>;
   updateReportStatus: (reportId: string, endpoint: 'accept' | 'reject') => Promise<void>;
   warnReportUser: (reportId: string) => Promise<void>;
 };
@@ -50,8 +48,6 @@ export function ManagerDashboardView(props: DashboardViewProps) {
     activeTab,
     setActiveTab,
     data,
-    showAllProducts,
-    setShowAllProducts,
     productViewList,
     pendingReportsCount,
     activeUsersCount,
@@ -124,8 +120,6 @@ export function ManagerDashboardView(props: DashboardViewProps) {
 
                   <TabsContent value="products" className="mt-6 space-y-6">
                     <ProductsTab
-                      showAllProducts={showAllProducts}
-                      setShowAllProducts={setShowAllProducts}
                       productViewList={productViewList}
                       updateProductStatus={updateProductStatus}
                     />
