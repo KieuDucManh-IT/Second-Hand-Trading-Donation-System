@@ -14,23 +14,20 @@ export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      const success = login(email, password);
+    try {
+      await login(email, password);
+      toast.success('Welcome back!');
+      navigate('/admin');
+    } catch (err: any) {
+      toast.error(err.message || 'Login failed');
+    } finally {
       setIsLoading(false);
-
-      if (success) {
-        toast.success('Welcome back!');
-        navigate('/admin');
-      } else {
-        toast.error('Invalid credentials. Try admin@orien.com / admin123');
-      }
-    }, 800);
+    }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       {/* Background Image with Overlay */}
@@ -96,18 +93,6 @@ export function LoginPage() {
               {isLoading ? 'Signing in...' : 'Login'}
             </Button>
           </form>
-
-          {/* Helper Text */}
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Admin access only. No public registration.
-          </p>
-          
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-secondary/30 rounded-xl">
-            <p className="text-xs text-center text-muted-foreground">
-              Demo: admin@orien.com / admin123
-            </p>
-          </div>
         </div>
       </div>
     </div>

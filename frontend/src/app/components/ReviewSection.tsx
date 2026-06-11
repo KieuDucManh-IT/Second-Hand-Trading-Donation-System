@@ -183,7 +183,11 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
 }
 
 function ReviewCard({ review }: { review: Review }) {
+<<<<<<< HEAD
   const { isAdmin } = useAuth();
+=======
+  const { isManager } = useAuth();
+>>>>>>> authen
   const { addAdminReply } = useReview();
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyMessage, setReplyMessage] = useState('');
@@ -260,7 +264,11 @@ function ReviewCard({ review }: { review: Review }) {
       )}
 
       {/* Admin Reply Form */}
+<<<<<<< HEAD
       {isAdmin && !review.adminReply && (
+=======
+      {isManager && !review.adminReply && (
+>>>>>>> authen
         <div className="mt-4">
           {showReplyForm ? (
             <div className="space-y-3">
