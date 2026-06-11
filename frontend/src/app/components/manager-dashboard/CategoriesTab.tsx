@@ -30,7 +30,6 @@ export function CategoriesTab({
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>Categories</CardTitle>
-          <CardDescription>Keep the marketplace taxonomy clean and useful.</CardDescription>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative">
