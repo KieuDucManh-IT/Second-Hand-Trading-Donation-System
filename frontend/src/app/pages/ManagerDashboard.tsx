@@ -184,7 +184,7 @@ function ProductsTab() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`❌ Đã từ chối: "${rejectTarget.title}"`);
+        toast.success(`Đã từ chối: "${rejectTarget.title}"`);
         setStats(s => ({ ...s, rejected: s.rejected + 1 }));
         removeFromList(rejectTarget._id);
         setRejectTarget(null); setRejectReason('');
@@ -282,7 +282,7 @@ function ProductsTab() {
                       </TableCell>
                       <TableCell>
                         <p className="font-medium text-sm line-clamp-1 max-w-[180px]">{product.title}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{product.type === 'donate' ? '🎁 Cho tặng' : '💰 Bán'}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{product.type === 'donate' ? ' Cho tặng' : ' Bán'}</p>
                       </TableCell>
                       <TableCell>
                         <p className="text-sm">{ownerName}</p>
@@ -361,7 +361,7 @@ function ProductsTab() {
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
                   <p className="text-xs text-slate-400 mb-1">Thông tin</p>
-                  <p className="text-sm">{detail.type === 'donate' ? '🎁 Miễn phí' : `💰 ${detail.price.toLocaleString('vi-VN')}₫`}</p>
+                  <p className="text-sm">{detail.type === 'donate' ? ' Miễn phí' : ` ${detail.price.toLocaleString('vi-VN')}₫`}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{CONDITION_LABEL[detail.condition] || detail.condition}</p>
                 </div>
               </div>
@@ -487,7 +487,7 @@ function CategoriesTab() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(isEdit ? `✅ Đã cập nhật "${data.data.name}"` : `✅ Đã thêm "${data.data.name}"`);
+        toast.success(isEdit ? ` Đã cập nhật "${data.data.name}"` : `Đã thêm "${data.data.name}"`);
         setFormOpen(false);
         fetchCategories();
       } else {
@@ -507,7 +507,7 @@ function CategoriesTab() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`🗑️ Đã xoá "${deleteTarget.name}"`);
+        toast.success(` Đã xoá "${deleteTarget.name}"`);
         setDeleteTarget(null);
         setCategories(prev => prev.filter(c => c._id !== deleteTarget._id));
       } else toast.error(data.message || 'Xoá thất bại');
@@ -568,7 +568,7 @@ function CategoriesTab() {
                   <TableRow key={cat._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                     <TableCell className="pl-5">
                       <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-lg">
-                        {cat.icon || '📦'}
+                        {cat.icon}
                       </div>
                     </TableCell>
                     <TableCell>
