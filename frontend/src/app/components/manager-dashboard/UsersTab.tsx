@@ -11,14 +11,12 @@ type UsersTabProps = {
   data: ManagerDashboardData;
   currentUser: { id?: string } | null;
   handleEditUser: (user: any) => void;
-  warnUser: (userId: string) => Promise<void>;
   updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => Promise<void>;
 };
 
 export function UsersTab({
   data,
   currentUser,
-  warnUser,
   updateUserStatus,
 }: UsersTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,7 +51,6 @@ export function UsersTab({
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Warnings</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="pr-6 text-right">Actions</TableHead>
             </TableRow>
@@ -80,7 +77,6 @@ export function UsersTab({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="align-top">{member.warningsCount}</TableCell>
                   <TableCell className="align-top">
                     {new Date(member.createdAt).toLocaleDateString('vi-VN', {
                       year: 'numeric',
@@ -92,12 +88,6 @@ export function UsersTab({
                   <TableCell className="pr-6 align-top">
                     {member.id !== currentUser?.id ? (
                       <div className="flex flex-wrap justify-end gap-2">
-                        {member.status === 'active' && (
-                          <Button size="sm" variant="outline" onClick={() => warnUser(member.id)}>
-                            <ShieldAlert className="h-4 w-4" />
-                            Warn
-                          </Button>
-                        )}
                         {member.status !== 'banned' ? (
                           <Button
                             size="sm"
@@ -131,7 +121,7 @@ export function UsersTab({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
                   {data.users.length ? 'No users found matching your search.' : 'No users loaded.'}
                 </TableCell>
               </TableRow>
