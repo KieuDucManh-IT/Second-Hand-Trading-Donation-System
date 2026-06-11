@@ -14,8 +14,9 @@ const {
   getPendingProducts,
   updateProductStatus,
   getReports,
-  resolveReport,
-  dismissReport,
+  acceptReport,
+  rejectReport,
+  warnReportUser,
   getStatistics,
 } = require("../controllers/managerController");
 
@@ -45,7 +46,8 @@ router.patch("/products/:id/status", updateProductStatus);
 
 // Reports
 router.get("/reports", getReports);
-router.patch("/reports/:id/resolve", resolveReport);
-router.patch("/reports/:id/dismiss", dismissReport);
+router.patch("/reports/:id/accept", acceptReport);
+router.patch("/reports/:id/reject", rejectReport);
+router.post("/reports/:id/warn", warnReportUser);
 
 module.exports = router;

@@ -25,16 +25,6 @@ type DashboardViewProps = {
   productViewList: Array<any>;
   pendingReportsCount: number;
   activeUsersCount: number;
-  isEditUserOpen: boolean;
-  setIsEditUserOpen: (value: boolean) => void;
-  editUserFullName: string;
-  setEditUserFullName: (value: string) => void;
-  editUserEmail: string;
-  setEditUserEmail: (value: string) => void;
-  editUserPhone: string;
-  setEditUserPhone: (value: string) => void;
-  editUserRole: string;
-  setEditUserRole: (value: string) => void;
   isCategoryModalOpen: boolean;
   setIsCategoryModalOpen: (value: boolean) => void;
   categoryModalMode: 'create' | 'edit';
@@ -42,16 +32,14 @@ type DashboardViewProps = {
   setCategoryName: (value: string) => void;
   categoryDescription: string;
   setCategoryDescription: (value: string) => void;
-  handleEditUser: (user: any) => void;
-  submitEditUser: (e: React.FormEvent) => Promise<void>;
   handleOpenCategoryCreate: () => void;
   handleOpenCategoryEdit: (category: any) => void;
   submitCategoryForm: (e: React.FormEvent) => Promise<void>;
   handleDeleteCategory: (categoryId: string) => Promise<void>;
   updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => Promise<void>;
-  warnUser: (userId: string) => Promise<void>;
   updateProductStatus: (productId: string, status: 'active' | 'archived') => Promise<void>;
-  updateReportStatus: (reportId: string, endpoint: 'resolve' | 'dismiss') => Promise<void>;
+  updateReportStatus: (reportId: string, endpoint: 'accept' | 'reject') => Promise<void>;
+  warnReportUser: (reportId: string) => Promise<void>;
 };
 
 export function ManagerDashboardView(props: DashboardViewProps) {
@@ -67,16 +55,6 @@ export function ManagerDashboardView(props: DashboardViewProps) {
     productViewList,
     pendingReportsCount,
     activeUsersCount,
-    isEditUserOpen,
-    setIsEditUserOpen,
-    editUserFullName,
-    setEditUserFullName,
-    editUserEmail,
-    setEditUserEmail,
-    editUserPhone,
-    setEditUserPhone,
-    editUserRole,
-    setEditUserRole,
     isCategoryModalOpen,
     setIsCategoryModalOpen,
     categoryModalMode,
@@ -84,14 +62,12 @@ export function ManagerDashboardView(props: DashboardViewProps) {
     setCategoryName,
     categoryDescription,
     setCategoryDescription,
-    handleEditUser,
-    submitEditUser,
     handleOpenCategoryCreate,
     handleOpenCategoryEdit,
     submitCategoryForm,
     handleDeleteCategory,
     updateUserStatus,
-    warnUser,
+    warnReportUser,
     updateProductStatus,
     updateReportStatus,
   } = props;
@@ -156,15 +132,13 @@ export function ManagerDashboardView(props: DashboardViewProps) {
                   </TabsContent>
 
                   <TabsContent value="reports" className="mt-6 space-y-6">
-                    <ReportsTab data={data} updateReportStatus={updateReportStatus} />
+                    <ReportsTab data={data} updateReportStatus={updateReportStatus} warnReportUser={warnReportUser} />
                   </TabsContent>
 
                   <TabsContent value="users" className="mt-6 space-y-6">
                     <UsersTab
                       data={data}
                       currentUser={user}
-                      handleEditUser={handleEditUser}
-                      warnUser={warnUser}
                       updateUserStatus={updateUserStatus}
                     />
                   </TabsContent>
@@ -185,17 +159,6 @@ export function ManagerDashboardView(props: DashboardViewProps) {
       </div>
 
       <Modals
-        isEditUserOpen={isEditUserOpen}
-        setIsEditUserOpen={setIsEditUserOpen}
-        editUserFullName={editUserFullName}
-        setEditUserFullName={setEditUserFullName}
-        editUserEmail={editUserEmail}
-        setEditUserEmail={setEditUserEmail}
-        editUserPhone={editUserPhone}
-        setEditUserPhone={setEditUserPhone}
-        editUserRole={editUserRole}
-        setEditUserRole={setEditUserRole}
-        submitEditUser={submitEditUser}
         isCategoryModalOpen={isCategoryModalOpen}
         setIsCategoryModalOpen={setIsCategoryModalOpen}
         categoryModalMode={categoryModalMode}

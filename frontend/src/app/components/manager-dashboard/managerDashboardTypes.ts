@@ -38,6 +38,8 @@ export type ManagerDashboardData = {
     reason: string;
     status: string;
     createdAt: string;
+    targetWarnings?: number;
+    targetName?: string;
   }>;
   pendingProducts: Array<{
     id: string;

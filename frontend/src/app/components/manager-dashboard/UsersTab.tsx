@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Ban, ShieldAlert, UserCheck, Search } from 'lucide-react';
+import { Ban, UserCheck, Search } from 'lucide-react';
 import { Input } from '../ui/input';
 import type { ManagerDashboardData } from './managerDashboardTypes';
 
 type UsersTabProps = {
   data: ManagerDashboardData;
   currentUser: { id?: string } | null;
-  handleEditUser: (user: any) => void;
   updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => Promise<void>;
 };
 
