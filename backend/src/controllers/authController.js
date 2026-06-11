@@ -116,6 +116,7 @@ const verifyRegisterOTP = async (req, res) => {
     }
 
     const user = await User.create({
+      fullName: userName,
       userName,
       email,
       password
@@ -127,6 +128,7 @@ const verifyRegisterOTP = async (req, res) => {
       message: "Đăng ký tài khoản thành công",
       user: {
         id: user._id,
+        fullName: user.fullName,
         userName: user.userName,
         email: user.email,
         role: user.role
@@ -190,6 +192,7 @@ const login = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
+        fullName: user.fullName,
         userName: user.userName,
         role: user.role,
         rating: user.rating,
@@ -453,6 +456,7 @@ const googleLogin = async (req, res) => {
 
     if (!user) {
       user = await User.create({
+        fullName: userName,
         userName,
         email,
         googleId,
@@ -488,6 +492,7 @@ const googleLogin = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
+        fullName: user.fullName,
         userName: user.userName,
         role: user.role,
         rating: user.rating,

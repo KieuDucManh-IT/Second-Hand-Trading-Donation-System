@@ -17,20 +17,35 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  const getPostLoginPath = () => {
+    const storedUser = sessionStorage.getItem("user");
+
+    if (!storedUser) {
+      return "/";
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUser) as { role?: string };
+      return parsedUser.role === "manager" ? "/manager" : "/";
+    } catch {
+      return "/";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
       await login(email, password);
-      toast.success('Login successful!');
-      navigate('/');
+      toast.success("Login successful!");
+      navigate(getPostLoginPath());
     } catch (err) {
-      setError('Invalid email or password');
-      toast.error('Login failed');
+      setError("Invalid email or password");
+      toast.error("Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +64,7 @@ export function LoginPage() {
       await loginWithGoogle(credential);
 
       toast.success("Google login successful!");
-      navigate("/");
+      navigate(getPostLoginPath());
     } catch (err: any) {
       setError(err.message || "Google login failed");
       toast.error(err.message || "Google login failed");
@@ -66,9 +81,7 @@ export function LoginPage() {
             <Package className="w-8 h-8 text-white" />
           </div>
           <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to your SecondLife account
-          </CardDescription>
+          <CardDescription>Sign in to your SecondLife account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -104,7 +117,7 @@ export function LoginPage() {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -116,7 +129,11 @@ export function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -126,7 +143,7 @@ export function LoginPage() {
               className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
@@ -153,14 +170,20 @@ export function LoginPage() {
           </div>
 
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
+            >
               Sign up
             </Link>
           </div>
 
           <div className="text-center">
-            <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400">
+            <Link
+              to="/"
+              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+            >
               ← Back to Home
             </Link>
           </div>

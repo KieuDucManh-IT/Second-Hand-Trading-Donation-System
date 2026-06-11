@@ -14,6 +14,21 @@ export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const getPostLoginPath = () => {
+    const storedUser = sessionStorage.getItem('user');
+
+    if (!storedUser) {
+      return '/';
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUser) as { role?: string };
+      return parsedUser.role === 'manager' ? '/manager' : '/';
+    } catch {
+      return '/';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -21,7 +36,7 @@ export function LoginPage() {
     try {
       await login(email, password);
       toast.success('Welcome back!');
-      navigate('/admin');
+      navigate(getPostLoginPath());
     } catch (err: any) {
       toast.error(err.message || 'Login failed');
     } finally {
@@ -54,7 +69,7 @@ export function LoginPage() {
           {/* Title */}
           <div className="text-center mb-8">
             <h1 className="text-3xl mb-2">Orien Fashion</h1>
-            <p className="text-muted-foreground">Admin & Staff Login</p>
+            <p className="text-muted-foreground">Manager & Staff Login</p>
           </div>
 
           {/* Form */}
@@ -64,7 +79,7 @@ export function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@orien.com"
+                placeholder="manager@orien.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

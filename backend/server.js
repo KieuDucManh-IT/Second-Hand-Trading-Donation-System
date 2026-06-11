@@ -7,6 +7,7 @@ dotenv.config();
 
 const connectDB = require("./src/config/db");
 const authRoute = require("./src/routes/authRoute");
+const managerRoute = require("./src/routes/managerRoute");
 const productRoute = require("./src/routes/productRoute");
 const categoryRoute = require("./src/routes/categoryRoute");
 
@@ -20,6 +21,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoute);
+app.use("/api/manager", managerRoute);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/location", require("./src/routes/manageLocationRoute"));
 app.use("/api/products",   productRoute);
