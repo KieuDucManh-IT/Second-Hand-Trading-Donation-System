@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   DashboardTab,
-  DashboardStatistics,
   ManagerDashboardData,
   emptyData,
 } from './managerDashboardTypes';
@@ -17,7 +16,7 @@ export function useManagerDashboard() {
   const [data, setData] = useState<ManagerDashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('products');
 
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [editUserId, setEditUserId] = useState('');
@@ -291,23 +290,6 @@ export function useManagerDashboard() {
   ).length;
   const productViewList = showAllProducts ? allProductsList : data.pendingProducts;
   const activeUsersCount = data.statistics.activeUsers;
-  const supportLoad = pendingReportsCount + data.pendingProducts.length + warningCount;
-
-  const renderStatusBadge = (status: string) => {
-    if (status === 'active' || status === 'completed' || status === 'resolved') {
-      return 'bg-emerald-600 text-white hover:bg-emerald-600';
-    }
-
-    if (status === 'pending' || status === 'reviewing') {
-      return 'bg-amber-500 text-white hover:bg-amber-500';
-    }
-
-    if (status === 'suspended' || status === 'banned' || status === 'dismissed' || status === 'archived') {
-      return 'destructive';
-    }
-
-    return 'secondary';
-  };
 
   return {
     user,
@@ -326,7 +308,6 @@ export function useManagerDashboard() {
     warningCount,
     pendingReportsCount,
     activeUsersCount,
-    supportLoad,
     isEditUserOpen,
     setIsEditUserOpen,
     editUserFullName,
@@ -354,6 +335,5 @@ export function useManagerDashboard() {
     warnUser,
     updateProductStatus,
     updateReportStatus,
-    renderStatusBadge,
   };
 }

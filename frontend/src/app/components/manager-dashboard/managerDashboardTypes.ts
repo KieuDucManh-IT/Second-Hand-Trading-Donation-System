@@ -1,4 +1,3 @@
-import { BarChart3, Flag, FolderPlus, LayoutDashboard, Package, Users } from 'lucide-react';
 
 export type DashboardStatistics = {
   totalUsers: number;
@@ -55,7 +54,7 @@ export type ManagerDashboardData = {
   statistics: DashboardStatistics;
 };
 
-export type DashboardTab = 'dashboard' | 'products' | 'reports' | 'users' | 'categories' | 'statistics';
+export type DashboardTab = 'products' | 'reports' | 'users' | 'categories';
 
 export const emptyData: ManagerDashboardData = {
   users: [],
@@ -77,16 +76,3 @@ export const emptyData: ManagerDashboardData = {
   },
 };
 
-export const navItems: Array<{
-  value: DashboardTab;
-  label: string;
-  icon: typeof LayoutDashboard;
-  helper: string;
-}> = [
-  { value: 'dashboard', label: 'Overview', icon: LayoutDashboard, helper: 'Quick health check' },
-  { value: 'products', label: 'Products', icon: Package, helper: 'Moderation queue' },
-  { value: 'reports', label: 'Reports', icon: Flag, helper: 'Resolve disputes' },
-  { value: 'users', label: 'Users', icon: Users, helper: 'Manage accounts' },
-  { value: 'categories', label: 'Categories', icon: FolderPlus, helper: 'Organize inventory' },
-  { value: 'statistics', label: 'Statistics', icon: BarChart3, helper: 'System breakdown' },
-];
