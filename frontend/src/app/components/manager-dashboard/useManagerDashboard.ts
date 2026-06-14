@@ -10,6 +10,40 @@ import {
 
 const API_URL = 'http://localhost:5000/api/manager';
 
+const validateInput = (value: string, fieldName: string, isDescription: boolean = false): boolean => {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    toast.error(`${fieldName} là bắt buộc và không được để trống.`);
+    return false;
+  }
+
+  if (/<[^>]*>/g.test(trimmed) || /[<>]/.test(trimmed)) {
+    toast.error(`${fieldName} không được chứa thẻ HTML hoặc các ký tự <, >.`);
+    return false;
+  }
+
+  if (/(.)\1{3,}/i.test(trimmed)) {
+    toast.error(`${fieldName} không được chứa một ký tự lặp lại quá 3 lần liên tiếp.`);
+    return false;
+  }
+
+  const minLength = isDescription ? 5 : 2;
+  const maxLength = isDescription ? 500 : 100;
+
+  if (trimmed.length < minLength) {
+    toast.error(`${fieldName} phải chứa ít nhất ${minLength} ký tự.`);
+    return false;
+  }
+
+  if (trimmed.length > maxLength) {
+    toast.error(`${fieldName} không được vượt quá ${maxLength} ký tự.`);
+    return false;
+  }
+
+  return true;
+};
+
 export function useManagerDashboard() {
   const { user, logout, isAuthReady } = useAuth();
   const navigate = useNavigate();
@@ -140,6 +174,9 @@ export function useManagerDashboard() {
 
   const submitCategoryForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateInput(categoryName, 'Tên danh mục', false)) return;
+    if (!validateInput(categoryDescription, 'Mô tả danh mục', true)) return;
+
     try {
       const url =
         categoryModalMode === 'create'
@@ -217,7 +254,8 @@ export function useManagerDashboard() {
 
   const warnReportUser = async (reportId: string) => {
     const reason = window.prompt('Reason for warning the user?') || '';
-    if (!reason) return;
+    if (!reason.trim()) return;
+    if (!validateInput(reason, 'Lý do cảnh cáo', false)) return;
 
     try {
       const response = await fetch(`${API_URL}/reports/${reportId}/warn`, {
