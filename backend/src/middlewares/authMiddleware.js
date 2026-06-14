@@ -15,6 +15,9 @@ const protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: "Tài khoản không tồn tại" });
     }
+    if (user.status === "banned") {
+      return res.status(403).json({ message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên." });
+    }
     req.user = user;
     next();
   } catch (error) {

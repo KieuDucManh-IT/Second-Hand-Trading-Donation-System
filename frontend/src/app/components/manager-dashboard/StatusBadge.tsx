@@ -21,7 +21,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
-  if (status === 'suspended' || status === 'banned' || status === 'archived' || status === 'reject') {
+  if (status === 'banned' || status === 'archived' || status === 'reject') {
     return (
       <Badge variant="destructive" className="rounded-full capitalize">
         {status}

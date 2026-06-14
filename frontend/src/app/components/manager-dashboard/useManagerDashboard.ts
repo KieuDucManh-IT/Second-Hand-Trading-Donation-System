@@ -192,7 +192,7 @@ export function useManagerDashboard() {
     }
   };
 
-  const updateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned') => {
+  const updateUserStatus = async (userId: string, status: 'active' | 'banned') => {
     try {
       const response = await fetch(`${API_URL}/users/${userId}/status`, {
         method: 'PATCH',

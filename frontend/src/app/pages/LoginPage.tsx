@@ -43,9 +43,9 @@ export function LoginPage() {
       await login(email, password);
       toast.success("Login successful!");
       navigate(getPostLoginPath());
-    } catch (err) {
-      setError("Invalid email or password");
-      toast.error("Login failed");
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password");
+      toast.error(err.message || "Login failed");
     } finally {
       setIsLoading(false);
     }

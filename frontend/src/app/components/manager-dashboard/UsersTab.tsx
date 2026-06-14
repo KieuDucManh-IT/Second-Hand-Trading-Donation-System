@@ -10,7 +10,7 @@ import type { ManagerDashboardData } from './managerDashboardTypes';
 type UsersTabProps = {
   data: ManagerDashboardData;
   currentUser: { id?: string } | null;
-  updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'banned') => Promise<void>;
+  updateUserStatus: (userId: string, status: 'active' | 'banned') => Promise<void>;
 };
 
 export function UsersTab({
@@ -101,7 +101,7 @@ export function UsersTab({
                             Ban
                           </Button>
                         ) : null}
-                        {(member.status === 'suspended' || member.status === 'banned') ? (
+                        {member.status === 'banned' ? (
                           <Button
                             size="sm"
                             className="bg-emerald-600 text-white hover:bg-emerald-700"

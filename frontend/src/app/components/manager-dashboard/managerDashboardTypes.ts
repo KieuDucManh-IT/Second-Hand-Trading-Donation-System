@@ -8,7 +8,6 @@ export type DashboardStatistics = {
   totalReports: number;
   totalCategories: number;
   activeUsers: number;
-  suspendedUsers: number;
   bannedUsers: number;
   warningUsers: number;
 };
@@ -72,7 +71,6 @@ export const emptyData: ManagerDashboardData = {
     totalReports: 0,
     totalCategories: 0,
     activeUsers: 0,
-    suspendedUsers: 0,
     bannedUsers: 0,
     warningUsers: 0,
   },

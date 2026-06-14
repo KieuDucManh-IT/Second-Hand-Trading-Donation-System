@@ -98,7 +98,6 @@ const getDashboard = async (req, res) => {
         totalReports: reports.length,
         totalCategories,
         activeUsers: users.filter((u) => u.status === "active").length,
-        suspendedUsers: users.filter((u) => u.status === "suspended").length,
         bannedUsers: users.filter((u) => u.status === "banned").length,
         warningUsers: users.filter((u) => (u.warningsCount || 0) > 0).length,
       },
@@ -364,7 +363,7 @@ const warnReportUser = async (req, res) => {
 const getStatistics = async (req, res) => {
   try {
     const [totalUsers, totalProducts, totalOrders, totalDonations, totalTransactions,
-      totalReports, activeUsers, suspendedUsers, bannedUsers, warningUsers, totalCategories] =
+      totalReports, activeUsers, bannedUsers, warningUsers, totalCategories] =
       await Promise.all([
         User.countDocuments(),
         Product.countDocuments(),
@@ -373,7 +372,6 @@ const getStatistics = async (req, res) => {
         Order.countDocuments({ $or: [{ status: "completed" }, { paymentStatus: "paid" }] }),
         Report.countDocuments(),
         User.countDocuments({ status: "active" }),
-        User.countDocuments({ status: "suspended" }),
         User.countDocuments({ status: "banned" }),
         User.countDocuments({ warningsCount: { $gt: 0 } }),
         Category.countDocuments(),
@@ -382,7 +380,7 @@ const getStatistics = async (req, res) => {
     res.status(200).json({
       statistics: {
         totalUsers, totalProducts, totalOrders, totalDonations, totalTransactions,
-        totalReports, totalCategories, activeUsers, suspendedUsers, bannedUsers, warningUsers,
+        totalReports, totalCategories, activeUsers, bannedUsers, warningUsers,
       },
     });
   } catch (error) {

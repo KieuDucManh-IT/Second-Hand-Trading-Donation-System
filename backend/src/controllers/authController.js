@@ -161,6 +161,12 @@ const login = async (req, res) => {
       });
     }
 
+    if (user.status === "banned") {
+      return res.status(403).json({
+        message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.",
+      });
+    }
+
     if (!user.password) {
       return res.status(401).json({
         message: "Tài khoản này chưa có mật khẩu. Vui lòng đăng nhập bằng Google hoặc tạo mật khẩu trước.",
@@ -465,6 +471,14 @@ const googleLogin = async (req, res) => {
         role: "user",
       });
     } else {
+      if (user.status === "banned") {
+        return res.status(403).json({
+          message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.",
+        });
+      }
+
+
+
       user.googleId = user.googleId || googleId;
       user.avatar = user.avatar || avatar;
 
