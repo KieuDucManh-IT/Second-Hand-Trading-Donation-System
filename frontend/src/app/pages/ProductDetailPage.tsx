@@ -69,14 +69,19 @@ export function ProductDetailPage() {
     toast.success('Opening chat with seller...');
   };
 
-  const handleOrder = () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to make a request');
-      navigate('/login');
-      return;
-    }
-    toast.success(product.isDonation ? 'Donation request sent!' : 'Order placed successfully!');
-  };
+const handleOrder = () => {
+  if (!isAuthenticated) {
+    toast.error("Please login first");
+    navigate("/login");
+    return;
+  }
+
+  if (product.isDonation) {
+    navigate(`/donation-request/${product.id}`);
+  } else {
+    navigate(`/create-order?productId=${product.id}`);
+  }
+};
 
   const handleReport = () => {
     toast.success('Report submitted. We will review it shortly.');

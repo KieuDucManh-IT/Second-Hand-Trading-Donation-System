@@ -1,29 +1,35 @@
-import { Outlet, useLocation } from 'react-router';
-import { Header } from '../Header';
-import { useAuth } from '../../contexts/AuthContext';
-
+import { Outlet, useLocation } from "react-router-dom";
+import { Header } from "../Header";
+import { useAuth } from "../../contexts/AuthContext";
 export function RootLayout() {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Pages without header
-  const noHeaderPaths = ['/login', '/register', '/forgot-password', '/verify-email'];
+  const noHeaderPaths = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/verify-email",
+  ];
+
   const showHeader = !noHeaderPaths.includes(location.pathname);
 
-  // Dashboard layouts
-  const isDashboard = location.pathname.startsWith('/admin') || location.pathname.startsWith('/manager');
+  const isDashboard =
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/manager");
 
   if (isDashboard) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen">
         <Outlet />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen">
       {showHeader && <Header />}
+
       <main>
         <Outlet />
       </main>
