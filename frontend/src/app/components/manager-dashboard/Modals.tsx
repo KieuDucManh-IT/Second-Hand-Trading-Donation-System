@@ -43,6 +43,10 @@ export function Modals({
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
                   required
+                  minLength={2}
+                  maxLength={100}
+                  pattern="^[^<>]*$"
+                  title="Tên danh mục không được chứa các ký tự < hoặc >"
                   placeholder="Example: Electronics"
                 />
               </Field>
@@ -50,6 +54,9 @@ export function Modals({
                 <Textarea
                   value={categoryDescription}
                   onChange={(e) => setCategoryDescription(e.target.value)}
+                  required
+                  minLength={5}
+                  maxLength={500}
                   className="min-h-28"
                   placeholder="Short description of the category"
                 />

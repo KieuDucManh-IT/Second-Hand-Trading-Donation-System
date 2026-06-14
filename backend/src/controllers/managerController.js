@@ -4,6 +4,32 @@ const Product = require("../models/modelProduct");
 const Report = require("../models/modelReport");
 const Order = require("../models/modelOrder");
 
+const validateInput = (value, fieldName, isDescription = false) => {
+  if (!value || typeof value !== "string" || !value.trim()) {
+    throw new Error(`${fieldName} là bắt buộc và không được để trống.`);
+  }
+  const cleanVal = value.trim();
+
+  if (/<[^>]*>/g.test(cleanVal) || /[<>]/.test(cleanVal)) {
+    throw new Error(`${fieldName} không được chứa các thẻ HTML hoặc các ký tự <, >.`);
+  }
+
+  if (/(.)\1{3,}/i.test(cleanVal)) {
+    throw new Error(`${fieldName} không được chứa một ký tự lặp lại quá 3 lần liên tiếp.`);
+  }
+
+  const minLength = isDescription ? 5 : 2;
+  const maxLength = isDescription ? 500 : 100;
+  if (cleanVal.length < minLength) {
+    throw new Error(`${fieldName} phải chứa ít nhất ${minLength} ký tự.`);
+  }
+  if (cleanVal.length > maxLength) {
+    throw new Error(`${fieldName} không được vượt quá ${maxLength} ký tự.`);
+  }
+
+  return cleanVal;
+};
+
 const buildProductResponse = (product) => ({
   id: product._id,
   title: product.title,
@@ -128,7 +154,13 @@ const updateUserStatus = async (req, res) => {
 
 const warnUser = async (req, res) => {
   try {
-    const { reason } = req.body;
+    let { reason } = req.body;
+    try {
+      reason = validateInput(reason, "Lý do cảnh cáo", false);
+    } catch (valError) {
+      return res.status(400).json({ message: valError.message });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng" });
 
@@ -177,8 +209,13 @@ const getCategories = async (req, res) => {
 
 const createCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
-    if (!name) return res.status(400).json({ message: "Tên danh mục là bắt buộc" });
+    let { name, description } = req.body;
+    try {
+      name = validateInput(name, "Tên danh mục", false);
+      description = validateInput(description, "Mô tả danh mục", true);
+    } catch (valError) {
+      return res.status(400).json({ message: valError.message });
+    }
 
     const existing = await Category.findOne({ name });
     if (existing) return res.status(400).json({ message: "Danh mục này đã tồn tại" });
@@ -193,7 +230,14 @@ const createCategory = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    let { name, description } = req.body;
+    try {
+      if (name !== undefined) name = validateInput(name, "Tên danh mục", false);
+      if (description !== undefined) description = validateInput(description, "Mô tả danh mục", true);
+    } catch (valError) {
+      return res.status(400).json({ message: valError.message });
+    }
+
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ message: "Không tìm thấy danh mục" });
 
@@ -316,7 +360,13 @@ const rejectReport = async (req, res) => {
 
 const warnReportUser = async (req, res) => {
   try {
-    const { reason } = req.body;
+    let { reason } = req.body;
+    try {
+      reason = validateInput(reason, "Lý do cảnh cáo", false);
+    } catch (valError) {
+      return res.status(400).json({ message: valError.message });
+    }
+
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ message: "Không tìm thấy báo cáo" });
 
