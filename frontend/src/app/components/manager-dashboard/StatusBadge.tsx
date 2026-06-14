@@ -5,7 +5,7 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  if (status === 'active' || status === 'completed' || status === 'resolved') {
+  if (status === 'active' || status === 'completed' || status === 'accept') {
     return (
       <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600 capitalize">
         {status}
@@ -21,7 +21,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
-  if (status === 'suspended' || status === 'banned' || status === 'dismissed' || status === 'archived') {
+  if (status === 'banned' || status === 'archived' || status === 'reject') {
     return (
       <Badge variant="destructive" className="rounded-full capitalize">
         {status}

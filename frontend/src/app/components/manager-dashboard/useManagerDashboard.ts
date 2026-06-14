@@ -18,12 +18,7 @@ export function useManagerDashboard() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<DashboardTab>('products');
 
-  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
-  const [editUserId, setEditUserId] = useState('');
-  const [editUserFullName, setEditUserFullName] = useState('');
-  const [editUserEmail, setEditUserEmail] = useState('');
-  const [editUserPhone, setEditUserPhone] = useState('');
-  const [editUserRole, setEditUserRole] = useState('user');
+
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState<'create' | 'edit'>('create');
@@ -31,7 +26,7 @@ export function useManagerDashboard() {
   const [categoryName, setCategoryName] = useState('');
   const [categoryDescription, setCategoryDescription] = useState('');
 
-  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(true);
   const [allProductsList, setAllProductsList] = useState<Array<any>>([]);
 
   useEffect(() => {
@@ -83,7 +78,7 @@ export function useManagerDashboard() {
     }
   };
 
-  const updateProductStatus = async (productId: string, status: 'active' | 'archived') => {
+  const updateProductStatus = async (productId: string, status: 'available' | 'hidden') => {
     try {
       const response = await fetch(`${API_URL}/products/${productId}/status`, {
         method: 'PATCH',
@@ -97,19 +92,19 @@ export function useManagerDashboard() {
         throw new Error(result.message || 'Unable to update product');
       }
 
-      toast.success(status === 'active' ? 'Product approved' : 'Product archived');
+      toast.success(status === 'available' ? 'Product is now visible' : 'Product is now hidden');
       await refreshDashboard();
     } catch (err: any) {
       toast.error(err.message || 'Unable to update product');
     }
   };
 
-  const updateReportStatus = async (reportId: string, endpoint: 'resolve' | 'dismiss') => {
+  const updateReportStatus = async (reportId: string, endpoint: 'accept' | 'reject') => {
     try {
       const response = await fetch(`${API_URL}/reports/${reportId}/${endpoint}`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ status: endpoint === 'resolve' ? 'resolved' : 'dismissed' }),
+        body: JSON.stringify({ status: endpoint === 'accept' ? 'accept' : 'reject' }),
       });
 
       const result = await response.json();
@@ -118,49 +113,14 @@ export function useManagerDashboard() {
         throw new Error(result.message || 'Unable to update report');
       }
 
-      toast.success(endpoint === 'resolve' ? 'Report resolved' : 'Report dismissed');
+      toast.success(endpoint === 'accept' ? 'Report accepted' : 'Report rejected');
       await refreshDashboard();
     } catch (err: any) {
       toast.error(err.message || 'Unable to update report');
     }
   };
 
-  const handleEditUser = (targetUser: any) => {
-    setEditUserId(targetUser.id);
-    setEditUserFullName(targetUser.name);
-    setEditUserEmail(targetUser.email);
-    setEditUserPhone(targetUser.phone || '');
-    setEditUserRole(targetUser.role);
-    setIsEditUserOpen(true);
-  };
 
-  const submitEditUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/users/${editUserId}`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          fullName: editUserFullName,
-          email: editUserEmail,
-          phone: editUserPhone,
-          role: editUserRole,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to update user');
-      }
-
-      toast.success('User updated successfully');
-      setIsEditUserOpen(false);
-      await refreshDashboard();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update user');
-    }
-  };
 
   const handleOpenCategoryCreate = () => {
     setCategoryModalMode('create');
@@ -232,7 +192,7 @@ export function useManagerDashboard() {
     }
   };
 
-  const updateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned') => {
+  const updateUserStatus = async (userId: string, status: 'active' | 'banned') => {
     try {
       const response = await fetch(`${API_URL}/users/${userId}/status`, {
         method: 'PATCH',
@@ -253,11 +213,14 @@ export function useManagerDashboard() {
     }
   };
 
-  const warnUser = async (userId: string) => {
+
+
+  const warnReportUser = async (reportId: string) => {
     const reason = window.prompt('Reason for warning the user?') || '';
+    if (!reason) return;
 
     try {
-      const response = await fetch(`${API_URL}/users/${userId}/warn`, {
+      const response = await fetch(`${API_URL}/reports/${reportId}/warn`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ reason }),
@@ -269,7 +232,7 @@ export function useManagerDashboard() {
         throw new Error(result.message || 'Unable to warn user');
       }
 
-      toast.success('User warned');
+      toast.success('User warned and report accepted');
       await refreshDashboard();
     } catch (err: any) {
       toast.error(err.message || 'Unable to warn user');
@@ -308,16 +271,6 @@ export function useManagerDashboard() {
     warningCount,
     pendingReportsCount,
     activeUsersCount,
-    isEditUserOpen,
-    setIsEditUserOpen,
-    editUserFullName,
-    setEditUserFullName,
-    editUserEmail,
-    setEditUserEmail,
-    editUserPhone,
-    setEditUserPhone,
-    editUserRole,
-    setEditUserRole,
     isCategoryModalOpen,
     setIsCategoryModalOpen,
     categoryModalMode,
@@ -325,14 +278,12 @@ export function useManagerDashboard() {
     setCategoryName,
     categoryDescription,
     setCategoryDescription,
-    handleEditUser,
-    submitEditUser,
     handleOpenCategoryCreate,
     handleOpenCategoryEdit,
     submitCategoryForm,
     handleDeleteCategory,
     updateUserStatus,
-    warnUser,
+    warnReportUser,
     updateProductStatus,
     updateReportStatus,
   };

@@ -37,23 +37,23 @@ import {
   ApiProduct,
   CONDITION_LABELS,
 } from '../api/productApi';
- 
+
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
- 
+
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
   const [selectedImage, setSelectedImage] = useState(0);
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
- 
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
- 
+
     async function load() {
       setLoading(true);
       setError(null);
@@ -62,7 +62,7 @@ export function ProductDetailPage() {
         const res = await fetchProductById(id!);
         if (cancelled) return;
         setProduct(res.data);
- 
+
         if (res.data.categoryId?._id) {
           const relRes = await fetchProducts({
             categoryId: res.data.categoryId._id,
@@ -77,11 +77,11 @@ export function ProductDetailPage() {
         if (!cancelled) setLoading(false);
       }
     }
- 
+
     load();
     return () => { cancelled = true; };
   }, [id]);
- 
+
   const handleContact = () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để liên hệ người bán');
@@ -91,7 +91,7 @@ export function ProductDetailPage() {
     navigate('/messages');
     toast.success('Đang mở cuộc trò chuyện với người bán...');
   };
- 
+
   const handleOrder = () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để thực hiện yêu cầu');
@@ -100,12 +100,47 @@ export function ProductDetailPage() {
     }
     toast.success(product?.type === 'donate' ? 'Đã gửi yêu cầu nhận đồ tặng!' : 'Đặt hàng thành công!');
   };
- 
-  const handleReport = () => {
-    toast.success('Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm.');
-    setReportReason('');
+
+  const handleReport = async () => {
+    if (!isAuthenticated) {
+      toast.error('Vui lòng đăng nhập để gửi báo cáo');
+      navigate('/login');
+      return;
+    }
+    if (!reportReason.trim()) {
+      toast.error('Vui lòng nhập lý do báo cáo');
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          targetType: 'product',
+          targetId: product?._id,
+          reason: reportReason,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Gửi báo cáo thất bại');
+        return;
+      }
+
+      toast.success('Đã gửi báo cáo thành công. Chúng tôi sẽ xem xét sớm.');
+      setReportReason('');
+    } catch (error) {
+      toast.error('Không thể kết nối tới máy chủ');
+    }
   };
- 
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -113,7 +148,7 @@ export function ProductDetailPage() {
       </div>
     );
   }
- 
+
   if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -124,11 +159,11 @@ export function ProductDetailPage() {
       </div>
     );
   }
- 
+
   const images = product.images.length > 0
     ? product.images.map(img => img.imageUrl)
     : ['https://placehold.co/800x800?text=No+Image'];
- 
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -141,7 +176,7 @@ export function ProductDetailPage() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Quay lại danh sách
         </Button>
- 
+
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
           {/* Image Gallery */}
           <div>
@@ -162,9 +197,8 @@ export function ProductDetailPage() {
                 {images.map((image, idx) => (
                   <div
                     key={idx}
-                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
-                      selectedImage === idx ? 'border-green-500' : 'border-transparent'
-                    }`}
+                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${selectedImage === idx ? 'border-green-500' : 'border-transparent'
+                      }`}
                     onClick={() => setSelectedImage(idx)}
                   >
                     <ImageWithFallback
@@ -177,7 +211,7 @@ export function ProductDetailPage() {
               </div>
             )}
           </div>
- 
+
           {/* Product Info */}
           <div>
             <div className="flex items-start justify-between mb-4">
@@ -198,9 +232,9 @@ export function ProductDetailPage() {
                 </Button>
               </div>
             </div>
- 
+
             <Separator className="my-4" />
- 
+
             {/* Price */}
             <div className="mb-6">
               {product.type === 'donate' ? (
@@ -211,7 +245,7 @@ export function ProductDetailPage() {
                 </div>
               )}
             </div>
- 
+
             {/* Condition */}
             <div className="mb-6">
               <Label className="text-sm text-gray-600 dark:text-gray-400">Tình trạng</Label>
@@ -219,7 +253,7 @@ export function ProductDetailPage() {
                 {CONDITION_LABELS[product.condition] || product.condition}
               </Badge>
             </div>
- 
+
             {/* Location */}
             {product.location?.address && (
               <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 mb-6">
@@ -227,7 +261,7 @@ export function ProductDetailPage() {
                 <span>{product.location.address}</span>
               </div>
             )}
- 
+
             {/* Action Buttons */}
             <div className="space-y-3 mb-6">
               <Button
@@ -279,9 +313,9 @@ export function ProductDetailPage() {
                 Liên hệ người bán
               </Button>
             </div>
- 
+
             <Separator className="my-6" />
- 
+
             {/* Seller Info */}
             {product.ownerId && (
               <Card>
@@ -315,7 +349,7 @@ export function ProductDetailPage() {
                 </CardContent>
               </Card>
             )}
- 
+
             {/* Report */}
             <Dialog>
               <DialogTrigger asChild>
@@ -350,7 +384,7 @@ export function ProductDetailPage() {
             </Dialog>
           </div>
         </div>
- 
+
         {/* Product Details Tabs */}
         <Card className="mb-8">
           <CardContent className="p-6">
@@ -405,7 +439,7 @@ export function ProductDetailPage() {
             </Tabs>
           </CardContent>
         </Card>
- 
+
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div>

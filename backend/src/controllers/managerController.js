@@ -39,6 +39,27 @@ const buildUserResponse = (user) => ({
   createdAt: user.createdAt,
 });
 
+const enrichReports = async (reports) => {
+  return await Promise.all(
+    reports.map(async (report) => {
+      let targetUser = null;
+      if (report.targetType === "user") {
+        targetUser = await User.findById(report.targetId).select("warningsCount fullName email").lean();
+      } else if (report.targetType === "product") {
+        const product = await Product.findById(report.targetId).populate("ownerId", "warningsCount fullName email").lean();
+        if (product && product.ownerId) {
+          targetUser = product.ownerId;
+        }
+      }
+      return {
+        ...buildReportResponse(report),
+        targetWarnings: targetUser ? (targetUser.warningsCount || 0) : 0,
+        targetName: targetUser ? (targetUser.fullName || targetUser.email || "Unknown") : "Unknown",
+      };
+    })
+  );
+};
+
 const getDashboard = async (req, res) => {
   try {
     const [users, categories, reports, pendingProducts, orders, totalProducts, totalCategories] =
@@ -46,7 +67,7 @@ const getDashboard = async (req, res) => {
         User.find().sort({ createdAt: -1 }).select("-password").lean(),
         Category.find().sort({ name: 1 }).lean(),
         Report.find().sort({ createdAt: -1 }).populate("reporterId", "userName fullName").lean(),
-        Product.find({ status: "pending" })
+        Product.find({ pendingApproval: true })
           .sort({ createdAt: -1 })
           .populate("ownerId", "userName fullName")
           .populate("categoryId", "name")
@@ -61,10 +82,12 @@ const getDashboard = async (req, res) => {
       $or: [{ status: "completed" }, { paymentStatus: "paid" }],
     });
 
+    const enrichedReports = await enrichReports(reports);
+
     res.status(200).json({
       users: users.map(buildUserResponse),
       categories,
-      reports: reports.map(buildReportResponse),
+      reports: enrichedReports,
       pendingProducts: pendingProducts.map(buildProductResponse),
       statistics: {
         totalUsers: users.length,
@@ -75,7 +98,6 @@ const getDashboard = async (req, res) => {
         totalReports: reports.length,
         totalCategories,
         activeUsers: users.filter((u) => u.status === "active").length,
-        suspendedUsers: users.filter((u) => u.status === "suspended").length,
         bannedUsers: users.filter((u) => u.status === "banned").length,
         warningUsers: users.filter((u) => (u.warningsCount || 0) > 0).length,
       },
@@ -113,7 +135,7 @@ const warnUser = async (req, res) => {
     user.warningsCount = (user.warningsCount || 0) + 1;
     user.lastWarningAt = new Date();
     if (user.warningsCount >= 3 && user.status === "active") {
-      user.status = "suspended";
+      user.status = "banned";
     }
     await user.save();
 
@@ -216,7 +238,7 @@ const getAllProducts = async (req, res) => {
 
 const getPendingProducts = async (req, res) => {
   try {
-    const products = await Product.find({ status: "pending" })
+    const products = await Product.find({ pendingApproval: true })
       .sort({ createdAt: -1 })
       .populate("ownerId", "userName fullName")
       .populate("categoryId", "name");
@@ -229,7 +251,7 @@ const getPendingProducts = async (req, res) => {
 const updateProductStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!["draft", "pending", "active", "sold", "archived"].includes(status)) {
+    if (!["available", "sold", "reserved", "hidden"].includes(status)) {
       return res.status(400).json({ message: "Trạng thái sản phẩm không hợp lệ" });
     }
 
@@ -239,6 +261,13 @@ const updateProductStatus = async (req, res) => {
     if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
 
     product.status = status;
+    if (status === "available") {
+      product.isAvailable = true;
+      product.pendingApproval = false;
+    } else {
+      product.isAvailable = false;
+      product.pendingApproval = false;
+    }
     await product.save();
     res.status(200).json({ message: "Cập nhật trạng thái sản phẩm thành công", product: buildProductResponse(product) });
   } catch (error) {
@@ -250,37 +279,34 @@ const getReports = async (req, res) => {
   try {
     const reports = await Report.find()
       .sort({ createdAt: -1 })
-      .populate("reporterId", "userName fullName");
-    res.status(200).json({ reports: reports.map(buildReportResponse) });
+      .populate("reporterId", "userName fullName")
+      .lean();
+    const enriched = await enrichReports(reports);
+    res.status(200).json({ reports: enriched });
   } catch (error) {
     res.status(500).json({ message: "Không thể tải danh sách báo cáo", error: error.message });
   }
 };
 
-const resolveReport = async (req, res) => {
+const acceptReport = async (req, res) => {
   try {
-    const { status } = req.body;
-    if (status && !["resolved", "rejected", "reviewing", "dismissed"].includes(status)) {
-      return res.status(400).json({ message: "Trạng thái báo cáo không hợp lệ" });
-    }
-
     const report = await Report.findById(req.params.id).populate("reporterId", "userName fullName");
     if (!report) return res.status(404).json({ message: "Không tìm thấy báo cáo" });
 
-    report.status = status || "resolved";
+    report.status = "accept";
     await report.save();
-    res.status(200).json({ message: "Đã xử lý báo cáo", report: buildReportResponse(report) });
+    res.status(200).json({ message: "Đã chấp nhận báo cáo", report: buildReportResponse(report) });
   } catch (error) {
-    res.status(500).json({ message: "Không thể xử lý báo cáo", error: error.message });
+    res.status(500).json({ message: "Không thể chấp nhận báo cáo", error: error.message });
   }
 };
 
-const dismissReport = async (req, res) => {
+const rejectReport = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id).populate("reporterId", "userName fullName");
     if (!report) return res.status(404).json({ message: "Không tìm thấy báo cáo" });
 
-    report.status = "dismissed";
+    report.status = "reject";
     await report.save();
     res.status(200).json({ message: "Đã từ chối báo cáo", report: buildReportResponse(report) });
   } catch (error) {
@@ -288,10 +314,56 @@ const dismissReport = async (req, res) => {
   }
 };
 
+const warnReportUser = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const report = await Report.findById(req.params.id);
+    if (!report) return res.status(404).json({ message: "Không tìm thấy báo cáo" });
+
+    let userIdToWarn = null;
+
+    if (report.targetType === "user") {
+      userIdToWarn = report.targetId;
+    } else if (report.targetType === "product") {
+      const product = await Product.findById(report.targetId);
+      if (product) {
+        userIdToWarn = product.ownerId;
+      }
+    } else {
+      userIdToWarn = report.targetId;
+    }
+
+    if (!userIdToWarn) {
+      return res.status(400).json({ message: "Không xác định được người dùng cần cảnh cáo từ báo cáo này" });
+    }
+
+    const user = await User.findById(userIdToWarn);
+    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng cần cảnh cáo" });
+
+    user.warningsCount = (user.warningsCount || 0) + 1;
+    user.lastWarningAt = new Date();
+    if (user.warningsCount >= 3 && user.status === "active") {
+      user.status = "banned";
+    }
+    await user.save();
+
+    report.status = "accept";
+    await report.save();
+
+    res.status(200).json({
+      message: reason ? `Đã cảnh báo người dùng: ${reason}` : "Đã cảnh báo người dùng",
+      user: buildUserResponse(user),
+      report: buildReportResponse(report),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Không thể cảnh báo người dùng", error: error.message });
+  }
+};
+
 const getStatistics = async (req, res) => {
   try {
     const [totalUsers, totalProducts, totalOrders, totalDonations, totalTransactions,
-      totalReports, activeUsers, suspendedUsers, bannedUsers, warningUsers, totalCategories] =
+      totalReports, activeUsers, bannedUsers, warningUsers, totalCategories] =
       await Promise.all([
         User.countDocuments(),
         Product.countDocuments(),
@@ -300,7 +372,6 @@ const getStatistics = async (req, res) => {
         Order.countDocuments({ $or: [{ status: "completed" }, { paymentStatus: "paid" }] }),
         Report.countDocuments(),
         User.countDocuments({ status: "active" }),
-        User.countDocuments({ status: "suspended" }),
         User.countDocuments({ status: "banned" }),
         User.countDocuments({ warningsCount: { $gt: 0 } }),
         Category.countDocuments(),
@@ -309,7 +380,7 @@ const getStatistics = async (req, res) => {
     res.status(200).json({
       statistics: {
         totalUsers, totalProducts, totalOrders, totalDonations, totalTransactions,
-        totalReports, totalCategories, activeUsers, suspendedUsers, bannedUsers, warningUsers,
+        totalReports, totalCategories, activeUsers, bannedUsers, warningUsers,
       },
     });
   } catch (error) {
@@ -330,7 +401,8 @@ module.exports = {
   getPendingProducts,
   updateProductStatus,
   getReports,
-  resolveReport,
-  dismissReport,
+  acceptReport,
+  rejectReport,
+  warnReportUser,
   getStatistics,
 };

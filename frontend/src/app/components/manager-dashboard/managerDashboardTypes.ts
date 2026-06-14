@@ -8,7 +8,6 @@ export type DashboardStatistics = {
   totalReports: number;
   totalCategories: number;
   activeUsers: number;
-  suspendedUsers: number;
   bannedUsers: number;
   warningUsers: number;
 };
@@ -38,6 +37,8 @@ export type ManagerDashboardData = {
     reason: string;
     status: string;
     createdAt: string;
+    targetWarnings?: number;
+    targetName?: string;
   }>;
   pendingProducts: Array<{
     id: string;
@@ -70,7 +71,6 @@ export const emptyData: ManagerDashboardData = {
     totalReports: 0,
     totalCategories: 0,
     activeUsers: 0,
-    suspendedUsers: 0,
     bannedUsers: 0,
     warningUsers: 0,
   },

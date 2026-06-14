@@ -29,7 +29,6 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Platform Ops</p>
           <h2 className="text-lg font-semibold">Manager Dashboard</h2>
         </div>
       </div>
