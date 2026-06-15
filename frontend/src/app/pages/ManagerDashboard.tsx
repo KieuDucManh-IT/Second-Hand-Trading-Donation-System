@@ -556,7 +556,7 @@ function CategoriesTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 dark:bg-slate-900 hover:bg-slate-50">
-                  <TableHead className="pl-5 w-12">Icon</TableHead>
+                  {/* <TableHead className="pl-5 w-12">Icon</TableHead> */}
                   <TableHead>Tên danh mục</TableHead>
                   <TableHead>Mô tả</TableHead>
                   <TableHead>Ngày tạo</TableHead>
@@ -566,11 +566,11 @@ function CategoriesTab() {
               <TableBody>
                 {categories.map(cat => (
                   <TableRow key={cat._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                    <TableCell className="pl-5">
+                    {/* <TableCell className="pl-5">
                       <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-lg">
-                        {cat.icon}
+                        {cat.imageUrl ? <img src={cat.imageUrl} alt="" className="w-full h-full object-cover" /> : cat.icon || <Tag className="w-4 h-4 text-slate-300" />}
                       </div>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>
                       <p className="font-medium text-sm">{cat.name}</p>
                     </TableCell>
@@ -615,18 +615,7 @@ function CategoriesTab() {
           </DialogHeader>
  
           <div className="space-y-4">
-            {/* Icon preview */}
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950 flex items-center justify-center text-2xl shrink-0">
-                {formIcon || ''}
-              </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">Emoji icon</label>
-                <Input placeholder="VD: Phone & Clothes..." value={formIcon}
-                  onChange={e => setFormIcon(e.target.value)} className="h-9 text-sm" maxLength={4} />
-              </div>
-            </div>
- 
+        
             <div>
               <label className="text-sm font-medium mb-1.5 block">
                 Tên danh mục <span className="text-red-500">*</span>
