@@ -10,6 +10,8 @@ const authRoute = require("./src/routes/authRoute");
 const managerRoute = require("./src/routes/managerRoute");
 const productRoute = require("./src/routes/productRoute");
 const categoryRoute = require("./src/routes/categoryRoute");
+const walletRoutes = require("./src/routes/walletRoutes");
+const webhookRoutes = require("./src/routes/webhookRoutes");
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/location", require("./src/routes/manageLocationRoute"));
 app.use("/api/products",   productRoute);
 app.use("/api/categories", categoryRoute);
+app.use("/api/wallet", walletRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 const PORT = process.env.PORT || 5000;
 

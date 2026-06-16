@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
+import { Wallet } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -277,6 +278,11 @@ export function Header() {
                       <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
                         <User className="w-4 h-4 mr-2" />
                         My Profile
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={() => navigate('/wallet')}>
+                        <Wallet className="w-4 h-4 mr-2" />
+                        My Wallet
                       </DropdownMenuItem>
 
                       <DropdownMenuItem onClick={() => navigate('/orders')}>

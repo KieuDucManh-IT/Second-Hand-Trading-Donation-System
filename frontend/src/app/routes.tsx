@@ -22,6 +22,7 @@ import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
+import WalletPage from "./pages/WalletPage";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +51,8 @@ export const router = createBrowserRouter([
       { path: "*", element: <NotFoundPage /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
       { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
+      { path: "/wallet", element: <WalletPage /> },
+      { path: "*", element: <NotFoundPage /> }
     ],
   },
 ]);
