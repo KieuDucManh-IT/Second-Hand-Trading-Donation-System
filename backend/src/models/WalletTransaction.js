@@ -66,6 +66,32 @@ const walletTransactionSchema = new mongoose.Schema(
       index: true,
     },
 
+    type: {
+      type: String,
+      enum: [
+        "deposit",
+        "withdraw",
+        "purchase_payment",
+        "escrow_hold",
+        "escrow_release",
+        "refund",
+
+        "exchange_deposit",
+        "exchange_refund",
+        "exchange_fee"
+      ],
+      required: true,
+    },
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+    },
+
+    metadata: {
+      type: Object,
+      default: {},
+    },
+
     paymentLinkId: String,
     checkoutUrl: String,
     qrCode: String,

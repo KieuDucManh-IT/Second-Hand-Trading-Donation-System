@@ -465,3 +465,39 @@ exports.rejectProduct = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getMyProductsForExchange = async (req, res) => {
+  try {
+    const Product = require("../models/modelProduct");
+
+    const userId = req.user?._id || req.user?.id || req.userId;
+    const { excludeProductId } = req.query;
+
+    const query = {
+      $or: [
+        { user: userId },
+        { owner: userId },
+        { seller: userId },
+        { createdBy: userId },
+      ],
+    };
+
+    if (excludeProductId) {
+      query._id = { $ne: excludeProductId };
+    }
+
+    const products = await Product.find(query)
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    return res.json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Không thể lấy sản phẩm của tôi",
+    });
+  }
+};
