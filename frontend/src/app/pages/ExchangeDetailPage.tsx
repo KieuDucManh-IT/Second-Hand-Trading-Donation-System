@@ -66,9 +66,10 @@ type ProductMini = {
   name?: string;
   productTitle?: string;
   image?: string;
+  imageUrl?: string;
   productImage?: string;
   thumbnail?: string;
-  images?: Array<string | { imageUrl?: string }>;
+  images?: Array<string | { imageUrl?: string; url?: string }>;
   price?: number;
   value?: number;
   productValue?: number;
@@ -161,20 +162,22 @@ function getProductTitle(product: any) {
 }
 
 function getProductImage(product: any) {
-  if (!product || typeof product === "string") {
-    return "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400";
-  }
+  if (!product || typeof product === "string") return "";
 
   if (product.thumbnail) return product.thumbnail;
   if (product.productImage) return product.productImage;
+  if (product.imageUrl) return product.imageUrl;
   if (product.image) return product.image;
 
   const firstImage = product.images?.[0];
 
   if (typeof firstImage === "string") return firstImage;
-  if (firstImage?.imageUrl) return firstImage.imageUrl;
 
-  return "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400";
+  if (firstImage && typeof firstImage === "object") {
+    return firstImage.imageUrl || firstImage.url || "";
+  }
+
+  return "";
 }
 
 function getProductValue(product: any) {
@@ -182,9 +185,9 @@ function getProductValue(product: any) {
 
   return Number(
     product.price ??
-      product.value ??
-      product.productValue ??
-      0
+    product.value ??
+    product.productValue ??
+    0
   );
 }
 
@@ -360,7 +363,9 @@ export function ExchangeDetailPage() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    const token = getToken();
+
+    if (!token) {
       window.location.href = "/login";
       return;
     }
@@ -368,7 +373,7 @@ export function ExchangeDetailPage() {
     if (invoiceId) {
       fetchExchangeDetail();
     }
-  }, [isAuthenticated, invoiceId]);
+  }, [invoiceId]);
 
   const isRequester = useMemo(() => {
     return invoice ? getId(invoice.requester) === currentUserId : false;

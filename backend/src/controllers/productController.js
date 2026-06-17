@@ -473,8 +473,17 @@ exports.getMyProductsForExchange = async (req, res) => {
     const userId = req.user?._id || req.user?.id || req.userId;
     const { excludeProductId } = req.query;
 
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Bạn chưa đăng nhập",
+      });
+    }
+
     const query = {
       $or: [
+        { ownerId: userId },
+        { userId: userId },
         { user: userId },
         { owner: userId },
         { seller: userId },
@@ -488,16 +497,18 @@ exports.getMyProductsForExchange = async (req, res) => {
 
     const products = await Product.find(query)
       .sort({ createdAt: -1 })
-      .limit(100);
+      .limit(50);
 
     return res.json({
       success: true,
       products,
     });
   } catch (error) {
+    console.error("GET MY PRODUCTS FOR EXCHANGE ERROR:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message || "Không thể lấy sản phẩm của tôi",
+      message: error.message || "Không thể lấy sản phẩm để trao đổi",
     });
   }
 };

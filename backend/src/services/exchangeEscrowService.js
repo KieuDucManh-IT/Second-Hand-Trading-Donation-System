@@ -91,7 +91,14 @@ async function createWalletTransaction({
 }
 
 function getProductOwner(product) {
-  return product.user || product.owner || product.seller || product.createdBy;
+  return (
+    product.ownerId ||
+    product.userId ||
+    product.user ||
+    product.owner ||
+    product.seller ||
+    product.createdBy
+  );
 }
 
 function getProductPrice(product) {

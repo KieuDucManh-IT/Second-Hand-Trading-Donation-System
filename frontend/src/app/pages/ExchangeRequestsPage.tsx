@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useNavigate } from "react-router";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
   ArrowLeftRight,
@@ -22,6 +23,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = "http://localhost:5000/api";
+const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
 
 type ExchangeStatus =
   | "pending_receiver_accept"
@@ -46,6 +48,16 @@ type UserMini = {
   email?: string;
 };
 
+type ProductImage =
+  | string
+  | {
+    imageUrl?: string;
+    url?: string;
+    secure_url?: string;
+    path?: string;
+    filename?: string;
+  };
+
 type ProductMini = {
   _id?: string;
   id?: string;
@@ -53,8 +65,10 @@ type ProductMini = {
   name?: string;
   productTitle?: string;
   image?: string;
+  imageUrl?: string;
   productImage?: string;
-  images?: string[];
+  thumbnail?: string;
+  images?: Array<string | { imageUrl?: string; url?: string }>;
   price?: number;
   value?: number;
   productValue?: number;
@@ -146,17 +160,54 @@ function getProductTitle(product: any) {
   );
 }
 
-function getProductImage(product: any) {
-  if (!product || typeof product === "string") {
-    return "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400";
+function normalizeImageUrl(url?: string) {
+  if (!url) return "";
+
+  const cleanUrl = String(url).trim();
+
+  if (!cleanUrl) return "";
+
+  if (
+    cleanUrl.startsWith("http://") ||
+    cleanUrl.startsWith("https://") ||
+    cleanUrl.startsWith("data:") ||
+    cleanUrl.startsWith("blob:")
+  ) {
+    return cleanUrl;
   }
 
-  return (
-    product.productImage ||
-    product.image ||
-    product.images?.[0] ||
-    "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400"
-  );
+  if (cleanUrl.startsWith("/uploads")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("uploads/")) {
+    return `${API_ORIGIN}/${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("/")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  return cleanUrl;
+}
+
+function getProductImage(product: any) {
+  if (!product || typeof product === "string") return "";
+
+  if (product.thumbnail) return product.thumbnail;
+  if (product.productImage) return product.productImage;
+  if (product.imageUrl) return product.imageUrl;
+  if (product.image) return product.image;
+
+  const firstImage = product.images?.[0];
+
+  if (typeof firstImage === "string") return firstImage;
+
+  if (firstImage && typeof firstImage === "object") {
+    return firstImage.imageUrl || firstImage.url || "";
+  }
+
+  return "";
 }
 
 function getProductValue(product: any) {
@@ -164,9 +215,9 @@ function getProductValue(product: any) {
 
   return Number(
     product.price ??
-      product.value ??
-      product.productValue ??
-      0
+    product.value ??
+    product.productValue ??
+    0
   );
 }
 
@@ -244,6 +295,7 @@ function getStatusIcon(status?: ExchangeStatus) {
 }
 
 export function ExchangeRequestsPage() {
+  const navigate = useNavigate();
   const auth: any = useAuth();
   const isAuthenticated = auth.isAuthenticated;
   const user = auth.user || auth.currentUser || auth.authUser;
@@ -255,41 +307,42 @@ export function ExchangeRequestsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   async function api(path: string, options: RequestInit = {}) {
-  const token = getToken();
-  const url = `${API_BASE}${path}`;
+    const token = getToken();
+    const url = `${API_BASE}${path}`;
+    
 
-  console.log("CALL API:", url);
+    console.log("CALL API:", url);
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
-      ...(options.headers || {}),
-    },
-  });
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+        ...(options.headers || {}),
+      },
+    });
 
-  const text = await res.text();
+    const text = await res.text();
 
-  let data: any = {};
+    let data: any = {};
 
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    console.error("API trả về không phải JSON");
-    console.error("URL:", url);
-    console.error("HTTP status:", res.status);
-    console.error("Response text:", text.slice(0, 300));
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error("API trả về không phải JSON");
+      console.error("URL:", url);
+      console.error("HTTP status:", res.status);
+      console.error("Response text:", text.slice(0, 300));
 
-    throw new Error(`API không trả JSON. Kiểm tra backend route: ${url}`);
+      throw new Error(`API không trả JSON. Kiểm tra backend route: ${url}`);
+    }
+
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Có lỗi xảy ra");
+    }
+
+    return data;
   }
-
-  if (!res.ok) {
-    throw new Error(data.message || data.error || "Có lỗi xảy ra");
-  }
-
-  return data;
-}
 
   async function fetchExchangeInvoices() {
     try {
@@ -348,13 +401,15 @@ export function ExchangeRequestsPage() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      window.location.href = "/login";
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login", { replace: true });
       return;
     }
 
     fetchExchangeInvoices();
-  }, [isAuthenticated]);
+  }, []);
 
   function isRequester(invoice: ExchangeInvoice) {
     return getId(invoice.requester) === currentUserId;
@@ -574,7 +629,7 @@ export function ExchangeRequestsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    window.location.href = `/exchanges/${invoiceId}`;
+                    navigate(`/exchanges/${invoiceId}`);
                   }}
                 >
                   <Eye className="w-4 h-4 mr-2" />
