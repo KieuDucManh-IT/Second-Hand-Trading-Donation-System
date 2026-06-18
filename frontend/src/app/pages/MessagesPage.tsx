@@ -79,6 +79,20 @@ export function MessagesPage() {
       setMessages((prev) => {
         if (conversationId !== selectedConvIdRef.current) return prev;
         if (prev.some((m) => m._id === message._id)) return prev;
+
+        // Tin nhắn của chính mình → thay thế bản "optimistic" (temp) thay vì thêm mới,
+        // tránh hiện trùng 2 bong bóng cho 1 tin nhắn vừa gửi.
+        if (message.senderId === user?.id) {
+          const tempIndex = prev.findIndex(
+            (m) => m._id.startsWith('temp-') && m.content === message.content
+          );
+          if (tempIndex !== -1) {
+            const next = [...prev];
+            next[tempIndex] = message;
+            return next;
+          }
+        }
+
         return [...prev, message];
       });
  
