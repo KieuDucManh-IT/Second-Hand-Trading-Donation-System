@@ -309,7 +309,7 @@ export function ExchangeRequestsPage() {
   async function api(path: string, options: RequestInit = {}) {
     const token = getToken();
     const url = `${API_BASE}${path}`;
-    
+
 
     console.log("CALL API:", url);
 
@@ -834,7 +834,7 @@ export function ExchangeRequestsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                window.location.href = "/exchange-history";
+                navigate("/exchange-history");
               }}
             >
               <History className="w-4 h-4 mr-2" />

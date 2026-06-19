@@ -26,6 +26,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -52,6 +53,18 @@ type UserMini = {
   email?: string;
 };
 
+type ProductImage =
+  | string
+  | {
+    _id?: string;
+    imageUrl?: string;
+    url?: string;
+    secure_url?: string;
+    path?: string;
+    publicId?: string;
+    order?: number;
+  };
+
 type ProductMini = {
   _id?: string;
   id?: string;
@@ -59,8 +72,12 @@ type ProductMini = {
   name?: string;
   productTitle?: string;
   image?: string;
+  imageUrl?: string;
   productImage?: string;
-  images?: string[];
+  thumbnail?: string;
+  coverImage?: string;
+  mainImage?: string;
+  images?: ProductImage[];
   price?: number;
   value?: number;
   productValue?: number;
@@ -153,16 +170,32 @@ function getProductTitle(product: any) {
 }
 
 function getProductImage(product: any) {
-  if (!product || typeof product === "string") {
-    return "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400";
+  if (!product || typeof product === "string") return "";
+
+  if (product.thumbnail) return product.thumbnail;
+  if (product.productImage) return product.productImage;
+  if (product.imageUrl) return product.imageUrl;
+  if (product.image) return product.image;
+  if (product.coverImage) return product.coverImage;
+  if (product.mainImage) return product.mainImage;
+
+  const firstImage = product.images?.[0];
+
+  if (typeof firstImage === "string") {
+    return firstImage;
   }
 
-  return (
-    product.productImage ||
-    product.image ||
-    product.images?.[0] ||
-    "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400"
-  );
+  if (firstImage && typeof firstImage === "object") {
+    return (
+      firstImage.imageUrl ||
+      firstImage.url ||
+      firstImage.secure_url ||
+      firstImage.path ||
+      ""
+    );
+  }
+
+  return "";
 }
 
 function getProductValue(product: any) {
@@ -245,6 +278,7 @@ function getStatusIcon(status?: ExchangeStatus) {
 }
 
 export function ExchangeHistoryPage() {
+  const navigate = useNavigate();
   const auth: any = useAuth();
   const isAuthenticated = auth.isAuthenticated;
   const user = auth.user || auth.currentUser || auth.authUser;
@@ -300,13 +334,15 @@ export function ExchangeHistoryPage() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      window.location.href = "/login";
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login", { replace: true });
       return;
     }
 
     fetchExchangeHistory();
-  }, [isAuthenticated]);
+  }, []);
 
   function isRequester(invoice: ExchangeInvoice) {
     return getId(invoice.requester) === currentUserId;
@@ -570,7 +606,7 @@ export function ExchangeHistoryPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    window.location.href = `/exchanges/${invoiceId}`;
+                    navigate(`/exchanges/${invoiceId}`);
                   }}
                 >
                   <Eye className="w-4 h-4 mr-2" />
@@ -610,7 +646,7 @@ export function ExchangeHistoryPage() {
 
             <Button
               onClick={() => {
-                window.location.href = "/products";
+                navigate("/products");
               }}
             >
               <ArrowLeftRight className="w-4 h-4 mr-2" />
@@ -681,7 +717,7 @@ export function ExchangeHistoryPage() {
                 {!searchQuery && statusFilter === "all" && (
                   <Button
                     onClick={() => {
-                      window.location.href = "/products";
+                      navigate("/products");
                     }}
                   >
                     Browse Products
