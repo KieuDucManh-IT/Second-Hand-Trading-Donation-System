@@ -1,6 +1,7 @@
 const exchangeEscrowService = require("../services/exchangeEscrowService");
 const ExchangeInvoice = require("../models/ExchangeInvoice");
 const ProductImage = require("../models/modelProductImage");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
 function getUserId(req) {
   return req.user?._id || req.user?.id || req.userId;
@@ -189,10 +190,41 @@ exports.disputeExchange = async (req, res) => {
     const { invoiceId } = req.params;
     const { reason } = req.body;
 
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập lý do khiếu nại",
+      });
+    }
+
+    const uploadedEvidences = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const isVideo = file.mimetype.startsWith("video");
+
+        const result = await uploadToCloudinary(file.buffer, {
+          folder: "exchange-complaints",
+          resourceType: isVideo ? "video" : "image",
+        });
+
+        uploadedEvidences.push({
+          url: result.secure_url,
+          publicId: result.public_id,
+          type: isVideo ? "video" : "image",
+          resourceType: result.resource_type,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+        });
+      }
+    }
+
     const invoice = await exchangeEscrowService.disputeExchange(
       invoiceId,
       userId,
-      reason
+      reason,
+      uploadedEvidences
     );
 
     res.json({
@@ -201,6 +233,8 @@ exports.disputeExchange = async (req, res) => {
       invoice,
     });
   } catch (error) {
+    console.error("DISPUTE EXCHANGE ERROR:", error);
+
     res.status(400).json({
       success: false,
       message: error.message || "Không thể mở khiếu nại",

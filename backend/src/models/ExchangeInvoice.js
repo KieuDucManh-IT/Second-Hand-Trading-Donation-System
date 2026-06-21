@@ -1,5 +1,67 @@
 const mongoose = require("mongoose");
 
+const complaintEvidenceSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+    },
+    publicId: {
+      type: String,
+    },
+    type: {
+      type: String,
+      enum: ["image", "video"],
+      required: true,
+    },
+    resourceType: {
+      type: String,
+      enum: ["image", "video", "raw"],
+      default: "image",
+    },
+    originalName: {
+      type: String,
+    },
+    mimeType: {
+      type: String,
+    },
+    size: {
+      type: Number,
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
+const complaintSchema = new mongoose.Schema(
+  {
+    reason: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    evidences: {
+      type: [complaintEvidenceSchema],
+      default: [],
+    },
+    status: {
+      type: String,
+      enum: ["pending", "reviewing", "resolved", "rejected"],
+      default: "pending",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    resolvedAt: Date,
+    resolutionNote: String,
+  },
+  { _id: false }
+);
+
 const exchangeInvoiceSchema = new mongoose.Schema(
   {
     requester: {
@@ -93,7 +155,7 @@ const exchangeInvoiceSchema = new mongoose.Schema(
         "both_confirmed",
         "completed",
         "cancelled",
-        "disputed"
+        "disputed",
       ],
       default: "pending_receiver_accept",
       index: true,
@@ -117,8 +179,25 @@ const exchangeInvoiceSchema = new mongoose.Schema(
 
     autoReleaseAt: Date,
 
+    autoRefundPaused: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     cancelReason: String,
+
     disputeReason: String,
+
+    disputeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    complaint: {
+      type: complaintSchema,
+      default: undefined,
+    },
   },
   { timestamps: true }
 );

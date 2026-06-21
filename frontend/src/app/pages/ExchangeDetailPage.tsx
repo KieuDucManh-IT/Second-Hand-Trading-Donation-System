@@ -1,6 +1,5 @@
-
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -35,6 +34,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
 
 type ExchangeStatus =
   | "pending_receiver_accept"
@@ -59,6 +59,15 @@ type UserMini = {
   email?: string;
 };
 
+type ProductImage =
+  | string
+  | {
+      imageUrl?: string;
+      url?: string;
+      secure_url?: string;
+      path?: string;
+    };
+
 type ProductMini = {
   _id?: string;
   id?: string;
@@ -69,10 +78,27 @@ type ProductMini = {
   imageUrl?: string;
   productImage?: string;
   thumbnail?: string;
-  images?: Array<string | { imageUrl?: string; url?: string }>;
+  images?: ProductImage[];
   price?: number;
   value?: number;
   productValue?: number;
+};
+
+type ComplaintEvidence = {
+  url?: string;
+  publicId?: string;
+  type?: "image" | "video";
+  resourceType?: string;
+  originalName?: string;
+  mimeType?: string;
+  size?: number;
+};
+
+type Complaint = {
+  reason?: string;
+  evidences?: ComplaintEvidence[];
+  status?: "pending" | "reviewing" | "resolved" | "rejected";
+  createdAt?: string;
 };
 
 type ExchangeInvoice = {
@@ -114,6 +140,10 @@ type ExchangeInvoice = {
 
   disputeReason?: string;
   cancelReason?: string;
+
+  autoRefundPaused?: boolean;
+  disputeBy?: string | UserMini;
+  complaint?: Complaint;
 };
 
 function getToken() {
@@ -156,6 +186,37 @@ function getAvatar(user: any) {
   return user.avatar || user.profileImage || "";
 }
 
+function normalizeUrl(url?: string) {
+  if (!url) return "";
+
+  const cleanUrl = String(url).trim();
+
+  if (!cleanUrl) return "";
+
+  if (
+    cleanUrl.startsWith("http://") ||
+    cleanUrl.startsWith("https://") ||
+    cleanUrl.startsWith("data:") ||
+    cleanUrl.startsWith("blob:")
+  ) {
+    return cleanUrl;
+  }
+
+  if (cleanUrl.startsWith("/uploads")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("uploads/")) {
+    return `${API_ORIGIN}/${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("/")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  return cleanUrl;
+}
+
 function getProductTitle(product: any) {
   if (!product || typeof product === "string") return "Sản phẩm";
   return product.title || product.name || product.productTitle || "Sản phẩm";
@@ -164,17 +225,25 @@ function getProductTitle(product: any) {
 function getProductImage(product: any) {
   if (!product || typeof product === "string") return "";
 
-  if (product.thumbnail) return product.thumbnail;
-  if (product.productImage) return product.productImage;
-  if (product.imageUrl) return product.imageUrl;
-  if (product.image) return product.image;
+  if (product.thumbnail) return normalizeUrl(product.thumbnail);
+  if (product.productImage) return normalizeUrl(product.productImage);
+  if (product.imageUrl) return normalizeUrl(product.imageUrl);
+  if (product.image) return normalizeUrl(product.image);
 
   const firstImage = product.images?.[0];
 
-  if (typeof firstImage === "string") return firstImage;
+  if (typeof firstImage === "string") {
+    return normalizeUrl(firstImage);
+  }
 
   if (firstImage && typeof firstImage === "object") {
-    return firstImage.imageUrl || firstImage.url || "";
+    return normalizeUrl(
+      firstImage.imageUrl ||
+        firstImage.url ||
+        firstImage.secure_url ||
+        firstImage.path ||
+        ""
+    );
   }
 
   return "";
@@ -183,12 +252,7 @@ function getProductImage(product: any) {
 function getProductValue(product: any) {
   if (!product || typeof product === "string") return 0;
 
-  return Number(
-    product.price ??
-    product.value ??
-    product.productValue ??
-    0
-  );
+  return Number(product.price ?? product.value ?? product.productValue ?? 0);
 }
 
 function formatMoney(value?: number) {
@@ -197,7 +261,14 @@ function formatMoney(value?: number) {
 
 function formatDate(value?: string) {
   if (!value) return "Chưa có";
-  return new Date(value).toLocaleString("vi-VN");
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Chưa có";
+  }
+
+  return date.toLocaleString("vi-VN");
 }
 
 function getStatusLabel(status?: ExchangeStatus) {
@@ -264,14 +335,74 @@ function getStatusIcon(status?: ExchangeStatus) {
   }
 }
 
+function getComplaintReason(invoice: ExchangeInvoice) {
+  return invoice.complaint?.reason || invoice.disputeReason || "";
+}
+
+function getComplaintEvidences(invoice: ExchangeInvoice) {
+  return invoice.complaint?.evidences || [];
+}
+
+function isEvidenceVideo(file: ComplaintEvidence) {
+  return (
+    file.type === "video" ||
+    file.resourceType === "video" ||
+    file.mimeType?.startsWith("video/")
+  );
+}
+
+function getDisputer(invoice: ExchangeInvoice) {
+  const disputeById = getId(invoice.disputeBy);
+
+  if (!disputeById) return null;
+
+  if (disputeById === getId(invoice.requester)) {
+    return invoice.requester;
+  }
+
+  if (disputeById === getId(invoice.receiver)) {
+    return invoice.receiver;
+  }
+
+  if (typeof invoice.disputeBy === "object") {
+    return invoice.disputeBy;
+  }
+
+  return null;
+}
+
+function getDisputerLabel(invoice: ExchangeInvoice, currentUserId: string) {
+  const disputeById = getId(invoice.disputeBy);
+
+  if (!disputeById) {
+    return "Chưa xác định";
+  }
+
+  let disputer: any = getDisputer(invoice);
+
+  if (!disputer && typeof invoice.disputeBy === "object") {
+    disputer = invoice.disputeBy;
+  }
+
+  const name = disputer ? getName(disputer) : "Người dùng";
+
+  if (disputeById === currentUserId) {
+    return `${name} (Bạn)`;
+  }
+
+  return name;
+}
+
 async function api(path: string, options: RequestInit = {}) {
   const token = getToken();
   const url = `${API_BASE}${path}`;
 
+  const isFormData = options.body instanceof FormData;
+
   const res = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       Authorization: token ? `Bearer ${token}` : "",
       ...(options.headers || {}),
     },
@@ -299,9 +430,127 @@ async function api(path: string, options: RequestInit = {}) {
   return data;
 }
 
+function ComplaintDetailBlock({
+  invoice,
+  currentUserId,
+}: {
+  invoice: ExchangeInvoice;
+  currentUserId: string;
+}) {
+  const complaintReason = getComplaintReason(invoice);
+  const complaintEvidences = getComplaintEvidences(invoice);
+  const disputer = getDisputer(invoice);
+  const disputerLabel = getDisputerLabel(invoice, currentUserId);
+  const fallbackChar =
+    disputerLabel && disputerLabel.length > 0
+      ? disputerLabel.charAt(0).toUpperCase()
+      : "U";
+
+  return (
+    <div className="rounded-lg bg-orange-50 p-4 text-sm text-orange-800">
+      <p className="font-semibold">
+        Giao dịch đang khiếu nại. Hệ thống tạm dừng hoàn tiền tự động.
+      </p>
+
+      <div className="mt-3 flex items-center gap-2">
+        <Avatar className="w-8 h-8">
+          <AvatarImage src={getAvatar(disputer)} />
+          <AvatarFallback>{fallbackChar}</AvatarFallback>
+        </Avatar>
+
+        <p>
+          Người khiếu nại: <b>{disputerLabel}</b>
+        </p>
+      </div>
+
+      {complaintReason && (
+        <p className="mt-2">
+          Lý do: <b>{complaintReason}</b>
+        </p>
+      )}
+
+      {invoice.complaint?.createdAt && (
+        <p className="mt-1 text-xs text-orange-700">
+          Gửi lúc: {formatDate(invoice.complaint.createdAt)}
+        </p>
+      )}
+
+      {complaintEvidences.length > 0 ? (
+        <div className="mt-4">
+          <p className="mb-2 font-semibold">Bằng chứng khiếu nại:</p>
+
+          <div className="flex flex-wrap gap-3">
+            {complaintEvidences.map((file, index) => {
+              const evidenceUrl = normalizeUrl(file.url);
+
+              if (!evidenceUrl) return null;
+
+              return (
+                <a
+                  key={`${file.publicId || evidenceUrl}-${index}`}
+                  href={evidenceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-lg border bg-white p-2 hover:shadow"
+                >
+                  {isEvidenceVideo(file) ? (
+                    <video
+                      src={evidenceUrl}
+                      controls
+                      className="h-32 w-48 rounded object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={evidenceUrl}
+                      alt={`Bằng chứng ${index + 1}`}
+                      className="h-32 w-32 rounded object-cover"
+                    />
+                  )}
+
+                  <p className="mt-1 max-w-[192px] truncate text-xs text-gray-500">
+                    {file.originalName || `Bằng chứng ${index + 1}`}
+                  </p>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-orange-700">
+          Chưa có file bằng chứng được lưu.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TimelineItem({
+  title,
+  time,
+  icon,
+}: {
+  title: string;
+  time?: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+        {icon}
+      </div>
+
+      <div>
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          {formatDate(time)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ExchangeDetailPage() {
   const auth: any = useAuth();
-  const isAuthenticated = auth.isAuthenticated;
   const user = auth.user || auth.currentUser || auth.authUser;
 
   const currentUserId = getId(user);
@@ -311,7 +560,26 @@ export function ExchangeDetailPage() {
   const [loading, setLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+
+  const disputePreviewItems = useMemo(() => {
+    return disputeFiles.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isVideo: file.type.startsWith("video"),
+    }));
+  }, [disputeFiles]);
+
+  useEffect(() => {
+    return () => {
+      disputePreviewItems.forEach((item) => {
+        URL.revokeObjectURL(item.previewUrl);
+      });
+    };
+  }, [disputePreviewItems]);
 
   async function fetchExchangeDetail() {
     try {
@@ -362,6 +630,88 @@ export function ExchangeDetailPage() {
     }
   }
 
+  function resetDisputeForm() {
+    setDisputeReason("");
+    setDisputeFiles([]);
+  }
+
+  function handleDisputeFilesChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+
+    if (files.length > 5) {
+      toast.error("Chỉ được upload tối đa 5 file bằng chứng");
+      e.target.value = "";
+      setDisputeFiles([]);
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+    ];
+
+    const invalidFile = files.find((file) => !allowedTypes.includes(file.type));
+
+    if (invalidFile) {
+      toast.error(
+        `File không hợp lệ: ${invalidFile.name}. Chỉ cho phép ảnh hoặc video.`
+      );
+      e.target.value = "";
+      setDisputeFiles([]);
+      return;
+    }
+
+    const tooLargeFile = files.find((file) => file.size > 50 * 1024 * 1024);
+
+    if (tooLargeFile) {
+      toast.error(`File quá lớn: ${tooLargeFile.name}. Tối đa 50MB/file.`);
+      e.target.value = "";
+      setDisputeFiles([]);
+      return;
+    }
+
+    setDisputeFiles(files);
+  }
+
+  async function submitDispute() {
+    if (!disputeReason.trim()) {
+      toast.error("Vui lòng nhập lý do khiếu nại");
+      return;
+    }
+
+    try {
+      setActionLoading("dispute");
+
+      const formData = new FormData();
+      formData.append("reason", disputeReason.trim());
+
+      disputeFiles.forEach((file) => {
+        formData.append("evidences", file);
+      });
+
+      const data = await api(`/exchange-escrow/${invoiceId}/dispute`, {
+        method: "POST",
+        body: formData,
+      });
+
+      toast.success(data.message || "Đã gửi khiếu nại");
+
+      setDisputeOpen(false);
+      resetDisputeForm();
+
+      await fetchExchangeDetail();
+    } catch (error: any) {
+      toast.error(error.message || "Không thể gửi khiếu nại");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   useEffect(() => {
     const token = getToken();
 
@@ -387,7 +737,9 @@ export function ExchangeDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">Không tìm thấy mã trao đổi</h2>
+          <h2 className="text-2xl font-bold mb-4">
+            Không tìm thấy mã trao đổi
+          </h2>
           <Button onClick={() => (window.location.href = "/exchanges")}>
             Quay lại danh sách trao đổi
           </Button>
@@ -416,7 +768,10 @@ export function ExchangeDetailPage() {
           <h2 className="text-2xl font-bold mb-4">Không thể tải trao đổi</h2>
           <p className="text-gray-500 mb-6">{pageError}</p>
           <div className="flex justify-center gap-3">
-            <Button variant="outline" onClick={() => (window.location.href = "/exchanges")}>
+            <Button
+              variant="outline"
+              onClick={() => (window.location.href = "/exchanges")}
+            >
               Quay lại
             </Button>
             <Button onClick={fetchExchangeDetail}>Thử lại</Button>
@@ -518,7 +873,11 @@ export function ExchangeDetailPage() {
                     Exchange Invoice Details
                   </CardTitle>
 
-                  <Badge className={`${getStatusColor(status)} flex items-center gap-1`}>
+                  <Badge
+                    className={`${getStatusColor(
+                      status
+                    )} flex items-center gap-1`}
+                  >
                     {getStatusIcon(status)}
                     {getStatusLabel(status)}
                   </Badge>
@@ -614,7 +973,9 @@ export function ExchangeDetailPage() {
                       </div>
 
                       <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                        <p className="text-xs text-gray-500">Bảo hiểm của tôi</p>
+                        <p className="text-xs text-gray-500">
+                          Bảo hiểm của tôi
+                        </p>
                         <p className="font-bold">
                           {formatMoney(myDepositAmount)}
                         </p>
@@ -634,7 +995,9 @@ export function ExchangeDetailPage() {
                       </div>
 
                       <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                        <p className="text-xs text-gray-500">Hoàn lại cho tôi</p>
+                        <p className="text-xs text-gray-500">
+                          Hoàn lại cho tôi
+                        </p>
                         <p className="font-bold text-emerald-600">
                           {formatMoney(myRefund)}
                         </p>
@@ -659,12 +1022,16 @@ export function ExchangeDetailPage() {
                       <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
                         <p className="text-sm text-gray-500">Tôi xác nhận</p>
                         <p className="mt-1 font-semibold">
-                          {myConfirmed ? "Đã xác nhận hoàn tất" : "Chưa xác nhận"}
+                          {myConfirmed
+                            ? "Đã xác nhận hoàn tất"
+                            : "Chưa xác nhận"}
                         </p>
                       </div>
 
                       <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-                        <p className="text-sm text-gray-500">Đối phương xác nhận</p>
+                        <p className="text-sm text-gray-500">
+                          Đối phương xác nhận
+                        </p>
                         <p className="mt-1 font-semibold">
                           {partnerConfirmed
                             ? "Đã xác nhận hoàn tất"
@@ -690,12 +1057,10 @@ export function ExchangeDetailPage() {
                   )}
 
                   {status === "disputed" && (
-                    <div className="rounded-lg bg-orange-50 p-4 text-sm text-orange-800">
-                      Giao dịch đang khiếu nại. Hệ thống tạm dừng hoàn tiền tự động.
-                      {invoice.disputeReason && (
-                        <p className="mt-1">Lý do: {invoice.disputeReason}</p>
-                      )}
-                    </div>
+                    <ComplaintDetailBlock
+                      invoice={invoice}
+                      currentUserId={currentUserId}
+                    />
                   )}
                 </div>
               </CardContent>
@@ -712,7 +1077,10 @@ export function ExchangeDetailPage() {
                 {canAccept && (
                   <Button
                     onClick={() =>
-                      runAction("accept", `/exchange-escrow/${invoiceId}/accept`)
+                      runAction(
+                        "accept",
+                        `/exchange-escrow/${invoiceId}/accept`
+                      )
                     }
                     disabled={!!actionLoading}
                     className="w-full bg-green-600 hover:bg-green-700"
@@ -770,7 +1138,16 @@ export function ExchangeDetailPage() {
                 )}
 
                 {canDispute && (
-                  <Dialog>
+                  <Dialog
+                    open={disputeOpen}
+                    onOpenChange={(open) => {
+                      setDisputeOpen(open);
+
+                      if (!open) {
+                        resetDisputeForm();
+                      }
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button variant="destructive" className="w-full" size="lg">
                         <AlertTriangle className="w-4 h-4 mr-2" />
@@ -778,47 +1155,105 @@ export function ExchangeDetailPage() {
                       </Button>
                     </DialogTrigger>
 
-                    <DialogContent>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Tạo khiếu nại</DialogTitle>
                         <DialogDescription>
                           Khi tạo khiếu nại, hệ thống sẽ tạm dừng hoàn tiền tự
-                          động cho giao dịch này.
+                          động cho giao dịch này. Bạn có thể gửi thêm ảnh/video
+                          làm bằng chứng.
                         </DialogDescription>
                       </DialogHeader>
 
-                      <Textarea
-                        placeholder="Nhập lý do khiếu nại..."
-                        value={disputeReason}
-                        onChange={(e) => setDisputeReason(e.target.value)}
-                        rows={5}
-                      />
+                      <div className="space-y-4">
+                        <div>
+                          <p className="mb-2 text-sm font-medium">
+                            Lý do khiếu nại
+                          </p>
+
+                          <Textarea
+                            placeholder="Nhập lý do khiếu nại..."
+                            value={disputeReason}
+                            onChange={(e) => setDisputeReason(e.target.value)}
+                            rows={5}
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-sm font-medium">
+                            Ảnh/video bằng chứng
+                          </p>
+
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*,video/*"
+                            onChange={handleDisputeFilesChange}
+                            className="w-full rounded-lg border px-3 py-2 text-sm"
+                          />
+
+                          <p className="mt-1 text-xs text-gray-500">
+                            Hỗ trợ ảnh JPG, PNG, WEBP và video MP4, MOV, WEBM.
+                            Tối đa 5 file, 50MB/file.
+                          </p>
+                        </div>
+
+                        {disputePreviewItems.length > 0 && (
+                          <div>
+                            <p className="mb-2 text-sm font-medium">
+                              File đã chọn:
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                              {disputePreviewItems.map((item, index) => (
+                                <div
+                                  key={`${item.file.name}-${index}`}
+                                  className="rounded-lg border p-2"
+                                >
+                                  {item.isVideo ? (
+                                    <video
+                                      src={item.previewUrl}
+                                      controls
+                                      className="h-24 w-full rounded object-cover"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={item.previewUrl}
+                                      alt={item.file.name}
+                                      className="h-24 w-full rounded object-cover"
+                                    />
+                                  )}
+
+                                  <p className="mt-1 line-clamp-1 text-xs text-gray-500">
+                                    {item.file.name}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                       <DialogFooter>
                         <Button
                           variant="outline"
-                          onClick={() => setDisputeReason("")}
+                          onClick={() => {
+                            setDisputeOpen(false);
+                            resetDisputeForm();
+                          }}
+                          disabled={!!actionLoading}
                         >
                           Hủy
                         </Button>
 
                         <Button
                           variant="destructive"
-                          onClick={() => {
-                            if (!disputeReason.trim()) {
-                              toast.error("Vui lòng nhập lý do khiếu nại");
-                              return;
-                            }
-
-                            runAction(
-                              "dispute",
-                              `/exchange-escrow/${invoiceId}/dispute`,
-                              { reason: disputeReason.trim() }
-                            );
-
-                            setDisputeReason("");
-                          }}
+                          onClick={submitDispute}
+                          disabled={!!actionLoading}
                         >
+                          {actionLoading === "dispute" && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
                           Gửi khiếu nại
                         </Button>
                       </DialogFooter>
@@ -890,15 +1325,22 @@ export function ExchangeDetailPage() {
                     <TimelineItem
                       title="Hoàn tất trao đổi"
                       time={invoice.completedAt}
-                      icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                      icon={
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      }
                     />
                   )}
 
                   {invoice.disputedAt && (
                     <TimelineItem
-                      title="Mở khiếu nại"
+                      title={`Mở khiếu nại bởi ${getDisputerLabel(
+                        invoice,
+                        currentUserId
+                      )}`}
                       time={invoice.disputedAt}
-                      icon={<AlertTriangle className="w-4 h-4 text-orange-600" />}
+                      icon={
+                        <AlertTriangle className="w-4 h-4 text-orange-600" />
+                      }
                     />
                   )}
 
@@ -914,31 +1356,6 @@ export function ExchangeDetailPage() {
             </Card>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function TimelineItem({
-  title,
-  time,
-  icon,
-}: {
-  title: string;
-  time?: string;
-  icon: ReactNode;
-}) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-        {icon}
-      </div>
-
-      <div>
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          {formatDate(time)}
-        </p>
       </div>
     </div>
   );

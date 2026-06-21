@@ -29,6 +29,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
 
 type ExchangeStatus =
   | "pending_receiver_accept"
@@ -56,14 +57,14 @@ type UserMini = {
 type ProductImage =
   | string
   | {
-    _id?: string;
-    imageUrl?: string;
-    url?: string;
-    secure_url?: string;
-    path?: string;
-    publicId?: string;
-    order?: number;
-  };
+      _id?: string;
+      imageUrl?: string;
+      url?: string;
+      secure_url?: string;
+      path?: string;
+      publicId?: string;
+      order?: number;
+    };
 
 type ProductMini = {
   _id?: string;
@@ -81,6 +82,23 @@ type ProductMini = {
   price?: number;
   value?: number;
   productValue?: number;
+};
+
+type ComplaintEvidence = {
+  url?: string;
+  publicId?: string;
+  type?: "image" | "video";
+  resourceType?: string;
+  originalName?: string;
+  mimeType?: string;
+  size?: number;
+};
+
+type Complaint = {
+  reason?: string;
+  evidences?: ComplaintEvidence[];
+  status?: "pending" | "reviewing" | "resolved" | "rejected";
+  createdAt?: string;
 };
 
 type ExchangeInvoice = {
@@ -122,6 +140,10 @@ type ExchangeInvoice = {
 
   disputeReason?: string;
   cancelReason?: string;
+
+  autoRefundPaused?: boolean;
+  disputeBy?: string | UserMini;
+  complaint?: Complaint;
 };
 
 function getToken() {
@@ -163,6 +185,37 @@ function getAvatar(user: any) {
   return user.avatar || user.profileImage || "";
 }
 
+function normalizeUrl(url?: string) {
+  if (!url) return "";
+
+  const cleanUrl = String(url).trim();
+
+  if (!cleanUrl) return "";
+
+  if (
+    cleanUrl.startsWith("http://") ||
+    cleanUrl.startsWith("https://") ||
+    cleanUrl.startsWith("data:") ||
+    cleanUrl.startsWith("blob:")
+  ) {
+    return cleanUrl;
+  }
+
+  if (cleanUrl.startsWith("/uploads")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("uploads/")) {
+    return `${API_ORIGIN}/${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("/")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  return cleanUrl;
+}
+
 function getProductTitle(product: any) {
   if (!product || typeof product === "string") return "Sản phẩm";
 
@@ -172,26 +225,26 @@ function getProductTitle(product: any) {
 function getProductImage(product: any) {
   if (!product || typeof product === "string") return "";
 
-  if (product.thumbnail) return product.thumbnail;
-  if (product.productImage) return product.productImage;
-  if (product.imageUrl) return product.imageUrl;
-  if (product.image) return product.image;
-  if (product.coverImage) return product.coverImage;
-  if (product.mainImage) return product.mainImage;
+  if (product.thumbnail) return normalizeUrl(product.thumbnail);
+  if (product.productImage) return normalizeUrl(product.productImage);
+  if (product.imageUrl) return normalizeUrl(product.imageUrl);
+  if (product.image) return normalizeUrl(product.image);
+  if (product.coverImage) return normalizeUrl(product.coverImage);
+  if (product.mainImage) return normalizeUrl(product.mainImage);
 
   const firstImage = product.images?.[0];
 
   if (typeof firstImage === "string") {
-    return firstImage;
+    return normalizeUrl(firstImage);
   }
 
   if (firstImage && typeof firstImage === "object") {
-    return (
+    return normalizeUrl(
       firstImage.imageUrl ||
-      firstImage.url ||
-      firstImage.secure_url ||
-      firstImage.path ||
-      ""
+        firstImage.url ||
+        firstImage.secure_url ||
+        firstImage.path ||
+        ""
     );
   }
 
@@ -210,7 +263,14 @@ function formatMoney(value?: number) {
 
 function formatDate(value?: string) {
   if (!value) return "Chưa có";
-  return new Date(value).toLocaleString("vi-VN");
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Chưa có";
+  }
+
+  return date.toLocaleString("vi-VN");
 }
 
 function getStatusLabel(status?: ExchangeStatus) {
@@ -277,10 +337,67 @@ function getStatusIcon(status?: ExchangeStatus) {
   }
 }
 
+function getComplaintReason(invoice: ExchangeInvoice) {
+  return invoice.complaint?.reason || invoice.disputeReason || "";
+}
+
+function getComplaintEvidences(invoice: ExchangeInvoice) {
+  return invoice.complaint?.evidences || [];
+}
+
+function isEvidenceVideo(file: ComplaintEvidence) {
+  return (
+    file.type === "video" ||
+    file.resourceType === "video" ||
+    file.mimeType?.startsWith("video/")
+  );
+}
+
+function getDisputer(invoice: ExchangeInvoice) {
+  const disputeById = getId(invoice.disputeBy);
+
+  if (!disputeById) return null;
+
+  if (disputeById === getId(invoice.requester)) {
+    return invoice.requester;
+  }
+
+  if (disputeById === getId(invoice.receiver)) {
+    return invoice.receiver;
+  }
+
+  if (typeof invoice.disputeBy === "object") {
+    return invoice.disputeBy;
+  }
+
+  return null;
+}
+
+function getDisputerLabel(invoice: ExchangeInvoice, currentUserId: string) {
+  const disputeById = getId(invoice.disputeBy);
+
+  if (!disputeById) {
+    return "Chưa xác định";
+  }
+
+  let disputer: any = getDisputer(invoice);
+
+  if (!disputer && typeof invoice.disputeBy === "object") {
+    disputer = invoice.disputeBy;
+  }
+
+  const name = disputer ? getName(disputer) : "Người dùng";
+
+  if (disputeById === currentUserId) {
+    return `${name} (Bạn)`;
+  }
+
+  return name;
+}
+
 export function ExchangeHistoryPage() {
   const navigate = useNavigate();
   const auth: any = useAuth();
-  const isAuthenticated = auth.isAuthenticated;
   const user = auth.user || auth.currentUser || auth.authUser;
 
   const currentUserId = getId(user);
@@ -292,8 +409,9 @@ export function ExchangeHistoryPage() {
 
   async function api(path: string, options: RequestInit = {}) {
     const token = getToken();
+    const url = `${API_BASE}${path}`;
 
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -303,7 +421,19 @@ export function ExchangeHistoryPage() {
     });
 
     const text = await res.text();
-    const data = text ? JSON.parse(text) : {};
+
+    let data: any = {};
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error("API trả về không phải JSON");
+      console.error("URL:", url);
+      console.error("HTTP status:", res.status);
+      console.error("Response text:", text.slice(0, 300));
+
+      throw new Error(`API không trả JSON. Kiểm tra backend route: ${url}`);
+    }
 
     if (!res.ok) {
       throw new Error(data.message || data.error || "Có lỗi xảy ra");
@@ -419,6 +549,8 @@ export function ExchangeHistoryPage() {
         getProductTitle(myProduct),
         getProductTitle(partnerProduct),
         invoice.status,
+        getComplaintReason(invoice),
+        getDisputerLabel(invoice, currentUserId),
       ]
         .join(" ")
         .toLowerCase();
@@ -431,6 +563,97 @@ export function ExchangeHistoryPage() {
       return matchesSearch && matchesStatus;
     });
   }, [invoices, searchQuery, statusFilter, currentUserId]);
+
+  function ComplaintEvidenceBlock({
+    exchange,
+  }: {
+    exchange: ExchangeInvoice;
+  }) {
+    const evidences = getComplaintEvidences(exchange);
+    const disputer = getDisputer(exchange);
+    const disputerLabel = getDisputerLabel(exchange, currentUserId);
+    const fallbackChar =
+      disputerLabel && disputerLabel.length > 0
+        ? disputerLabel.charAt(0).toUpperCase()
+        : "U";
+
+    return (
+      <div className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
+        <p className="font-semibold">
+          Giao dịch đang khiếu nại. Hệ thống đã tạm dừng hoàn tiền tự động.
+        </p>
+
+        <div className="mt-3 flex items-center gap-2">
+          <Avatar className="w-7 h-7">
+            <AvatarImage src={getAvatar(disputer)} />
+            <AvatarFallback>{fallbackChar}</AvatarFallback>
+          </Avatar>
+
+          <p>
+            Người khiếu nại: <b>{disputerLabel}</b>
+          </p>
+        </div>
+
+        {getComplaintReason(exchange) && (
+          <p className="mt-2">
+            Lý do: <b>{getComplaintReason(exchange)}</b>
+          </p>
+        )}
+
+        {exchange.complaint?.createdAt && (
+          <p className="mt-1 text-xs text-orange-700">
+            Gửi lúc: {formatDate(exchange.complaint.createdAt)}
+          </p>
+        )}
+
+        {evidences.length > 0 ? (
+          <div className="mt-3">
+            <p className="mb-2 font-semibold">Bằng chứng:</p>
+
+            <div className="flex flex-wrap gap-3">
+              {evidences.map((file, index) => {
+                const evidenceUrl = normalizeUrl(file.url);
+
+                if (!evidenceUrl) return null;
+
+                return (
+                  <a
+                    key={`${file.publicId || evidenceUrl}-${index}`}
+                    href={evidenceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-lg border bg-white p-2 hover:shadow"
+                  >
+                    {isEvidenceVideo(file) ? (
+                      <video
+                        src={evidenceUrl}
+                        controls
+                        className="h-24 w-36 rounded object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={evidenceUrl}
+                        alt={`Bằng chứng ${index + 1}`}
+                        className="h-24 w-24 rounded object-cover"
+                      />
+                    )}
+
+                    <p className="mt-1 max-w-[144px] truncate text-xs text-gray-500">
+                      {file.originalName || `Bằng chứng ${index + 1}`}
+                    </p>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-orange-700">
+            Chưa có file bằng chứng được lưu.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   function ExchangeCard({ exchange }: { exchange: ExchangeInvoice }) {
     const invoiceId = getInvoiceId(exchange);
@@ -509,12 +732,18 @@ export function ExchangeHistoryPage() {
 
                   <p className="mt-1 text-xs text-gray-500">
                     Vai trò của bạn:{" "}
-                    <b>{side === "requester" ? "Người gửi yêu cầu" : "Người nhận yêu cầu"}</b>
+                    <b>
+                      {side === "requester"
+                        ? "Người gửi yêu cầu"
+                        : "Người nhận yêu cầu"}
+                    </b>
                   </p>
                 </div>
 
                 <Badge
-                  className={`${getStatusColor(status)} flex w-fit items-center gap-1`}
+                  className={`${getStatusColor(
+                    status
+                  )} flex w-fit items-center gap-1`}
                 >
                   {getStatusIcon(status)}
                   {getStatusLabel(status)}
@@ -571,13 +800,7 @@ export function ExchangeHistoryPage() {
               )}
 
               {status === "disputed" && (
-                <div className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
-                  Giao dịch đang khiếu nại. Hệ thống đã tạm dừng hoàn tiền tự
-                  động.
-                  {exchange.disputeReason && (
-                    <p className="mt-1">Lý do: {exchange.disputeReason}</p>
-                  )}
-                </div>
+                <ComplaintEvidenceBlock exchange={exchange} />
               )}
 
               {status === "cancelled" && (
@@ -592,12 +815,21 @@ export function ExchangeHistoryPage() {
               <div className="mt-4 grid gap-2 text-sm text-gray-500 md:grid-cols-2">
                 <p>Tạo lúc: {formatDate(exchange.createdAt)}</p>
                 <p>Cập nhật: {formatDate(exchange.updatedAt)}</p>
-                {exchange.activeAt && <p>Bắt đầu: {formatDate(exchange.activeAt)}</p>}
+
+                {exchange.activeAt && (
+                  <p>Bắt đầu: {formatDate(exchange.activeAt)}</p>
+                )}
+
                 {exchange.autoReleaseAt && (
                   <p>Tự động hoàn tiền: {formatDate(exchange.autoReleaseAt)}</p>
                 )}
+
                 {exchange.completedAt && (
                   <p>Hoàn tất: {formatDate(exchange.completedAt)}</p>
+                )}
+
+                {exchange.disputedAt && (
+                  <p>Khiếu nại: {formatDate(exchange.disputedAt)}</p>
                 )}
               </div>
 
@@ -676,9 +908,7 @@ export function ExchangeHistoryPage() {
               <SelectItem value="pending_receiver_accept">
                 Chờ đồng ý
               </SelectItem>
-              <SelectItem value="waiting_deposits">
-                Chờ đặt cọc
-              </SelectItem>
+              <SelectItem value="waiting_deposits">Chờ đặt cọc</SelectItem>
               <SelectItem value="active">Đang trao đổi</SelectItem>
               <SelectItem value="completed">Hoàn tất</SelectItem>
               <SelectItem value="disputed">Khiếu nại</SelectItem>
@@ -692,9 +922,7 @@ export function ExchangeHistoryPage() {
             <Card>
               <CardContent className="p-12 text-center">
                 <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-gray-400" />
-                <p className="text-gray-500">
-                  Đang tải lịch sử trao đổi...
-                </p>
+                <p className="text-gray-500">Đang tải lịch sử trao đổi...</p>
               </CardContent>
             </Card>
           ) : filteredExchanges.length > 0 ? (
