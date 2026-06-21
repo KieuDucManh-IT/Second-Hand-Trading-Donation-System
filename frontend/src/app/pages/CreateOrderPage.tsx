@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -18,7 +18,6 @@ import {
   ArrowLeft,
   CheckCircle2,
 } from 'lucide-react';
-import { mockProducts } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -26,21 +25,81 @@ export function CreateOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
-  const [paymentMethod, setPaymentMethod] = useState('credit_card');
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [cardName, setCardName] = useState('');
 
+  const [product, setProduct] = useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
   const productId = searchParams.get('productId');
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (!productId) return;
+    const fetchProduct = async () => {
+      try {
+        setLoadingProduct(true);
+        const res = await fetch(`http://localhost:5000/api/products/${productId}`);
+        if (res.ok) {
+          const json = await res.json();
+          setProduct(json.data);
+        }
+      } catch (err) {
+        console.error("Error fetching product:", err);
+      } finally {
+        setLoadingProduct(false);
+      }
+    };
+    fetchProduct();
+  }, [productId]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchWallet = async () => {
+      try {
+        setLoadingBalance(true);
+        const token = sessionStorage.getItem("token");
+        const res = await fetch("http://localhost:5000/api/wallet", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWalletBalance(data.wallet.balance);
+        }
+      } catch (err) {
+        console.error("Error fetching wallet balance:", err);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+    fetchWallet();
+  }, [isAuthenticated]);
+
   if (!isAuthenticated) {
-    navigate('/login');
     return null;
   }
 
-  const product = mockProducts.find((p) => p.id === productId);
+  if (loadingProduct) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <p className="text-gray-500">Loading product details...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -56,21 +115,63 @@ export function CreateOrderPage() {
   const escrowFee = product.price * 0.03;
   const totalAmount = product.price + escrowFee;
 
-  const handleCreateOrder = () => {
+  const handleCreateOrder = async () => {
     if (!agreedToTerms) {
       toast.error('Please agree to the terms and conditions');
       return;
     }
 
-    if (paymentMethod === 'credit_card') {
-      if (!cardNumber || !expiryDate || !cvv || !cardName) {
-        toast.error('Please fill in all card details');
-        return;
-      }
+    if (paymentMethod !== 'wallet') {
+      toast.error('Currently, only payment via SecondLife Wallet is supported for escrow protection.');
+      return;
     }
 
-    toast.success('Order created successfully! Your payment is being held in escrow.');
-    navigate('/transactions');
+    if (walletBalance !== null && walletBalance < totalAmount) {
+      toast.error('Insufficient wallet balance. Please deposit funds first.');
+      navigate('/wallet');
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem("token");
+      
+      // 1. Create pending order
+      const createRes = await fetch("http://localhost:5000/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId }),
+      });
+
+      const createData = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(createData.message || "Failed to create order");
+      }
+
+      const orderId = createData.order._id;
+
+      // 2. Pay order via wallet
+      const payRes = await fetch(`http://localhost:5000/api/orders/${orderId}/pay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payData = await payRes.json();
+      if (!payRes.ok) {
+        throw new Error(payData.message || "Payment failed, order created in pending state");
+      }
+
+      toast.success('Order created and paid successfully! Your payment is being held in escrow.');
+      navigate('/orders');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Checkout failed');
+    }
   };
 
   return (
@@ -114,33 +215,32 @@ export function CreateOrderPage() {
                     <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="credit_card" id="credit_card" />
+                          <RadioGroupItem value="wallet" id="wallet" />
+                          <Label
+                            htmlFor="wallet"
+                            className="flex items-center gap-2 cursor-pointer flex-1"
+                          >
+                            <Wallet className="w-5 h-5" />
+                            <div className="flex flex-col">
+                              <span className="font-semibold">SecondLife Wallet</span>
+                              {walletBalance !== null ? (
+                                <span className="text-xs text-gray-500">
+                                  Available Balance: {walletBalance.toLocaleString('vi-VN')} VND
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-500">Loading wallet balance...</span>
+                              )}
+                            </div>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 opacity-60">
+                          <RadioGroupItem value="credit_card" id="credit_card" disabled />
                           <Label
                             htmlFor="credit_card"
                             className="flex items-center gap-2 cursor-pointer flex-1"
                           >
                             <CreditCard className="w-5 h-5" />
-                            <span>Credit/Debit Card</span>
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="paypal" id="paypal" />
-                          <Label
-                            htmlFor="paypal"
-                            className="flex items-center gap-2 cursor-pointer flex-1"
-                          >
-                            <Wallet className="w-5 h-5" />
-                            <span>PayPal</span>
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="bank_transfer" id="bank_transfer" />
-                          <Label
-                            htmlFor="bank_transfer"
-                            className="flex items-center gap-2 cursor-pointer flex-1"
-                          >
-                            <Building2 className="w-5 h-5" />
-                            <span>Bank Transfer</span>
+                            <span>Credit/Debit Card (Deposit via Wallet page first)</span>
                           </Label>
                         </div>
                       </div>
@@ -222,7 +322,7 @@ export function CreateOrderPage() {
 
                   <Button onClick={handleCreateOrder} className="w-full" size="lg">
                     <Lock className="w-4 h-4 mr-2" />
-                    Secure Payment - ${totalAmount.toFixed(2)}
+                    Secure Payment - {totalAmount.toLocaleString('vi-VN')}đ
                   </Button>
                 </div>
               </CardContent>
@@ -237,7 +337,7 @@ export function CreateOrderPage() {
               <CardContent className="space-y-4">
                 <div className="flex gap-3">
                   <ImageWithFallback
-                    src={product.images[0]}
+                    src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
                     alt={product.title}
                     className="w-20 h-20 object-cover rounded-lg"
                   />
@@ -246,7 +346,7 @@ export function CreateOrderPage() {
                       {product.title}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Seller: {product.sellerName}
+                      Seller: {product.ownerId?.fullName || 'Seller'}
                     </p>
                   </div>
                 </div>
@@ -256,16 +356,16 @@ export function CreateOrderPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Product Price</span>
-                    <span className="font-semibold">${product.price.toFixed(2)}</span>
+                    <span className="font-semibold">{product.price.toLocaleString('vi-VN')}đ</span>
                   </div>
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Escrow Fee (3%)</span>
-                    <span>${escrowFee.toFixed(2)}</span>
+                    <span>{escrowFee.toLocaleString('vi-VN')}đ</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>${totalAmount.toFixed(2)}</span>
+                    <span>{totalAmount.toLocaleString('vi-VN')}đ</span>
                   </div>
                 </div>
               </CardContent>

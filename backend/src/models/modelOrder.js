@@ -49,7 +49,7 @@ const orderSchema = new mongoose.Schema(
     // cancelled → hủy (buyer hoặc seller)
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'completed', 'cancelled'],
+      enum: ['pending', 'paid', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'disputed'],
       default: 'pending',
     },
  
@@ -60,6 +60,15 @@ const orderSchema = new mongoose.Schema(
     confirmedAt: { type: Date },
     completedAt: { type: Date },
     cancelledAt: { type: Date },
+    disputedAt: { type: Date },
+    autoReleaseAt: { type: Date },
+
+    // Lý do khiếu nại (nếu có)
+    disputeReason: { type: String, default: '' },
+    disputeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
  
     // Đã cộng balance cho seller chưa (tránh double-credit)
     balanceCredited: { type: Boolean, default: false },
