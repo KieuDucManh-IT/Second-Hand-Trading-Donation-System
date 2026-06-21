@@ -48,11 +48,6 @@ productSchema.index({ location: '2dsphere' });
 productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ categoryId: 1, status: 1, isAvailable: 1 });
 productSchema.index({ ownerId: 1 });
-<<<<<<< HEAD
 productSchema.index({ pendingApproval: 1, createdAt: -1 });   // query manager nhanh hơn
  
 module.exports = mongoose.model('Product', productSchema);
-=======
-productSchema.index({ pendingApproval: 1, createdAt: -1 });  
-module.exports = mongoose.model('Product', productSchema);
->>>>>>> c720a4d82b5ef443e1afe50393eb309febdff7bc

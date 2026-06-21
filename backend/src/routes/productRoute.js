@@ -19,11 +19,7 @@ const {
 
 const { protect }       = require('../middlewares/authMiddleware');
 const { uploadProduct } = require('../config/cloudinary');
-<<<<<<< HEAD
-
-=======
  
->>>>>>> 56c7352313d6ae88a89f3de844acaaabcd7c3ee1
 // Middleware kiểm tra role manager
 const requireManager = (req, res, next) => {
   if (req.user?.role !== 'manager') {
