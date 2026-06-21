@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -36,11 +36,13 @@ import {
   CONDITION_LABELS,
 } from '../api/productApi';
 import { getOrCreateConversation } from '../api/chatApi';
- 
+
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+  const isManager = user?.role === 'manager' || location.state?.from === 'manager';
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
@@ -49,7 +51,7 @@ export function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contacting, setContacting] = useState(false);
- 
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -81,7 +83,7 @@ export function ProductDetailPage() {
     load();
     return () => { cancelled = true; };
   }, [id]);
- 
+
   const handleContact = async () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để liên hệ người bán');
@@ -89,7 +91,7 @@ export function ProductDetailPage() {
       return;
     }
     if (!product?.ownerId?._id) return;
- 
+
     try {
       setContacting(true);
       const res = await getOrCreateConversation(product.ownerId._id, product._id);
@@ -112,12 +114,12 @@ export function ProductDetailPage() {
 
   const handleReport = async () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để gửi báo cáo');
+      alert('Vui lòng đăng nhập để gửi báo cáo');
       navigate('/login');
       return;
     }
     if (!reportReason.trim()) {
-      toast.error('Vui lòng nhập lý do báo cáo');
+      alert('Vui lòng nhập lý do báo cáo');
       return;
     }
 
@@ -139,14 +141,14 @@ export function ProductDetailPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message || 'Gửi báo cáo thất bại');
+        alert(data.message || 'Gửi báo cáo thất bại');
         return;
       }
 
-      toast.success('Đã gửi báo cáo thành công. Chúng tôi sẽ xem xét sớm.');
+      alert('Đã gửi báo cáo thành công. Chúng tôi sẽ xem xét sớm.');
       setReportReason('');
     } catch (error) {
-      toast.error('Không thể kết nối tới máy chủ');
+      alert('Không thể kết nối tới máy chủ');
     }
   };
 
@@ -179,11 +181,11 @@ export function ProductDetailPage() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => navigate('/products')}
+          onClick={() => navigate(isManager ? '/manager' : '/products')}
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Quay lại danh sách
+          {isManager ? 'Quay lại dashboard' : 'Quay lại danh sách'}
         </Button>
 
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
@@ -264,61 +266,67 @@ export function ProductDetailPage() {
             )}
 
             {/* Action Buttons */}
-            <div className="space-y-3 mb-6">
-              <Button
-                onClick={handleOrder}
-                className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
-              >
-                {product.type === 'donate' ? 'Yêu cầu nhận đồ' : 'Mua ngay'}
-              </Button>
-              {product.type === 'sell' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        toast.error('Vui lòng đăng nhập để tạo đơn hàng');
-                        navigate('/login');
-                        return;
-                      }
-                      navigate(`/create-order?productId=${product._id}`);
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ShieldCheck className="w-4 h-4 mr-2" />
-                    Đặt hàng (Escrow)
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        toast.error('Vui lòng đăng nhập để đề xuất trao đổi');
-                        navigate('/login');
-                        return;
-                      }
-                      toast.info('Tính năng trao đổi sắp ra mắt!');
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ArrowLeftRight className="w-4 h-4 mr-2" />
-                    Đề xuất trao đổi
-                  </Button>
-                </div>
-              )}
-              <Button
-                onClick={handleContact}
-                disabled={contacting}
-                variant="outline"
-                className="w-full h-12"
-              >
-                {contacting ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                ) : (
-                  <MessageCircle className="w-5 h-5 mr-2" />
+            {!isManager ? (
+              <div className="space-y-3 mb-6">
+                <Button
+                  onClick={handleOrder}
+                  className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
+                >
+                  {product.type === 'donate' ? 'Yêu cầu nhận đồ' : 'Mua ngay'}
+                </Button>
+                {product.type === 'sell' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          toast.error('Vui lòng đăng nhập để tạo đơn hàng');
+                          navigate('/login');
+                          return;
+                        }
+                        navigate(`/create-order?productId=${product._id}`);
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      Đặt hàng (Escrow)
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          toast.error('Vui lòng đăng nhập để đề xuất trao đổi');
+                          navigate('/login');
+                          return;
+                        }
+                        toast.info('Tính năng trao đổi sắp ra mắt!');
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ArrowLeftRight className="w-4 h-4 mr-2" />
+                      Đề xuất trao đổi
+                    </Button>
+                  </div>
                 )}
-                Liên hệ người bán
-              </Button>
-            </div>
+                <Button
+                  onClick={handleContact}
+                  disabled={contacting}
+                  variant="outline"
+                  className="w-full h-12"
+                >
+                  {contacting ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                  )}
+                  Liên hệ người bán
+                </Button>
+              </div>
+            ) : (
+              <div className="mb-6 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-center font-medium">
+                Bạn đang xem sản phẩm này với tư cách Quản trị viên
+              </div>
+            )}
 
             <Separator className="my-6" />
 
@@ -357,37 +365,39 @@ export function ProductDetailPage() {
             )}
 
             {/* Report */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full mt-4 text-red-600 hover:text-red-700">
-                  <Flag className="w-4 h-4 mr-2" />
-                  Báo cáo tin đăng này
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Báo cáo sản phẩm</DialogTitle>
-                  <DialogDescription>
-                    Giúp chúng tôi giữ an toàn cho cộng đồng. Vui lòng mô tả vấn đề.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Lý do báo cáo</Label>
-                    <Textarea
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      placeholder="Mô tả vấn đề..."
-                      className="mt-2"
-                      rows={4}
-                    />
-                  </div>
-                  <Button onClick={handleReport} className="w-full">
-                    Gửi báo cáo
+            {!isManager && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" className="w-full mt-4 text-red-600 hover:text-red-700">
+                    <Flag className="w-4 h-4 mr-2" />
+                    Báo cáo tin đăng này
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Báo cáo sản phẩm</DialogTitle>
+                    <DialogDescription>
+                      Giúp chúng tôi giữ an toàn cho cộng đồng. Vui lòng mô tả vấn đề.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Lý do báo cáo</Label>
+                      <Textarea
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        placeholder="Mô tả vấn đề..."
+                        className="mt-2"
+                        rows={4}
+                      />
+                    </div>
+                    <Button onClick={handleReport} className="w-full">
+                      Gửi báo cáo
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 

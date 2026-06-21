@@ -139,7 +139,7 @@ export function ProductsTab({
                       <Button
                         size="icon"
                         variant="outline"
-                        onClick={() => navigate(`/products/${product.id}`)}
+                        onClick={() => navigate(`/products/${product.id}`, { state: { from: 'manager' } })}
                         title="View product"
                       >
                         <Eye className="h-4 w-4" />
