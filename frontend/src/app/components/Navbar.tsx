@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Search, Heart, User, Menu, X } from 'lucide-react';
+import { ShoppingBag, Search, User, Menu, X } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -53,9 +53,6 @@ export function Navbar() {
             <div className="hidden md:flex items-center space-x-4">
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Search className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Heart className="w-5 h-5" />
               </Button>
               <Link to="/cart">
                 <Button variant="ghost" size="icon" className="rounded-full relative">

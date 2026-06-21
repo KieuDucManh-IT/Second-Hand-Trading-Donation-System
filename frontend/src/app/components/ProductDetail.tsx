@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Heart, Share2, Check } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Check } from 'lucide-react';
 import { initialProducts } from '../data/products';
 import { useCart } from '../contexts/CartContext';
 import { Button } from './ui/button';
@@ -211,25 +211,6 @@ export function ProductDetail() {
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
                 Add to Cart
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="rounded-xl h-14"
-                onClick={() => toast.success('Added to wishlist!')}
-              >
-                <Heart className="w-5 h-5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="rounded-xl h-14"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  toast.success('Link copied to clipboard!');
-                }}
-              >
-                <Share2 className="w-5 h-5" />
               </Button>
             </div>
 

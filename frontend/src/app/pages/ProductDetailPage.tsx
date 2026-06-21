@@ -8,8 +8,6 @@ import { Separator } from '../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import {
-  Heart,
-  Share2,
   MapPin,
   Star,
   MessageCircle,
@@ -233,14 +231,6 @@ export function ProductDetailPage() {
                 {product.categoryId?.name && (
                   <Badge variant="outline">{product.categoryId.name}</Badge>
                 )}
-              </div>
-              <div className="flex space-x-2">
-                <Button size="sm" variant="outline" className="rounded-full">
-                  <Heart className="w-5 h-5" />
-                </Button>
-                <Button size="sm" variant="outline" className="rounded-full">
-                  <Share2 className="w-5 h-5" />
-                </Button>
               </div>
             </div>
 

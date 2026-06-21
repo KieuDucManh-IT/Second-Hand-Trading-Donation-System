@@ -345,11 +345,6 @@ export function Header() {
                         Transactions
                       </DropdownMenuItem>
 
-                      <DropdownMenuItem>
-                        <Heart className="w-4 h-4 mr-2" />
-                        Favorites
-                      </DropdownMenuItem>
-
                       <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
