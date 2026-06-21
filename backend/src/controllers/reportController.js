@@ -12,6 +12,18 @@ const createReport = async (req, res) => {
       return res.status(400).json({ message: "Loại đối tượng báo cáo không hợp lệ" });
     }
 
+    const existingReport = await Report.findOne({
+      reporterId: req.user._id,
+      targetType,
+      targetId,
+    });
+
+    if (existingReport) {
+      return res.status(400).json({
+        message: `Bạn đã báo cáo ${targetType === 'product' ? 'bài đăng' : 'đối tượng'} này rồi!`
+      });
+    }
+
     const report = new Report({
       reporterId: req.user._id,
       targetType,
