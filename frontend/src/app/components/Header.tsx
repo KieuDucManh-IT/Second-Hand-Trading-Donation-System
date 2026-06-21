@@ -428,6 +428,17 @@ export function Header() {
                 <Button
                   variant="ghost"
                   onClick={() => {
+                    navigate(`/profile/${user?.id}`);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full justify-start"
+                >
+                  <User className="w-5 h-5 mr-2" />
+                  My Profile
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
                     navigate('/create-product');
                     setMobileMenuOpen(false);
                   }}
