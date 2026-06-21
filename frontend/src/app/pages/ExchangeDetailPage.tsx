@@ -1266,7 +1266,7 @@ export function ExchangeDetailPage() {
                   !canConfirmCompleted &&
                   !canDispute && (
                     <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500 dark:bg-gray-800">
-                      Không có thao tác khả dụng ở trạng thái hiện tại.
+                      Không có thao tác khả dụng ở trạng thái hiện tại
                     </div>
                   )}
 
