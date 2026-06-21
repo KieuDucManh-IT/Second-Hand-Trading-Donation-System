@@ -181,7 +181,13 @@ export function ProductDetailPage() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => navigate(isManager ? '/manager' : '/products')}
+          onClick={() => {
+            if (isManager) {
+              navigate('/manager', { state: { tab: location.state?.tab || 'products' } });
+            } else {
+              navigate('/products');
+            }
+          }}
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />

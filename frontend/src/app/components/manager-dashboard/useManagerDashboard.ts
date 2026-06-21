@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -47,10 +47,11 @@ const validateInput = (value: string, fieldName: string, isDescription: boolean 
 export function useManagerDashboard() {
   const { user, logout, isAuthReady } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState<ManagerDashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<DashboardTab>('products');
+  const [activeTab, setActiveTab] = useState<DashboardTab>((location.state as any)?.tab || 'products');
 
 
 
