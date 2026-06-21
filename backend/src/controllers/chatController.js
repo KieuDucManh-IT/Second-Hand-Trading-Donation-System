@@ -209,9 +209,13 @@ exports.markAsRead = async (req, res) => {
     conv.unreadCounts.set(userId.toString(), 0);
     await conv.save();
 
+    // Đọc xong -> hẹn giờ tự xóa khỏi DB sau 2 tháng (theo yêu cầu).
+    const expireAt = new Date();
+    expireAt.setMonth(expireAt.getMonth() + 2);
+
     await Message.updateMany(
       { conversationId: id, senderId: { $ne: userId }, isRead: false },
-      { $set: { isRead: true } }
+      { $set: { isRead: true, expireAt } }
     );
 
     const io = req.app.get('io');
@@ -231,3 +235,4 @@ exports.markAsRead = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Không thể cập nhật trạng thái đã đọc', error: err.message });
   }
 };
+ 

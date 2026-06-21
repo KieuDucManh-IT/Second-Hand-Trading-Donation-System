@@ -5,6 +5,30 @@ const User         = require('../models/modelUser');
 const Conversation = require('../models/modelConversation');
 const Message      = require('../models/modelMessage');
 
+// ── Theo dõi user online trong bộ nhớ ─────────────────────────────────────
+// userId -> số lượng kết nối (1 user có thể mở nhiều tab/thiết bị)
+// Dùng đếm số socket thay vì cờ true/false để tránh báo "offline" nhầm khi
+// user chỉ đóng 1 trong nhiều tab đang mở.
+const onlineUsers = new Map();
+
+const markUserOnline = (io, userId) => {
+  const count = onlineUsers.get(userId) || 0;
+  onlineUsers.set(userId, count + 1);
+  if (count === 0) {
+    io.emit('user_online', { userId });
+  }
+};
+
+const markUserOffline = (io, userId) => {
+  const count = onlineUsers.get(userId) || 0;
+  if (count <= 1) {
+    onlineUsers.delete(userId);
+    io.emit('user_offline', { userId });
+  } else {
+    onlineUsers.set(userId, count - 1);
+  }
+};
+
 /**
  * Khởi tạo Socket.IO, gắn middleware xác thực JWT và đăng ký các event chat.
  * @param {import('http').Server} httpServer
@@ -48,6 +72,17 @@ const initChatSocket = (httpServer) => {
 
     // Mỗi user có 1 room riêng -> server có thể emit tới mọi tab/thiết bị của user đó
     socket.join(`user:${userId}`);
+
+    markUserOnline(io, userId);
+
+    // ── Cho client hỏi trạng thái online của 1 danh sách user (lúc mới mở trang) ──
+    socket.on('get_online_status', (userIds = [], callback) => {
+      const result = {};
+      (Array.isArray(userIds) ? userIds : [userIds]).forEach((id) => {
+        result[id] = onlineUsers.has(id);
+      });
+      if (typeof callback === 'function') callback(result);
+    });
 
     // ── Tham gia phòng của một cuộc trò chuyện cụ thể ──────────────────────
     socket.on('join_conversation', async (conversationId) => {
@@ -133,9 +168,13 @@ const initChatSocket = (httpServer) => {
         conv.unreadCounts.set(userId, 0);
         await conv.save();
 
+        // Đọc xong -> hẹn giờ tự xóa khỏi DB sau 2 tháng (theo yêu cầu).
+        const expireAt = new Date();
+        expireAt.setMonth(expireAt.getMonth() + 2);
+
         await Message.updateMany(
           { conversationId, senderId: { $ne: userId }, isRead: false },
-          { $set: { isRead: true } }
+          { $set: { isRead: true, expireAt } }
         );
 
         conv.participants.forEach((p) => {
@@ -152,7 +191,7 @@ const initChatSocket = (httpServer) => {
     });
 
     socket.on('disconnect', () => {
-      // có thể broadcast trạng thái offline nếu cần
+      markUserOffline(io, userId);
     });
   });
 

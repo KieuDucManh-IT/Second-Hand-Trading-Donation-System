@@ -25,10 +25,15 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    expireAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 messageSchema.index({ conversationId: 1, createdAt: 1 });
+messageSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Message', messageSchema);

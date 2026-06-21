@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -31,6 +31,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { mockNotifications } from '../data/mockData';
+import { fetchConversations } from '../api/chatApi';
+import { connectSocket } from '../lib/socket';
 
 export function Header() {
   const navigate = useNavigate();
@@ -39,8 +41,49 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const unreadNotifications = mockNotifications.filter(n => !n.isRead).length;
+
+  /* ── Số tin nhắn chưa đọc (lấy từ API thật) ───────────────────────────── */
+  const loadUnreadMessages = () => {
+    fetchConversations()
+      .then((res) => {
+        const total = res.data.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        setUnreadMessages(total);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    loadUnreadMessages();
+
+    const socket = connectSocket();
+
+    const onNewMessage = ({ conversationId }: { conversationId: string }) => {
+      // Nếu đang mở đúng cuộc trò chuyện đó trong trang Messages thì nó sẽ tự
+      // đánh dấu đã đọc; để đơn giản và luôn chính xác, gọi lại API đếm tổng.
+      loadUnreadMessages();
+    };
+
+    const onMessagesRead = () => {
+      loadUnreadMessages();
+    };
+
+    socket.on('new_message', onNewMessage);
+    socket.on('messages_read', onMessagesRead);
+
+    return () => {
+      socket.off('new_message', onNewMessage);
+      socket.off('messages_read', onMessagesRead);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,9 +161,11 @@ export function Header() {
                   className="relative rounded-full"
                 >
                   <MessageSquare className="w-5 h-5" />
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-                    2
-                  </Badge>
+                  {unreadMessages > 0 && (
+                    <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </Badge>
+                  )}
                 </Button>
 
                 {/* Notifications */}

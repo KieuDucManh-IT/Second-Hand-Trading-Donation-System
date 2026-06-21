@@ -360,8 +360,8 @@ export function CreateProductPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sell">💰 Bán</SelectItem>
-                      <SelectItem value="donate">🎁 Cho tặng miễn phí</SelectItem>
+                      <SelectItem value="sell"> Bán</SelectItem>
+                      <SelectItem value="donate"> Cho tặng miễn phí</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

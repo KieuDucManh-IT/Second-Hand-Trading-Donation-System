@@ -33,6 +33,14 @@ function initials(name?: string | null) {
     .join('')
     .toUpperCase();
 }
+
+// Luôn sắp xếp tin nhắn theo thời gian tạo (cũ -> mới) để tránh hiển thị
+// sai thứ tự dù dữ liệu đến từ API hay socket theo thứ tự nào.
+function sortByTime(msgs: ApiMessage[]): ApiMessage[] {
+  return [...msgs].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
  
 /* ── Component ───────────────────────────────────────────────────────────── */
 export function MessagesPage() {
@@ -50,6 +58,7 @@ export function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [initialized, setInitialized] = useState(false);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
  
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -64,18 +73,18 @@ export function MessagesPage() {
     if (!isAuthenticated) navigate('/login');
   }, [isAuthenticated, navigate]);
  
-  /* ── Kết nối Socket.IO ───────────────────────────────────────────────── */
+  /* ── Kết nối Socket.IO ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!isAuthenticated) return;
- 
+
     const socket = connectSocket();
     socketRef.current = socket;
- 
-    socket.on('connect_error', (err: Error) => {
+
+    const onConnectError = (err: Error) => {
       console.error('Socket connect error:', err.message);
-    });
- 
-    socket.on('new_message', ({ conversationId, message }: { conversationId: string; message: ApiMessage }) => {
+    };
+
+    const onNewMessage = ({ conversationId, message }: { conversationId: string; message: ApiMessage }) => {
       setMessages((prev) => {
         if (conversationId !== selectedConvIdRef.current) return prev;
         if (prev.some((m) => m._id === message._id)) return prev;
@@ -89,13 +98,13 @@ export function MessagesPage() {
           if (tempIndex !== -1) {
             const next = [...prev];
             next[tempIndex] = message;
-            return next;
+            return sortByTime(next);
           }
         }
 
-        return [...prev, message];
+        return sortByTime([...prev, message]);
       });
- 
+
       setConversations((prev) =>
         prev.map((c) =>
           c.id === conversationId
@@ -108,33 +117,56 @@ export function MessagesPage() {
             : c
         )
       );
- 
+
       if (conversationId === selectedConvIdRef.current) {
         markConversationAsRead(conversationId).catch(() => {});
       }
-    });
- 
-    socket.on('user_typing', ({ conversationId, userId, isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
+    };
+
+    const onUserTyping = ({ conversationId, userId, isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
       if (conversationId === selectedConvIdRef.current) {
         setTypingUsers((prev) => ({ ...prev, [userId]: isTyping }));
       }
-    });
- 
-    socket.on('messages_read', ({ conversationId }: { conversationId: string }) => {
+    };
+
+    const onMessagesRead = ({ conversationId }: { conversationId: string }) => {
       if (conversationId === selectedConvIdRef.current) {
         setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       }
-    });
- 
-    socket.on('error_message', ({ message: msg }: { message: string }) => {
+    };
+
+    const onErrorMessage = ({ message: msg }: { message: string }) => {
       toast.error(msg);
-    });
- 
+    };
+
+    const onUserOnline = ({ userId }: { userId: string }) => {
+      setOnlineUserIds((prev) => new Set(prev).add(userId));
+    };
+
+    const onUserOffline = ({ userId }: { userId: string }) => {
+      setOnlineUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    };
+
+    socket.on('connect_error', onConnectError);
+    socket.on('new_message', onNewMessage);
+    socket.on('user_typing', onUserTyping);
+    socket.on('messages_read', onMessagesRead);
+    socket.on('error_message', onErrorMessage);
+    socket.on('user_online', onUserOnline);
+    socket.on('user_offline', onUserOffline);
+
     return () => {
-      socket.off('new_message');
-      socket.off('user_typing');
-      socket.off('messages_read');
-      socket.off('error_message');
+      socket.off('connect_error', onConnectError);
+      socket.off('new_message', onNewMessage);
+      socket.off('user_typing', onUserTyping);
+      socket.off('messages_read', onMessagesRead);
+      socket.off('error_message', onErrorMessage);
+      socket.off('user_online', onUserOnline);
+      socket.off('user_offline', onUserOffline);
     };
   }, [isAuthenticated]);
  
@@ -176,7 +208,7 @@ export function MessagesPage() {
  
       try {
         const res = await fetchMessages(convId);
-        setMessages(res.data);
+        setMessages(sortByTime(res.data));
         await markConversationAsRead(convId);
         setConversations((prev) =>
           prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
@@ -224,7 +256,7 @@ export function MessagesPage() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, tempMsg]);
+    setMessages((prev) => sortByTime([...prev, tempMsg]));
  
     try {
       socketRef.current?.emit('send_message', { conversationId: selectedConvId, content });
@@ -387,7 +419,7 @@ export function MessagesPage() {
                           <div
                             className={`max-w-[65%] px-4 py-2 rounded-2xl shadow-sm ${
                               isMine
-                                ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-tr-none'
+                                ? 'bg-linear-to-r from-green-500 to-blue-500 text-white rounded-tr-none'
                                 : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-none'
                             }`}
                           >
@@ -444,7 +476,7 @@ export function MessagesPage() {
                     <Button
                       onClick={handleSend}
                       disabled={!messageText.trim() || sending}
-                      className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                      className="bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                     >
                       {sending ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
