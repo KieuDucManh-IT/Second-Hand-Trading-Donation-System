@@ -37,7 +37,6 @@ type DashboardViewProps = {
   updateUserStatus: (userId: string, status: 'active' | 'banned') => Promise<void>;
   updateProductStatus: (productId: string, status: 'available' | 'hidden') => Promise<void>;
   updateReportStatus: (reportId: string, endpoint: 'accept' | 'reject') => Promise<void>;
-  warnReportUser: (reportId: string) => Promise<void>;
 };
 
 export function ManagerDashboardView(props: DashboardViewProps) {
@@ -63,7 +62,6 @@ export function ManagerDashboardView(props: DashboardViewProps) {
     submitCategoryForm,
     handleDeleteCategory,
     updateUserStatus,
-    warnReportUser,
     updateProductStatus,
     updateReportStatus,
   } = props;
@@ -126,7 +124,7 @@ export function ManagerDashboardView(props: DashboardViewProps) {
                   </TabsContent>
 
                   <TabsContent value="reports" className="mt-6 space-y-6">
-                    <ReportsTab data={data} updateReportStatus={updateReportStatus} warnReportUser={warnReportUser} />
+                    <ReportsTab data={data} updateReportStatus={updateReportStatus} />
                   </TabsContent>
 
                   <TabsContent value="users" className="mt-6 space-y-6">

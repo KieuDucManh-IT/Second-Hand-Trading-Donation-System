@@ -16,7 +16,6 @@ const {
   getReports,
   acceptReport,
   rejectReport,
-  warnReportUser,
   getStatistics,
 } = require("../controllers/managerController");
 
@@ -48,6 +47,4 @@ router.patch("/products/:id/status", updateProductStatus);
 router.get("/reports", getReports);
 router.patch("/reports/:id/accept", acceptReport);
 router.patch("/reports/:id/reject", rejectReport);
-router.post("/reports/:id/warn", warnReportUser);
-
 module.exports = router;

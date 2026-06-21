@@ -35,10 +35,12 @@ export type ManagerDashboardData = {
     targetType: string;
     targetId: string;
     reason: string;
+    adminReason?: string;
     status: string;
     createdAt: string;
     targetWarnings?: number;
     targetName?: string;
+    targetDetail?: Record<string, any>;
   }>;
   pendingProducts: Array<{
     id: string;

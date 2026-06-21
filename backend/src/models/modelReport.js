@@ -26,6 +26,11 @@ const reportSchema = new mongoose.Schema(
       enum: ["pending", "reviewing", "accept", "reject"],
       default: "pending",
     },
+    adminReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
