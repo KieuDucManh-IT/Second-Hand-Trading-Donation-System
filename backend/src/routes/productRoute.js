@@ -1,6 +1,6 @@
 const express = require('express');
 const router  = express.Router();
- 
+
 const {
   createProduct,
   uploadImages,
@@ -14,11 +14,16 @@ const {
   getPendingProducts,
   approveProduct,
   rejectProduct,
+  getMyProductsForExchange,
 } = require('../controllers/productController');
- 
+
 const { protect }       = require('../middlewares/authMiddleware');
 const { uploadProduct } = require('../config/cloudinary');
+<<<<<<< HEAD
 
+=======
+ 
+>>>>>>> 56c7352313d6ae88a89f3de844acaaabcd7c3ee1
 // Middleware kiểm tra role manager
 const requireManager = (req, res, next) => {
   if (req.user?.role !== 'manager') {
@@ -28,22 +33,30 @@ const requireManager = (req, res, next) => {
 };
  
 // ── Public routes ─────────────────────────────────────────────────────────────
-router.get('/',               getProducts);
+// ── Public routes ─────────────────────────────────────────────────────────────
+router.get('/', getProducts);
 router.get('/seller/:userId', getSellerProducts);
-router.get('/my',      protect,                       getMyProducts);
-router.get('/pending', protect, requireManager,       getPendingProducts);
 
+// ── User protected routes cần đặt TRƯỚC /:id ────────────────────────────────
+router.get('/my', protect, getMyProducts);
+router.get("/my/exchange", protect, getMyProductsForExchange);
+
+// ── Manager routes cần đặt TRƯỚC /:id ───────────────────────────────────────
+router.get('/pending', protect, requireManager, getPendingProducts);
+
+// Route động /:id phải để sau cùng trong nhóm GET
 router.get('/:id', getProductById);
- 
+
 // ── User protected routes ────────────────────────────────────────────────────
-router.post('/',                  protect, createProduct);
-router.post('/:id/images',        protect, uploadProduct.array('images', 8), uploadImages);
+router.post('/', protect, createProduct);
+router.post('/:id/images', protect, uploadProduct.array('images', 8), uploadImages);
 router.delete('/images/:imageId', protect, deleteImage);
-router.put('/:id',                protect, updateProduct);
-router.delete('/:id',             protect, deleteProduct);
- 
+router.put('/:id', protect, updateProduct);
+router.delete('/:id', protect, deleteProduct);
+
 // ── Manager routes ────────────────────────────────────────────────────────────
 router.put('/:id/approve', protect, requireManager, approveProduct);
-router.put('/:id/reject',  protect, requireManager, rejectProduct);
+router.put('/:id/reject', protect, requireManager, rejectProduct);
+
  
 module.exports = router;
