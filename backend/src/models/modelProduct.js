@@ -28,17 +28,15 @@ const productSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ['available', 'sold', 'reserved', 'hidden'],
-      default: 'hidden',           // mặc định ẩn, chờ duyệt
+      default: 'available',        // đăng công khai ngay (đã có lọc từ nhạy cảm)
     },
     location: {
       type:        { type: String, enum: ['Point'], default: 'Point' },
-      coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]
+      coordinates: { type: [Number], default: [0, 0] },
       address:     { type: String, default: '' },
     },
-    isAvailable: { type: Boolean, default: false },   // false cho đến khi được duyệt
- 
-    // ── Moderation fields ────────────────────────────────────────────────────
-    pendingApproval: { type: Boolean, default: true, index: true },
+    isAvailable: { type: Boolean, default: true }, 
+    pendingApproval: { type: Boolean, default: false, index: true },
     rejectReason:    { type: String, default: '' },
     approvedAt:      { type: Date },
     approvedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -50,6 +48,5 @@ productSchema.index({ location: '2dsphere' });
 productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ categoryId: 1, status: 1, isAvailable: 1 });
 productSchema.index({ ownerId: 1 });
-productSchema.index({ pendingApproval: 1, createdAt: -1 });   // query manager nhanh hơn
- 
+productSchema.index({ pendingApproval: 1, createdAt: -1 });  
 module.exports = mongoose.model('Product', productSchema);
