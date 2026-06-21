@@ -1,5 +1,3 @@
-
- 
 const express = require('express');
 const router  = express.Router();
  
@@ -20,8 +18,7 @@ const {
  
 const { protect }       = require('../middlewares/authMiddleware');
 const { uploadProduct } = require('../config/cloudinary');
-//const { uploadProduct } = require('../config/cloudinary');
- 
+
 // Middleware kiểm tra role manager
 const requireManager = (req, res, next) => {
   if (req.user?.role !== 'manager') {

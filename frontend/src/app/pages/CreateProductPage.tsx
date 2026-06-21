@@ -6,7 +6,7 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Upload, X, AlertCircle, Loader2, CheckCircle2, Clock } from 'lucide-react';
+import { Upload, X, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
  
@@ -226,12 +226,12 @@ export function CreateProductPage() {
           <CardContent className="pt-8 pb-8">
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                <Clock className="w-8 h-8 text-green-600" />
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            <h2 className="text-xl font-bold mb-2">Đã gửi sản phẩm!</h2>
+            <h2 className="text-xl font-bold mb-2">Đăng sản phẩm thành công!</h2>
             <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
-              Sản phẩm của bạn đang <strong>chờ manager duyệt</strong>. Thường mất 1–24 giờ. Bạn sẽ được thông báo khi được duyệt.
+              Sản phẩm của bạn đã được <strong>đăng công khai</strong> và mọi người có thể xem ngay bây giờ.
             </p>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => navigate('/products')}>
@@ -253,9 +253,9 @@ export function CreateProductPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Đăng sản phẩm mới</CardTitle>
-            <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
-              <Clock className="w-4 h-4" />
-              Sản phẩm sẽ chờ manager duyệt trước khi hiển thị công khai
+            <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1 mt-1">
+              <CheckCircle2 className="w-4 h-4" />
+              Người đăng tự chịu trách nhiệm về toàn bộ thông tin và nội dung của sản phẩm đã đăng
             </p>
           </CardHeader>
           <CardContent>
@@ -360,8 +360,8 @@ export function CreateProductPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sell">💰 Bán</SelectItem>
-                      <SelectItem value="donate">🎁 Cho tặng miễn phí</SelectItem>
+                      <SelectItem value="sell"> Bán</SelectItem>
+                      <SelectItem value="donate"> Cho tặng miễn phí</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -469,7 +469,7 @@ export function CreateProductPage() {
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-green-500 to-blue-500"
+                  className="flex-1 bg-linear-to-r from-green-500 to-blue-500"
                   disabled={submitting}
                 >
                   {submitting ? (

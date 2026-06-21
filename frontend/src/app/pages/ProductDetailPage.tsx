@@ -37,7 +37,8 @@ import {
   ApiProduct,
   CONDITION_LABELS,
 } from '../api/productApi';
-
+import { getOrCreateConversation } from '../api/chatApi';
+ 
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -49,7 +50,8 @@ export function ProductDetailPage() {
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [contacting, setContacting] = useState(false);
+ 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -81,15 +83,24 @@ export function ProductDetailPage() {
     load();
     return () => { cancelled = true; };
   }, [id]);
-
-  const handleContact = () => {
+ 
+  const handleContact = async () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để liên hệ người bán');
       navigate('/login');
       return;
     }
-    navigate('/messages');
-    toast.success('Đang mở cuộc trò chuyện với người bán...');
+    if (!product?.ownerId?._id) return;
+ 
+    try {
+      setContacting(true);
+      const res = await getOrCreateConversation(product.ownerId._id, product._id);
+      navigate('/messages', { state: { conversationId: res.data.id } });
+    } catch (err: any) {
+      toast.error(err.message || 'Không thể mở cuộc trò chuyện');
+    } finally {
+      setContacting(false);
+    }
   };
 
   const handleOrder = () => {
@@ -306,10 +317,15 @@ export function ProductDetailPage() {
               )}
               <Button
                 onClick={handleContact}
+                disabled={contacting}
                 variant="outline"
                 className="w-full h-12"
               >
-                <MessageCircle className="w-5 h-5 mr-2" />
+                {contacting ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                )}
                 Liên hệ người bán
               </Button>
             </div>
