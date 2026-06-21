@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 
-const ExchangeInvoice = require("../models/ExchangeInvoice");
-const Wallet = require("../models/Wallet");
-const WalletTransaction = require("../models/WalletTransaction");
+const ExchangeInvoice = require("../models/modelExchangeInvoice");
+const Wallet = require("../models/modelWallet");
+const WalletTransaction = require("../models/modelWalletTransaction");
 const Product = require("../models/modelProduct");
 
 const EXCHANGE_FEE_RATE = Number(process.env.EXCHANGE_FEE_RATE || 0.1);

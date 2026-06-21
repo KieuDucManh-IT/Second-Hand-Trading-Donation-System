@@ -1,5 +1,5 @@
 const exchangeEscrowService = require("../services/exchangeEscrowService");
-const ExchangeInvoice = require("../models/ExchangeInvoice");
+const ExchangeInvoice = require("../models/modelExchangeInvoice");
 const ProductImage = require("../models/modelProductImage");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
 

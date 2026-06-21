@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 
-const Wallet = require("../models/Wallet");
-const WalletTransaction = require("../models/WalletTransaction");
+const Wallet = require("../models/modelWallet");
+const WalletTransaction = require("../models/modelWalletTransaction");
 const payOS = require("../config/payos");
 const {
     createSinglePayout,

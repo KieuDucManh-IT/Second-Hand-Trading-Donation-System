@@ -1,6 +1,6 @@
 const payOS = require("../config/payos");
-const Wallet = require("../models/Wallet");
-const WalletTransaction = require("../models/WalletTransaction");
+const Wallet = require("../models/modelWallet");
+const WalletTransaction = require("../models/modelWalletTransaction");
 
 exports.handlePayosWebhook = async (req, res) => {
   try {
