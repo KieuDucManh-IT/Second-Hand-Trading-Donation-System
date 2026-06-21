@@ -166,3 +166,124 @@ exports.manualRunAutoRelease = async (req, res) => {
     });
   }
 };
+
+const Order = require("../models/modelOrder");
+const Product = require("../models/modelProduct");
+
+exports.createOrder = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ success: false, message: "Thiếu productId" });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+    }
+
+    if (product.status !== "available") {
+      return res.status(400).json({ success: false, message: "Sản phẩm không còn sẵn sàng" });
+    }
+
+    const sellerId = product.ownerId || product.userId || product.seller;
+    if (!sellerId) {
+      return res.status(400).json({ success: false, message: "Sản phẩm thiếu thông tin người bán" });
+    }
+
+    if (String(sellerId) === String(userId)) {
+      return res.status(400).json({ success: false, message: "Bạn không thể tự mua sản phẩm của chính mình" });
+    }
+
+    const order = await Order.create({
+      buyerId: userId,
+      sellerId: sellerId,
+      productId: productId,
+      totalPrice: product.price || 0,
+      status: "pending",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Đã tạo đơn hàng thành công",
+      order,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Không thể tạo đơn hàng",
+    });
+  }
+};
+
+exports.getMyBuyingOrders = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const orders = await Order.find({ buyerId: userId })
+      .populate("productId")
+      .populate("sellerId", "fullName email avatar userName phone")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Không thể tải danh sách đơn hàng đã mua",
+    });
+  }
+};
+
+exports.getMySellingOrders = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const orders = await Order.find({ sellerId: userId })
+      .populate("productId")
+      .populate("buyerId", "fullName email avatar userName phone")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Không thể tải danh sách đơn hàng đã bán",
+    });
+  }
+};
+
+exports.getOrderById = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId)
+      .populate("productId")
+      .populate("buyerId", "fullName email avatar userName phone")
+      .populate("sellerId", "fullName email avatar userName phone");
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
+    }
+
+    if (String(order.buyerId._id) !== String(userId) && String(order.sellerId._id) !== String(userId)) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền xem đơn hàng này" });
+    }
+
+    res.json({
+      success: true,
+      order,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Không thể tải thông tin chi tiết đơn hàng",
+    });
+  }
+};
