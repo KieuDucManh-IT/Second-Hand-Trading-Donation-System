@@ -10,6 +10,8 @@ const authRoute = require("./src/routes/authRoute");
 const productRoute = require("./src/routes/productRoute");
 const categoryRoute = require("./src/routes/categoryRoute");
 const chatRoute = require("./src/routes/chatRoute");
+//const cartRoute  = require('./src/routes/cartRoute');
+const orderRoute = require('./src/routes/orderRoute');
 
 const { initChatSocket } = require("./src/sockets/chatSocket");
 
@@ -26,7 +28,8 @@ app.use("/api/auth", authRoute);
 app.use("/api/products",   productRoute);
 app.use("/api/categories", categoryRoute);
 app.use("/api/chat", chatRoute);
-
+//app.use('/api/cart',   cartRoute);
+app.use('/api/orders', orderRoute);
 
 const PORT = process.env.PORT || 5000;
 

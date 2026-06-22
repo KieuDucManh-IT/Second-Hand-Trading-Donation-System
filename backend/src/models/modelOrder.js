@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
  
-const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
+const PLATFORM_FEE_RATE = 0.1; 
  
 const orderSchema = new mongoose.Schema(
   {
@@ -55,8 +55,7 @@ const orderSchema = new mongoose.Schema(
     confirmedAt: { type: Date },
     completedAt: { type: Date },
     cancelledAt: { type: Date },
- 
-    // Đã cộng balance cho seller chưa (tránh double-credit)
+    
     balanceCredited: { type: Boolean, default: false },
   },
   { timestamps: true }
