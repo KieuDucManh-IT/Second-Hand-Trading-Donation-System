@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
  
-const PLATFORM_FEE_RATE = 0.1; // 10%
+const PLATFORM_FEE_RATE = 0.1; // 10% phí nền tảng
  
 const orderSchema = new mongoose.Schema(
   {
@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
  
-    // ── Tài chính ─────────────────────────────────────────────────────────────
+   
     totalPrice: {
       type: Number,
       required: true,
@@ -29,7 +29,7 @@ const orderSchema = new mongoose.Schema(
     },
     platformFeeRate: {
       type: Number,
-      default: PLATFORM_FEE_RATE, // lưu lại tỉ lệ tại thời điểm tạo đơn
+      default: PLATFORM_FEE_RATE, 
     },
     platformFee: {
       type: Number,
@@ -42,21 +42,16 @@ const orderSchema = new mongoose.Schema(
       comment: 'Seller nhận = totalPrice * 90%',
     },
  
-    // ── Trạng thái đơn hàng ───────────────────────────────────────────────────
-    // pending   → buyer vừa đặt, chờ seller xác nhận
-    // confirmed → seller xác nhận sẽ giao
-    // completed → giao thành công, tiền được tính
-    // cancelled → hủy (buyer hoặc seller)
     status: {
       type: String,
       enum: ['pending', 'confirmed', 'completed', 'cancelled'],
       default: 'pending',
     },
  
-    // Lý do hủy (nếu có)
+    
     cancelReason: { type: String, default: '' },
  
-    // Thời gian mốc
+
     confirmedAt: { type: Date },
     completedAt: { type: Date },
     cancelledAt: { type: Date },
@@ -66,8 +61,6 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
- 
-// ── Tính tự động phí trước khi save ──────────────────────────────────────────
 orderSchema.pre('validate', function (next) {
   if (this.isNew && this.totalPrice != null) {
     this.platformFee    = parseFloat((this.totalPrice * this.platformFeeRate).toFixed(0));
@@ -76,7 +69,7 @@ orderSchema.pre('validate', function (next) {
   next();
 });
  
-// ── Index ─────────────────────────────────────────────────────────────────────
+
 orderSchema.index({ buyerId: 1, createdAt: -1 });
 orderSchema.index({ sellerId: 1, createdAt: -1 });
 orderSchema.index({ productId: 1 });
