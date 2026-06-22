@@ -1,35 +1,40 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Heart, Share2, Check } from 'lucide-react';
-import { initialProducts } from '../data/products';
-import { useCart } from '../contexts/CartContext';
-import { Button } from './ui/button';
-import { ImageWithFallback } from './figma/ImageWithFallback';
-import { ReviewSection } from './ReviewSection';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { ArrowLeft, ShoppingBag, Heart, Share2, Check } from "lucide-react";
+import { initialProducts } from "../data/products";
+import { useCart } from "../contexts/CartContext";
+import { Button } from "./ui/button";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { ReviewSection } from "./ReviewSection";
+import { toast } from "sonner";
+import { BuyNowModal } from "./BuyNowModal";
+import { useAuth } from "../contexts/AuthContext";
 
-const sizes = ['XS', 'S', 'M', 'L', 'XL'];
+const sizes = ["XS", "S", "M", "L", "XL"];
 
 const colors = [
-  { name: 'Ivory', hex: '#f5f3f0', available: true },
-  { name: 'Blush', hex: '#f5e6e8', available: true },
-  { name: 'Sage', hex: '#d4ddd4', available: true },
-  { name: 'Charcoal', hex: '#4a4a4a', available: true },
-  { name: 'Navy', hex: '#2d3e50', available: false },
+  { name: "Ivory", hex: "#f5f3f0", available: true },
+  { name: "Blush", hex: "#f5e6e8", available: true },
+  { name: "Sage", hex: "#d4ddd4", available: true },
+  { name: "Charcoal", hex: "#4a4a4a", available: true },
+  { name: "Navy", hex: "#2d3e50", available: false },
 ];
 
 export function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  
+
   const product = initialProducts.find((p) => p.id === id);
-  
-  const [selectedSize, setSelectedSize] = useState('M');
+
+  const [selectedSize, setSelectedSize] = useState("M");
   const [selectedColor, setSelectedColor] = useState(colors[0]);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-
+  const { user } = useAuth();
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const isSellProduct = product?.type === "sell";
+  const isOwner = user && product?.ownerId?._id === user.id;
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -46,9 +51,9 @@ export function ProductDetail() {
   // Multiple product images (simulated - in real app these would come from the product data)
   const productImages = [
     product.image,
-    'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800',
-    'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800',
-    'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=800',
+    "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800",
+    "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800",
+    "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=800",
   ];
 
   const handleAddToCart = () => {
@@ -90,8 +95,8 @@ export function ProductDetail() {
                   onClick={() => setSelectedImage(index)}
                   className={`aspect-square rounded-xl overflow-hidden bg-secondary/20 transition-all ${
                     selectedImage === index
-                      ? 'ring-2 ring-primary ring-offset-2'
-                      : 'hover:opacity-75'
+                      ? "ring-2 ring-primary ring-offset-2"
+                      : "hover:opacity-75"
                   }`}
                 >
                   <ImageWithFallback
@@ -118,16 +123,18 @@ export function ProductDetail() {
             {/* Description */}
             <div className="border-t border-b border-border py-6">
               <p className="text-muted-foreground text-lg leading-relaxed">
-                {product.description}. Crafted from premium materials with attention to every
-                detail. This piece combines timeless design with modern comfort, making it a
-                versatile addition to your wardrobe.
+                {product.description}. Crafted from premium materials with
+                attention to every detail. This piece combines timeless design
+                with modern comfort, making it a versatile addition to your
+                wardrobe.
               </p>
             </div>
 
             {/* Color Selection */}
             <div>
               <label className="block mb-3">
-                Color: <span className="text-primary">{selectedColor.name}</span>
+                Color:{" "}
+                <span className="text-primary">{selectedColor.name}</span>
               </label>
               <div className="flex gap-3">
                 {colors.map((color) => (
@@ -136,11 +143,13 @@ export function ProductDetail() {
                     onClick={() => color.available && setSelectedColor(color)}
                     disabled={!color.available}
                     className={`relative w-12 h-12 rounded-full transition-all ${
-                      color.available ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'
+                      color.available
+                        ? "cursor-pointer"
+                        : "cursor-not-allowed opacity-40"
                     } ${
                       selectedColor.name === color.name
-                        ? 'ring-2 ring-primary ring-offset-2'
-                        : 'hover:scale-110'
+                        ? "ring-2 ring-primary ring-offset-2"
+                        : "hover:scale-110"
                     }`}
                     style={{ backgroundColor: color.hex }}
                     aria-label={color.name}
@@ -172,8 +181,8 @@ export function ProductDetail() {
                     onClick={() => setSelectedSize(size)}
                     className={`w-14 h-14 rounded-xl border-2 transition-all ${
                       selectedSize === size
-                        ? 'border-primary bg-primary text-white'
-                        : 'border-border hover:border-primary'
+                        ? "border-primary bg-primary text-white"
+                        : "border-border hover:border-primary"
                     }`}
                   >
                     {size}
@@ -204,19 +213,39 @@ export function ProductDetail() {
 
             {/* Action Buttons */}
             <div className="flex gap-4 pt-4">
-              <Button
-                onClick={handleAddToCart}
-                size="lg"
-                className="flex-1 rounded-xl h-14 shadow-lg hover:shadow-xl"
-              >
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                Add to Cart
-              </Button>
+              {isSellProduct && !isOwner && (
+                <Button
+                  onClick={() => {
+                    if (!user) {
+                      toast.error("Vui lòng đăng nhập để mua hàng");
+                      return;
+                    }
+                    setShowBuyModal(true);
+                  }}
+                  size="lg"
+                  className="flex-1 rounded-xl h-14 shadow-lg hover:shadow-xl bg-primary"
+                >
+                  <ShoppingBag className="w-5 h-5 mr-2" />
+                  Mua ngay
+                </Button>
+              )}
+
+              {!isOwner && (
+                <Button
+                  variant={isSellProduct ? "outline" : "default"}
+                  size="lg"
+                  className={`rounded-xl h-14 shadow-lg hover:shadow-xl ${!isSellProduct ? "flex-1" : ""}`}
+                  onClick={() => navigate("/messages")}
+                >
+                  Nhắn tin seller
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 size="lg"
                 className="rounded-xl h-14"
-                onClick={() => toast.success('Added to wishlist!')}
+                onClick={() => toast.success("Đã thêm vào yêu thích!")}
               >
                 <Heart className="w-5 h-5" />
               </Button>
@@ -226,7 +255,7 @@ export function ProductDetail() {
                 className="rounded-xl h-14"
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
-                  toast.success('Link copied to clipboard!');
+                  toast.success("Đã sao chép liên kết!");
                 }}
               >
                 <Share2 className="w-5 h-5" />
@@ -261,7 +290,9 @@ export function ProductDetail() {
             </div>
 
             {/* Size Guide */}
-            <button className="text-primary hover:underline">View Size Guide</button>
+            <button className="text-primary hover:underline">
+              View Size Guide
+            </button>
           </div>
         </div>
 
@@ -273,7 +304,9 @@ export function ProductDetail() {
           <h2 className="text-3xl mb-8">You May Also Like</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {initialProducts
-              .filter((p) => p.id !== product.id && p.category === product.category)
+              .filter(
+                (p) => p.id !== product.id && p.category === product.category,
+              )
               .slice(0, 4)
               .map((relatedProduct) => (
                 <Link
@@ -293,7 +326,9 @@ export function ProductDetail() {
                       <h3 className="mb-2 group-hover:text-primary transition-colors">
                         {relatedProduct.name}
                       </h3>
-                      <p className="text-primary text-xl">${relatedProduct.price}</p>
+                      <p className="text-primary text-xl">
+                        ${relatedProduct.price}
+                      </p>
                     </div>
                   </div>
                 </Link>
@@ -301,6 +336,24 @@ export function ProductDetail() {
           </div>
         </div>
       </div>
+      {product && (
+        <BuyNowModal
+          open={showBuyModal}
+          onClose={() => setShowBuyModal(false)}
+          product={{
+            _id: product._id,
+            title: product.title,
+            price: product.price,
+            thumbnail: product.thumbnail,
+            condition: product.condition,
+            sellerName: product.ownerId?.fullName,
+          }}
+          onSuccess={(order) => {
+            // Điều hướng đến trang đơn hàng sau khi đặt thành công
+            navigate("/orders");
+          }}
+        />
+      )}
     </div>
   );
 }
