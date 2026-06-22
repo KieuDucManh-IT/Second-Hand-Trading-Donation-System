@@ -16,11 +16,7 @@ const walletTransactionSchema = new mongoose.Schema(
       index: true,
     },
 
-    type: {
-      type: String,
-      enum: ["deposit", "withdraw"],
-      required: true,
-    },
+
 
     status: {
       type: String,
@@ -30,7 +26,7 @@ const walletTransactionSchema = new mongoose.Schema(
     },
 
     amount: {
-      type: Number,
+      type: mongoose.Decimal128,
       required: true,
       min: 1000,
     },
