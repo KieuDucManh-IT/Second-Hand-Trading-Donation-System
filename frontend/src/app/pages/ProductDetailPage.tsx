@@ -38,6 +38,7 @@ import {
   CONDITION_LABELS,
 } from '../api/productApi';
 import { getOrCreateConversation } from '../api/chatApi';
+import { BuyNowModal } from '../components/BuyNowModal';
  
 export function ProductDetailPage() {
   const { id } = useParams();
@@ -51,6 +52,7 @@ export function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contacting, setContacting] = useState(false);
+  const [showBuyModal, setShowBuyModal] = useState(false);
  
   useEffect(() => {
     if (!id) return;
@@ -109,7 +111,7 @@ export function ProductDetailPage() {
       navigate('/login');
       return;
     }
-    toast.success(product?.type === 'donate' ? 'Đã gửi yêu cầu nhận đồ tặng!' : 'Đặt hàng thành công!');
+    setShowBuyModal(true);
   };
  
   const handleReport = () => {
@@ -422,6 +424,26 @@ export function ProductDetailPage() {
           </CardContent>
         </Card>
  
+        {/* Buy Now Modal */}
+        {product && (
+          <BuyNowModal
+            open={showBuyModal}
+            onClose={() => setShowBuyModal(false)}
+            product={{
+              _id: product._id,
+              title: product.title,
+              price: product.price,
+              thumbnail: product.thumbnail,
+              condition: product.condition,
+              sellerName: product.ownerId?.fullName,
+            }}
+            onSuccess={() => {
+              setShowBuyModal(false);
+              navigate('/orders');
+            }}
+          />
+        )}
+
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div>
