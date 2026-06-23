@@ -22,7 +22,7 @@ const protect = async (req, res, next) => {
   }
 };
  
-// Dùng sau protect — VD: authorize('manager') hoặc authorize('manager','admin')
+
 const authorize = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user?.role)) {
     return res.status(403).json({

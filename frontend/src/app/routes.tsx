@@ -1,6 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-
+ 
 import { RootLayout } from "./components/layouts/RootLayout";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -22,16 +21,11 @@ import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
-import { OrdersPage } from './components/OrdersPage';
-
+import { OrdersPage } from './components/OrdersPage'; 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: (
-      <AuthProvider>
-        <RootLayout />
-      </AuthProvider>
-    ),
+    element: <RootLayout />,
     children: [
       { index: true, element: <HomePage /> },
       { path: "login", element: <LoginPage /> },

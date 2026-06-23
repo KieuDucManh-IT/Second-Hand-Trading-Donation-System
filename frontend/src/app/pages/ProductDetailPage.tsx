@@ -1,12 +1,17 @@
-import { useParams, useNavigate } from 'react-router';
-import { useState, useEffect } from 'react';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
-import { Separator } from '../components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { useParams, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { Separator } from "../components/ui/separator";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
   Heart,
   Share2,
@@ -18,9 +23,9 @@ import {
   ArrowLeftRight,
   ShieldCheck,
   Loader2,
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -28,17 +33,62 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../components/ui/dialog';
-import { Textarea } from '../components/ui/textarea';
-import { Label } from '../components/ui/label';
+  DialogFooter,
+} from "../components/ui/dialog";
+import { Textarea } from "../components/ui/textarea";
+import { Label } from "../components/ui/label";
 import {
   fetchProductById,
   fetchProducts,
   ApiProduct,
   CONDITION_LABELS,
-} from '../api/productApi';
-import { getOrCreateConversation } from '../api/chatApi';
-import { BuyNowModal } from '../components/BuyNowModal';
+} from "../api/productApi";
+import { getOrCreateConversation } from "../api/chatApi";
+import { BuyNowModal } from "../components/BuyNowModal";
+ 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+ 
+type MyExchangeProduct = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  name?: string;
+  productTitle?: string;
+  price?: number;
+  value?: number;
+  images?: Array<{ imageUrl?: string } | string>;
+  image?: string;
+  productImage?: string;
+  thumbnail?: string;
+};
+ 
+function getToken() {
+  return (
+    sessionStorage.getItem("token") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("accessToken") ||
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("authToken") ||
+    localStorage.getItem("authToken") ||
+    ""
+  );
+}
+ 
+function getProductId(item: any) {
+  return String(item?._id || item?.id || "");
+}
+ 
+function getProductTitle(item: any) {
+  return item?.title || item?.name || item?.productTitle || "Sản phẩm";
+}
+ 
+function getProductPrice(item: any) {
+  return Number(item?.price ?? item?.value ?? 0);
+}
+ 
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + "đ";
+}
  
 export function ProductDetailPage() {
   const { id } = useParams();
@@ -48,11 +98,15 @@ export function ProductDetailPage() {
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [reportReason, setReportReason] = useState('');
+  const [reportReason, setReportReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contacting, setContacting] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
+  const [myProducts, setMyProducts] = useState<MyExchangeProduct[]>([]);
+  const [selectedOfferProductId, setSelectedOfferProductId] = useState("");
+  const [exchangeLoading, setExchangeLoading] = useState(false);
  
   useEffect(() => {
     if (!id) return;
@@ -73,50 +127,132 @@ export function ProductDetailPage() {
             limit: 5,
           });
           if (cancelled) return;
-          setRelatedProducts(relRes.data.filter(p => p._id !== res.data._id).slice(0, 4));
+          setRelatedProducts(
+            relRes.data.filter((p) => p._id !== res.data._id).slice(0, 4)
+          );
         }
       } catch (err: any) {
-        if (!cancelled) setError(err.message || 'Không thể tải sản phẩm');
+        if (!cancelled) setError(err.message || "Không thể tải sản phẩm");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
  
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
+ 
+  async function api(path: string, options: RequestInit = {}) {
+    const token = getToken();
+    const url = `${API_BASE}${path}`;
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+        ...(options.headers || {}),
+      },
+    });
+    const text = await res.text();
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`API không trả JSON. Kiểm tra backend route: ${url}`);
+    }
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Có lỗi xảy ra");
+    }
+    return data;
+  }
  
   const handleContact = async () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để liên hệ người bán');
-      navigate('/login');
+      toast.error("Vui lòng đăng nhập để liên hệ người bán");
+      navigate("/login");
       return;
     }
     if (!product?.ownerId?._id) return;
- 
     try {
       setContacting(true);
       const res = await getOrCreateConversation(product.ownerId._id, product._id);
-      navigate('/messages', { state: { conversationId: res.data.id } });
+      navigate("/messages", { state: { conversationId: res.data.id } });
     } catch (err: any) {
-      toast.error(err.message || 'Không thể mở cuộc trò chuyện');
+      toast.error(err.message || "Không thể mở cuộc trò chuyện");
     } finally {
       setContacting(false);
     }
   };
  
+  const openExchangeDialog = async () => {
+    try {
+      if (!isAuthenticated) {
+        toast.error("Vui lòng đăng nhập để đề xuất trao đổi");
+        navigate("/login");
+        return;
+      }
+      if (!id) {
+        toast.error("Không xác định được sản phẩm muốn trao đổi");
+        return;
+      }
+      setExchangeDialogOpen(true);
+      setExchangeLoading(true);
+      setSelectedOfferProductId("");
+      const data = await api(
+        `/products/my/exchange?excludeProductId=${encodeURIComponent(id)}`
+      );
+      const list = data.products || data.data || [];
+      setMyProducts(Array.isArray(list) ? list : []);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể tải sản phẩm của bạn");
+    } finally {
+      setExchangeLoading(false);
+    }
+  };
+ 
+  const submitExchangeRequest = async () => {
+    try {
+      if (!id) {
+        toast.error("Không xác định được sản phẩm muốn trao đổi");
+        return;
+      }
+      if (!selectedOfferProductId) {
+        toast.error("Vui lòng chọn sản phẩm của bạn để trao đổi");
+        return;
+      }
+      setExchangeLoading(true);
+      const data = await api("/exchange-escrow/request", {
+        method: "POST",
+        body: JSON.stringify({
+          requesterProductId: selectedOfferProductId,
+          receiverProductId: id,
+        }),
+      });
+      toast.success(data.message || "Đã gửi yêu cầu trao đổi");
+      setExchangeDialogOpen(false);
+      setSelectedOfferProductId("");
+      navigate("/exchanges");
+    } catch (error: any) {
+      toast.error(error.message || "Không thể gửi yêu cầu trao đổi");
+    } finally {
+      setExchangeLoading(false);
+    }
+  };
+ 
   const handleOrder = () => {
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để thực hiện yêu cầu');
-      navigate('/login');
+      toast.error("Vui lòng đăng nhập để thực hiện yêu cầu");
+      navigate("/login");
       return;
     }
     setShowBuyModal(true);
   };
  
   const handleReport = () => {
-    toast.success('Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm.');
-    setReportReason('');
+    toast.success("Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm.");
+    setReportReason("");
   };
  
   if (loading) {
@@ -131,16 +267,21 @@ export function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">{error || 'Không tìm thấy sản phẩm'}</h2>
-          <Button onClick={() => navigate('/products')}>Xem sản phẩm khác</Button>
+          <h2 className="text-2xl font-bold mb-4">
+            {error || "Không tìm thấy sản phẩm"}
+          </h2>
+          <Button onClick={() => navigate("/products")}>
+            Xem sản phẩm khác
+          </Button>
         </Card>
       </div>
     );
   }
  
-  const images = product.images.length > 0
-    ? product.images.map(img => img.imageUrl)
-    : ['https://placehold.co/800x800?text=No+Image'];
+  const images =
+    product.images.length > 0
+      ? product.images.map((img) => img.imageUrl)
+      : ["https://placehold.co/800x800?text=No+Image"];
  
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -148,7 +289,7 @@ export function ProductDetailPage() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => navigate('/products')}
+          onClick={() => navigate("/products")}
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -164,7 +305,7 @@ export function ProductDetailPage() {
                 alt={product.title}
                 className="w-full h-full object-cover"
               />
-              {product.type === 'donate' && (
+              {product.type === "donate" && (
                 <Badge className="absolute top-4 left-4 bg-green-500 text-white text-lg px-4 py-2">
                   TẶNG MIỄN PHÍ
                 </Badge>
@@ -176,7 +317,9 @@ export function ProductDetailPage() {
                   <div
                     key={idx}
                     className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
-                      selectedImage === idx ? 'border-green-500' : 'border-transparent'
+                      selectedImage === idx
+                        ? "border-green-500"
+                        : "border-transparent"
                     }`}
                     onClick={() => setSelectedImage(idx)}
                   >
@@ -216,18 +359,20 @@ export function ProductDetailPage() {
  
             {/* Price */}
             <div className="mb-6">
-              {product.type === 'donate' ? (
+              {product.type === "donate" ? (
                 <div className="text-4xl font-bold text-green-600">MIỄN PHÍ</div>
               ) : (
                 <div className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {product.price.toLocaleString('vi-VN')}₫
+                  {product.price.toLocaleString("vi-VN")}₫
                 </div>
               )}
             </div>
  
             {/* Condition */}
             <div className="mb-6">
-              <Label className="text-sm text-gray-600 dark:text-gray-400">Tình trạng</Label>
+              <Label className="text-sm text-gray-600 dark:text-gray-400">
+                Tình trạng
+              </Label>
               <Badge variant="outline" className="mt-1 text-base block w-fit">
                 {CONDITION_LABELS[product.condition] || product.condition}
               </Badge>
@@ -247,15 +392,16 @@ export function ProductDetailPage() {
                 onClick={handleOrder}
                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
               >
-                {product.type === 'donate' ? 'Yêu cầu nhận đồ' : 'Mua ngay'}
+                {product.type === "donate" ? "Yêu cầu nhận đồ" : "Mua ngay"}
               </Button>
-              {product.type === 'sell' && (
+ 
+              {product.type === "sell" && (
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={() => {
                       if (!isAuthenticated) {
-                        toast.error('Vui lòng đăng nhập để tạo đơn hàng');
-                        navigate('/login');
+                        toast.error("Vui lòng đăng nhập để tạo đơn hàng");
+                        navigate("/login");
                         return;
                       }
                       navigate(`/create-order?productId=${product._id}`);
@@ -266,15 +412,9 @@ export function ProductDetailPage() {
                     <ShieldCheck className="w-4 h-4 mr-2" />
                     Đặt hàng (Escrow)
                   </Button>
+ 
                   <Button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        toast.error('Vui lòng đăng nhập để đề xuất trao đổi');
-                        navigate('/login');
-                        return;
-                      }
-                      toast.info('Tính năng trao đổi sắp ra mắt!');
-                    }}
+                    onClick={openExchangeDialog}
                     variant="outline"
                     className="w-full"
                   >
@@ -283,6 +423,7 @@ export function ProductDetailPage() {
                   </Button>
                 </div>
               )}
+ 
               <Button
                 onClick={handleContact}
                 disabled={contacting}
@@ -308,7 +449,9 @@ export function ProductDetailPage() {
                   <div className="flex items-center space-x-4 mb-4">
                     <Avatar className="w-16 h-16">
                       <AvatarImage src={product.ownerId.avatar} />
-                      <AvatarFallback>{product.ownerId.fullName?.[0] || '?'}</AvatarFallback>
+                      <AvatarFallback>
+                        {product.ownerId.fullName?.[0] || "?"}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <h4 className="font-medium">{product.ownerId.fullName}</h4>
@@ -319,7 +462,9 @@ export function ProductDetailPage() {
                         </div>
                       )}
                       {product.ownerId.isVerified && (
-                        <Badge variant="secondary" className="mt-1 text-xs">Đã xác minh</Badge>
+                        <Badge variant="secondary" className="mt-1 text-xs">
+                          Đã xác minh
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -337,7 +482,10 @@ export function ProductDetailPage() {
             {/* Report */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full mt-4 text-red-600 hover:text-red-700">
+                <Button
+                  variant="ghost"
+                  className="w-full mt-4 text-red-600 hover:text-red-700"
+                >
                   <Flag className="w-4 h-4 mr-2" />
                   Báo cáo tin đăng này
                 </Button>
@@ -386,7 +534,9 @@ export function ProductDetailPage() {
                 <dl className="space-y-4">
                   <div>
                     <dt className="font-medium text-gray-900 dark:text-white">Danh mục</dt>
-                    <dd className="text-gray-600 dark:text-gray-400">{product.categoryId?.name || '—'}</dd>
+                    <dd className="text-gray-600 dark:text-gray-400">
+                      {product.categoryId?.name || "—"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="font-medium text-gray-900 dark:text-white">Tình trạng</dt>
@@ -397,19 +547,21 @@ export function ProductDetailPage() {
                   <div>
                     <dt className="font-medium text-gray-900 dark:text-white">Loại tin</dt>
                     <dd className="text-gray-600 dark:text-gray-400">
-                      {product.type === 'donate' ? 'Tặng miễn phí' : 'Bán'}
+                      {product.type === "donate" ? "Tặng miễn phí" : "Bán"}
                     </dd>
                   </div>
                   {product.location?.address && (
                     <div>
                       <dt className="font-medium text-gray-900 dark:text-white">Địa điểm</dt>
-                      <dd className="text-gray-600 dark:text-gray-400">{product.location.address}</dd>
+                      <dd className="text-gray-600 dark:text-gray-400">
+                        {product.location.address}
+                      </dd>
                     </div>
                   )}
                   <div>
                     <dt className="font-medium text-gray-900 dark:text-white">Ngày đăng</dt>
                     <dd className="text-gray-600 dark:text-gray-400">
-                      {new Date(product.createdAt).toLocaleDateString('vi-VN')}
+                      {new Date(product.createdAt).toLocaleDateString("vi-VN")}
                     </dd>
                   </div>
                   <div>
@@ -439,11 +591,11 @@ export function ProductDetailPage() {
             }}
             onSuccess={() => {
               setShowBuyModal(false);
-              navigate('/orders');
+              navigate("/orders");
             }}
           />
         )}
-
+ 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div>
@@ -459,23 +611,31 @@ export function ProductDetailPage() {
                 >
                   <div className="relative h-48">
                     <ImageWithFallback
-                      src={relatedProduct.thumbnail || relatedProduct.images[0]?.imageUrl || ''}
+                      src={
+                        relatedProduct.thumbnail ||
+                        relatedProduct.images[0]?.imageUrl ||
+                        ""
+                      }
                       alt={relatedProduct.title}
                       className="w-full h-full object-cover"
                     />
-                    {relatedProduct.type === 'donate' && (
+                    {relatedProduct.type === "donate" && (
                       <Badge className="absolute top-3 left-3 bg-green-500 text-white">
                         MIỄN PHÍ
                       </Badge>
                     )}
                   </div>
                   <CardContent className="p-4">
-                    <h3 className="font-semibold mb-2 line-clamp-1">{relatedProduct.title}</h3>
+                    <h3 className="font-semibold mb-2 line-clamp-1">
+                      {relatedProduct.title}
+                    </h3>
                     <div className="flex items-center justify-between">
-                      {relatedProduct.type === 'donate' ? (
+                      {relatedProduct.type === "donate" ? (
                         <span className="text-xl font-bold text-green-600">MIỄN PHÍ</span>
                       ) : (
-                        <span className="text-xl font-bold">{relatedProduct.price.toLocaleString('vi-VN')}₫</span>
+                        <span className="text-xl font-bold">
+                          {relatedProduct.price.toLocaleString("vi-VN")}₫
+                        </span>
                       )}
                       {relatedProduct.ownerId?.rating != null && (
                         <div className="flex items-center space-x-1 text-sm">
@@ -491,6 +651,80 @@ export function ProductDetailPage() {
           </div>
         )}
       </div>
+ 
+      {/* Exchange Dialog */}
+      <Dialog open={exchangeDialogOpen} onOpenChange={setExchangeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đề xuất trao đổi sản phẩm</DialogTitle>
+            <DialogDescription>
+              Chọn một sản phẩm của bạn để đề xuất đổi với sản phẩm này. Nếu đối phương
+              đồng ý, hệ thống sẽ tạo hóa đơn trao đổi và yêu cầu hai bên thanh toán
+              tiền bảo hiểm.
+            </DialogDescription>
+          </DialogHeader>
+ 
+          <div className="space-y-4">
+            <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+              Sản phẩm muốn đổi: <b>{product.title}</b>
+              <br />
+              Giá trị: <b>{formatMoney(Number(product.price || 0))}</b>
+            </div>
+ 
+            {exchangeLoading ? (
+              <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500">
+                Đang tải sản phẩm của bạn...
+              </div>
+            ) : myProducts.length === 0 ? (
+              <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
+                Bạn chưa có sản phẩm nào để trao đổi. Hãy đăng sản phẩm trước.
+              </div>
+            ) : (
+              <div>
+                <label className="mb-2 block text-sm font-semibold">
+                  Chọn sản phẩm của bạn
+                </label>
+                <select
+                  value={selectedOfferProductId}
+                  onChange={(e) => setSelectedOfferProductId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 outline-none focus:border-blue-500"
+                >
+                  <option value="">-- Chọn sản phẩm --</option>
+                  {myProducts.map((item) => (
+                    <option key={getProductId(item)} value={getProductId(item)}>
+                      {getProductTitle(item)} - {formatMoney(getProductPrice(item))}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+ 
+            {selectedOfferProductId && (
+              <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+                Sau khi đối phương đồng ý, bạn sẽ cần thanh toán tiền bảo hiểm tương
+                ứng với giá trị sản phẩm bạn đem trao đổi.
+              </div>
+            )}
+          </div>
+ 
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setExchangeDialogOpen(false)}
+              disabled={exchangeLoading}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={submitExchangeRequest}
+              disabled={exchangeLoading || !selectedOfferProductId}
+            >
+              Gửi yêu cầu trao đổi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+ 
