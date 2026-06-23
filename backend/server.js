@@ -11,7 +11,9 @@ const managerRoute = require("./src/routes/managerRoute");
 const productRoute = require("./src/routes/productRoute");
 const categoryRoute = require("./src/routes/categoryRoute");
 const reportRoute = require("./src/routes/reportRoute");
+const donationRoute = require("./src/routes/donationRoute");
 
+console.log("donationRoute =", donationRoute);
 const app = express();
 
 app.use(cors());
@@ -28,6 +30,8 @@ app.use("/api/location", require("./src/routes/manageLocationRoute"));
 app.use("/api/products",   productRoute);
 app.use("/api/categories", categoryRoute);
 app.use("/api/reports", reportRoute);
+app.use("/api/donations", donationRoute);
+
 
 const PORT = process.env.PORT || 5000;
 

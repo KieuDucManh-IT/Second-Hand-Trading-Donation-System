@@ -17,6 +17,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 
 import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
+import DonationRequestsPage from "./pages/DonationRequestsPage";
 
 import { ManagerDashboard } from "./pages/ManagerDashboard";
 
@@ -85,15 +86,19 @@ export const router = createBrowserRouter([
         element: <CreateProductPage />,
       },
 
-      /* Donation */
-      {
-        path: "donations",
-        element: <DonationPage />,
-      },
-      {
-        path: "donation-request/:id",
-        element: <DonationRequest />,
-      },
+/* Donation */
+{
+  path: "donations",
+  element: <DonationPage />,
+},
+{
+  path: "donation-request/:id",
+  element: <DonationRequest />,
+},
+{
+  path: "donation-requests",
+  element: <DonationRequestsPage />,
+},
 
       /* Cart */
       {

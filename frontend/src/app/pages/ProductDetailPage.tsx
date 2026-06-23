@@ -41,7 +41,7 @@ import {
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+const { user, isAuthenticated } = useAuth();
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
@@ -92,15 +92,83 @@ export function ProductDetailPage() {
     toast.success('Đang mở cuộc trò chuyện với người bán...');
   };
 
-  const handleOrder = () => {
-    if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để thực hiện yêu cầu');
-      navigate('/login');
+const handleOrder = async () => {
+  console.log("BUTTON CLICKED");
+
+  if (!isAuthenticated || !user) {
+    toast.error("Vui lòng đăng nhập để thực hiện yêu cầu");
+    navigate("/login");
+    return;
+  }
+
+  if (!product) {
+    toast.error("Không tìm thấy sản phẩm");
+    return;
+  }
+
+  try {
+    console.log("USER =", user);
+    console.log("PRODUCT =", product);
+    console.log("OWNER =", product.ownerId);
+
+    const token =
+      sessionStorage.getItem("token") ||
+      localStorage.getItem("token");
+
+    const donorId =
+      typeof product.ownerId === "object"
+        ? product.ownerId?._id
+        : product.ownerId;
+
+    console.log("DONOR ID =", donorId);
+
+    const requestData = {
+      productId: product._id,
+      donorId,
+      requesterId: user.id,
+      message: "I would like to receive this item",
+    };
+
+    console.log("REQUEST DATA =", requestData);
+
+    if (product.type === "donate") {
+      console.log("START FETCH");
+
+      const response = await fetch(
+        "http://localhost:5000/api/donations/request",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && {
+              Authorization: `Bearer ${token}`,
+            }),
+          },
+          body: JSON.stringify(requestData),
+        }
+      );
+
+      console.log("FETCH DONE");
+      console.log("STATUS =", response.status);
+
+      const data = await response.json();
+
+      console.log("RESPONSE DATA =", data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Request failed");
+      }
+
+      toast.success("Gửi yêu cầu nhận đồ thành công");
       return;
     }
-    toast.success(product?.type === 'donate' ? 'Đã gửi yêu cầu nhận đồ tặng!' : 'Đặt hàng thành công!');
-  };
 
+    toast.success("Order created successfully");
+  } catch (error: any) {
+    console.error("HANDLE ORDER ERROR =", error);
+    toast.error(error.message || "Có lỗi xảy ra");
+  }
+};
   const handleReport = async () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để gửi báo cáo');

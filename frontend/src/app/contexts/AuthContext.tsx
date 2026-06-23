@@ -9,7 +9,7 @@ import {
 export type UserRole = "user" | "manager";
 
 export interface Location {
-  _id?: string;
+  id: string;
   phoneNumber: string;
   address: string;
 }
