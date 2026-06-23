@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -18,14 +18,67 @@ import {
   ArrowLeft,
   CheckCircle2,
 } from 'lucide-react';
-import { mockProducts } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+type ProductForOrder = {
+  id: string;
+  title: string;
+  price: number;
+  images: string[];
+  sellerName: string;
+};
+
+function normalizeProduct(raw: any): ProductForOrder | null {
+  const product = raw?.product || raw?.data || raw;
+
+  if (!product) return null;
+
+  const id = product._id || product.id;
+
+  if (!id) return null;
+
+  const imagesRaw =
+    product.images ||
+    product.productImages ||
+    product.image ||
+    product.thumbnail ||
+    [];
+
+  let images: string[] = [];
+
+  if (Array.isArray(imagesRaw)) {
+    images = imagesRaw
+      .map((img: any) => {
+        if (typeof img === 'string') return img;
+        return img?.url || img?.secure_url || img?.imageUrl || img?.path || '';
+      })
+      .filter(Boolean);
+  } else if (typeof imagesRaw === 'string') {
+    images = [imagesRaw];
+  }
+
+  return {
+    id,
+    title: product.title || product.name || product.productName || 'Untitled Product',
+    price: Number(product.price || product.sellingPrice || 0),
+    images,
+    sellerName:
+      product.sellerName ||
+      product.seller?.name ||
+      product.owner?.name ||
+      product.user?.name ||
+      'Unknown seller',
+  };
+}
 
 export function CreateOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
+
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -33,14 +86,88 @@ export function CreateOrderPage() {
   const [cvv, setCvv] = useState('');
   const [cardName, setCardName] = useState('');
 
+  const [product, setProduct] = useState<ProductForOrder | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [creatingOrder, setCreatingOrder] = useState(false);
+
   const productId = searchParams.get('productId');
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    if (!productId) {
+      setProduct(null);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+
+        const token = sessionStorage.getItem('token');
+
+        const res = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+          method: 'GET',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          signal: controller.signal,
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          throw new Error(data?.message || 'Cannot fetch product');
+        }
+
+        const normalized = normalizeProduct(data);
+
+        if (!normalized) {
+          throw new Error('Invalid product data');
+        }
+
+        setProduct(normalized);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('FETCH PRODUCT ERROR:', err);
+          toast.error(err.message || 'Cannot fetch product');
+          setProduct(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+
+    return () => {
+      controller.abort();
+    };
+  }, [isAuthenticated, productId]);
+
   if (!isAuthenticated) {
-    navigate('/login');
     return null;
   }
 
-  const product = mockProducts.find((p) => p.id === productId);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <h2 className="text-2xl font-bold mb-2">Loading product...</h2>
+          <p className="text-gray-500">Please wait a moment.</p>
+        </Card>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -56,7 +183,7 @@ export function CreateOrderPage() {
   const escrowFee = product.price * 0.03;
   const totalAmount = product.price + escrowFee;
 
-  const handleCreateOrder = () => {
+  const handleCreateOrder = async () => {
     if (!agreedToTerms) {
       toast.error('Please agree to the terms and conditions');
       return;
@@ -69,8 +196,43 @@ export function CreateOrderPage() {
       }
     }
 
-    toast.success('Order created successfully! Your payment is being held in escrow.');
-    navigate('/transactions');
+    try {
+      setCreatingOrder(true);
+
+      const token = sessionStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('You are not logged in');
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          paymentMethod,
+          escrowFee,
+          totalAmount,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || 'Create order failed');
+      }
+
+      toast.success(data?.message || 'Order created successfully!');
+      navigate('/transactions');
+    } catch (err: any) {
+      console.error('CREATE ORDER ERROR:', err);
+      toast.error(err.message || 'Create order failed');
+    } finally {
+      setCreatingOrder(false);
+    }
   };
 
   return (
@@ -90,6 +252,7 @@ export function CreateOrderPage() {
                   Secure Escrow Payment
                 </CardTitle>
               </CardHeader>
+
               <CardContent>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
                   <div className="flex gap-3">
@@ -111,6 +274,7 @@ export function CreateOrderPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold mb-4">Payment Method</h3>
+
                     <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -123,6 +287,7 @@ export function CreateOrderPage() {
                             <span>Credit/Debit Card</span>
                           </Label>
                         </div>
+
                         <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                           <RadioGroupItem value="paypal" id="paypal" />
                           <Label
@@ -133,6 +298,7 @@ export function CreateOrderPage() {
                             <span>PayPal</span>
                           </Label>
                         </div>
+
                         <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                           <RadioGroupItem value="bank_transfer" id="bank_transfer" />
                           <Label
@@ -150,7 +316,9 @@ export function CreateOrderPage() {
                   {paymentMethod === 'credit_card' && (
                     <div className="space-y-4 pt-4">
                       <Separator />
+
                       <h4 className="font-semibold">Card Details</h4>
+
                       <div className="space-y-4">
                         <div>
                           <Label htmlFor="cardName">Cardholder Name</Label>
@@ -161,6 +329,7 @@ export function CreateOrderPage() {
                             onChange={(e) => setCardName(e.target.value)}
                           />
                         </div>
+
                         <div>
                           <Label htmlFor="cardNumber">Card Number</Label>
                           <Input
@@ -171,6 +340,7 @@ export function CreateOrderPage() {
                             maxLength={19}
                           />
                         </div>
+
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="expiryDate">Expiry Date</Label>
@@ -182,6 +352,7 @@ export function CreateOrderPage() {
                               maxLength={5}
                             />
                           </div>
+
                           <div>
                             <Label htmlFor="cvv">CVV</Label>
                             <Input
@@ -204,10 +375,9 @@ export function CreateOrderPage() {
                     <Checkbox
                       id="terms"
                       checked={agreedToTerms}
-                      onCheckedChange={(checked) =>
-                        setAgreedToTerms(checked as boolean)
-                      }
+                      onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
                     />
+
                     <Label htmlFor="terms" className="text-sm cursor-pointer">
                       I agree to the{' '}
                       <a href="#" className="text-blue-600 hover:underline">
@@ -220,9 +390,16 @@ export function CreateOrderPage() {
                     </Label>
                   </div>
 
-                  <Button onClick={handleCreateOrder} className="w-full" size="lg">
+                  <Button
+                    onClick={handleCreateOrder}
+                    className="w-full"
+                    size="lg"
+                    disabled={creatingOrder}
+                  >
                     <Lock className="w-4 h-4 mr-2" />
-                    Secure Payment - ${totalAmount.toFixed(2)}
+                    {creatingOrder
+                      ? 'Creating order...'
+                      : `Secure Payment - $${totalAmount.toFixed(2)}`}
                   </Button>
                 </div>
               </CardContent>
@@ -234,13 +411,15 @@ export function CreateOrderPage() {
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
+
               <CardContent className="space-y-4">
                 <div className="flex gap-3">
                   <ImageWithFallback
-                    src={product.images[0]}
+                    src={product.images[0] || ''}
                     alt={product.title}
                     className="w-20 h-20 object-cover rounded-lg"
                   />
+
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm mb-1 line-clamp-2">
                       {product.title}
@@ -258,11 +437,14 @@ export function CreateOrderPage() {
                     <span>Product Price</span>
                     <span className="font-semibold">${product.price.toFixed(2)}</span>
                   </div>
+
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Escrow Fee (3%)</span>
                     <span>${escrowFee.toFixed(2)}</span>
                   </div>
+
                   <Separator />
+
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
                     <span>${totalAmount.toFixed(2)}</span>
@@ -292,6 +474,7 @@ export function CreateOrderPage() {
               <CardHeader>
                 <CardTitle className="text-sm">Security Features</CardTitle>
               </CardHeader>
+
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -302,6 +485,7 @@ export function CreateOrderPage() {
                     </p>
                   </div>
                 </div>
+
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
@@ -311,6 +495,7 @@ export function CreateOrderPage() {
                     </p>
                   </div>
                 </div>
+
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
