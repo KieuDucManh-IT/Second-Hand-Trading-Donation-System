@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Star, MessageSquare } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useReview, Review } from '../contexts/ReviewContext';
-import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
-import { CustomerAuthModal } from './CustomerAuthModal';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Star, MessageSquare } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { useReview, Review } from "../contexts/ReviewContext";
+import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
+import { CustomerAuthModal } from "./CustomerAuthModal";
+import { toast } from "sonner";
 
 interface ReviewSectionProps {
   productId: string;
@@ -14,18 +14,27 @@ interface ReviewSectionProps {
 
 export function ReviewSection({ productId, productName }: ReviewSectionProps) {
   const { user, isCustomer } = useAuth();
-  const { getProductReviews, addReview, canReviewProduct, markProductAsReviewed, getUserOrders } = useReview();
+  const {
+    getProductReviews,
+    addReview,
+    canReviewProduct,
+    markProductAsReviewed,
+    getUserOrders,
+  } = useReview();
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const reviews = getProductReviews(productId);
   const canReview = user ? canReviewProduct(user.id, productId) : false;
 
-  const averageRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : '0';
+  const averageRating =
+    reviews.length > 0
+      ? (
+          reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        ).toFixed(1)
+      : "0";
 
   const handleSubmitReview = () => {
     if (!user || !isCustomer) {
@@ -34,23 +43,25 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
     }
 
     if (!canReview) {
-      toast.error('You can only review products you have purchased');
+      toast.error("You can only review products you have purchased");
       return;
     }
 
     if (!comment.trim()) {
-      toast.error('Please write a review');
+      toast.error("Please write a review");
       return;
     }
 
     // Find the order that contains this product
     const orders = getUserOrders(user.id);
     const order = orders.find(
-      o => o.items.some(item => item.productId === productId) && !o.reviewed.includes(productId)
+      (o) =>
+        o.items.some((item) => item.productId === productId) &&
+        !o.reviewed.includes(productId),
     );
 
     if (!order) {
-      toast.error('Order not found');
+      toast.error("Order not found");
       return;
     }
 
@@ -65,8 +76,8 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
 
     markProductAsReviewed(order.id, productId);
 
-    toast.success('Review submitted successfully!');
-    setComment('');
+    toast.success("Review submitted successfully!");
+    setComment("");
     setRating(5);
     setShowReviewForm(false);
   };
@@ -84,14 +95,15 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
                     key={i}
                     className={`w-5 h-5 ${
                       i < Math.round(parseFloat(averageRating))
-                        ? 'fill-primary text-primary'
-                        : 'text-muted-foreground'
+                        ? "fill-primary text-primary"
+                        : "text-muted-foreground"
                     }`}
                   />
                 ))}
               </div>
               <span className="text-lg">
-                {averageRating} out of 5 ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                {averageRating} out of 5 ({reviews.length}{" "}
+                {reviews.length === 1 ? "review" : "reviews"})
               </span>
             </div>
           </div>
@@ -100,10 +112,10 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
             <Button
               onClick={() => setShowReviewForm(!showReviewForm)}
               className="rounded-full"
-              variant={showReviewForm ? 'outline' : 'default'}
+              variant={showReviewForm ? "outline" : "default"}
             >
               <MessageSquare className="w-4 h-4 mr-2" />
-              {showReviewForm ? 'Cancel' : 'Write a Review'}
+              {showReviewForm ? "Cancel" : "Write a Review"}
             </Button>
           )}
 
@@ -135,7 +147,9 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
                   >
                     <Star
                       className={`w-8 h-8 ${
-                        star <= rating ? 'fill-primary text-primary' : 'text-muted-foreground'
+                        star <= rating
+                          ? "fill-primary text-primary"
+                          : "text-muted-foreground"
                       }`}
                     />
                   </button>
@@ -177,7 +191,10 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
         )}
       </div>
 
-      <CustomerAuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <CustomerAuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
     </>
   );
 }
@@ -186,26 +203,26 @@ function ReviewCard({ review }: { review: Review }) {
   const { isManager } = useAuth();
   const { addAdminReply } = useReview();
   const [showReplyForm, setShowReplyForm] = useState(false);
-  const [replyMessage, setReplyMessage] = useState('');
+  const [replyMessage, setReplyMessage] = useState("");
 
   const handleSubmitReply = () => {
     if (!replyMessage.trim()) {
-      toast.error('Please write a reply');
+      toast.error("Please write a reply");
       return;
     }
 
     addAdminReply(review.id, replyMessage);
-    toast.success('Reply posted successfully!');
-    setReplyMessage('');
+    toast.success("Reply posted successfully!");
+    setReplyMessage("");
     setShowReplyForm(false);
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -221,7 +238,9 @@ function ReviewCard({ review }: { review: Review }) {
             </div>
             <div>
               <p>{review.userName}</p>
-              <p className="text-sm text-muted-foreground">{formatDate(review.createdAt)}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatDate(review.createdAt)}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -229,7 +248,9 @@ function ReviewCard({ review }: { review: Review }) {
               <Star
                 key={i}
                 className={`w-4 h-4 ${
-                  i < review.rating ? 'fill-primary text-primary' : 'text-muted-foreground'
+                  i < review.rating
+                    ? "fill-primary text-primary"
+                    : "text-muted-foreground"
                 }`}
               />
             ))}
@@ -253,7 +274,9 @@ function ReviewCard({ review }: { review: Review }) {
                   {formatDate(review.adminReply.repliedAt)}
                 </p>
               </div>
-              <p className="text-sm text-muted-foreground">{review.adminReply.message}</p>
+              <p className="text-sm text-muted-foreground">
+                {review.adminReply.message}
+              </p>
             </div>
           </div>
         </div>
@@ -272,13 +295,17 @@ function ReviewCard({ review }: { review: Review }) {
                 className="rounded-xl"
               />
               <div className="flex gap-2">
-                <Button onClick={handleSubmitReply} size="sm" className="rounded-full">
+                <Button
+                  onClick={handleSubmitReply}
+                  size="sm"
+                  className="rounded-full"
+                >
                   Post Reply
                 </Button>
                 <Button
                   onClick={() => {
                     setShowReplyForm(false);
-                    setReplyMessage('');
+                    setReplyMessage("");
                   }}
                   size="sm"
                   variant="outline"

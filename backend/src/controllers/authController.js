@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const cloudinary = require("../config/cloudinary");
+const { cloudinary } = require("../config/cloudinary");
 
 const {
   generateOTP,
@@ -116,6 +116,7 @@ const verifyRegisterOTP = async (req, res) => {
     }
 
     const user = await User.create({
+      fullName: userName,
       userName,
       email,
       password
@@ -127,6 +128,7 @@ const verifyRegisterOTP = async (req, res) => {
       message: "Đăng ký tài khoản thành công",
       user: {
         id: user._id,
+        fullName: user.fullName,
         userName: user.userName,
         email: user.email,
         role: user.role
@@ -156,6 +158,12 @@ const login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         message: "Email hoặc password không đúng",
+      });
+    }
+
+    if (user.status === "banned") {
+      return res.status(403).json({
+        message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.",
       });
     }
 
@@ -190,6 +198,7 @@ const login = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
+        fullName: user.fullName,
         userName: user.userName,
         role: user.role,
         rating: user.rating,
@@ -453,6 +462,7 @@ const googleLogin = async (req, res) => {
 
     if (!user) {
       user = await User.create({
+        fullName: userName,
         userName,
         email,
         googleId,
@@ -461,6 +471,14 @@ const googleLogin = async (req, res) => {
         role: "user",
       });
     } else {
+      if (user.status === "banned") {
+        return res.status(403).json({
+          message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.",
+        });
+      }
+
+
+
       user.googleId = user.googleId || googleId;
       user.avatar = user.avatar || avatar;
 
@@ -488,6 +506,7 @@ const googleLogin = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
+        fullName: user.fullName,
         userName: user.userName,
         role: user.role,
         rating: user.rating,
