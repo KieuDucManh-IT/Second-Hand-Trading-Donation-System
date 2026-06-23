@@ -49,8 +49,7 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
- 
-// Dùng async thay vì callback next() để tránh lỗi "next is not a function"
+
 orderSchema.pre('validate', async function () {
   if (this.isNew && this.totalPrice != null) {
     const rate = this.platformFeeRate ?? PLATFORM_FEE_RATE;

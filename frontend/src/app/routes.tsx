@@ -1,5 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
-
+ 
 import { RootLayout } from "./components/layouts/RootLayout";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -11,7 +11,6 @@ import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { CreateProductPage } from "./pages/CreateProductPage";
 import { MessagesPage } from "./pages/MessagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
 import { ManagerDashboard } from "./pages/ManagerDashboard";
 import { ExchangeRequestsPage } from "./pages/ExchangeRequestsPage";
@@ -23,6 +22,7 @@ import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import { OrdersPage } from './components/OrdersPage';
+ 
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -32,6 +32,7 @@ export const router = createBrowserRouter([
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
       { path: "verify-email", element: <EmailVerificationPage /> },
       { path: "products", element: <ProductListingPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
@@ -39,18 +40,17 @@ export const router = createBrowserRouter([
       { path: "donations", element: <DonationPage /> },
       { path: "messages", element: <MessagesPage /> },
       { path: "profile/:userId", element: <ProfilePage /> },
-      { path: "orders", element: <OrderHistoryPage /> },
+      { path: "orders", element: <OrdersPage /> },
       { path: "exchanges", element: <ExchangeRequestsPage /> },
       { path: "exchanges/:id", element: <ExchangeDetailPage /> },
       { path: "exchange-history", element: <ExchangeHistoryPage /> },
       { path: "create-order", element: <CreateOrderPage /> },
+      { path: "checkout", element: <CreateOrderPage /> },
       { path: "transactions", element: <TransactionHistoryPage /> },
       { path: "transactions/:id", element: <TransactionDetailPage /> },
       { path: "manager", element: <ManagerDashboard /> },
-      { path: "*", element: <NotFoundPage /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
-      { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
-      { path: '/orders', element: <OrdersPage /> }
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

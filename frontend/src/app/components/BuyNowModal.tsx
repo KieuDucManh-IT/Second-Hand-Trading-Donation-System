@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { ShoppingBag, X, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { createOrder, formatVND, type Order } from '../api/orderApi';
-import { toast } from 'sonner';
+import { formatVND } from '../api/orderApi';
+import { useNavigate } from 'react-router';
  
 interface BuyNowModalProps {
   open: boolean;
@@ -15,28 +14,21 @@ interface BuyNowModalProps {
     thumbnail: string | null;
     condition: string;
     sellerName?: string;
+    sellerEmail?: string;
   };
-  onSuccess?: (order: Order) => void;
+  onSuccess?: () => void;
 }
  
-export function BuyNowModal({ open, onClose, product, onSuccess }: BuyNowModalProps) {
-  const [loading, setLoading] = useState(false);
+export function BuyNowModal({ open, onClose, product }: BuyNowModalProps) {
+  const navigate = useNavigate();
  
-  const platformFee    = Math.round(product.price * 0.1);
-  const sellerReceives = product.price - platformFee;
+  const platformFee = Math.round(product.price * 0.1);
  
-  const handleConfirmBuy = async () => {
-    setLoading(true);
-    try {
-      const result = await createOrder(product._id);
-      toast.success('Đặt hàng thành công! Chờ seller xác nhận.');
-      onSuccess?.(result.data);
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Đặt hàng thất bại');
-    } finally {
-      setLoading(false);
-    }
+  const handleProceed = () => {
+    onClose();
+    navigate('/checkout', {
+      state: { product },
+    });
   };
  
   return (
@@ -63,9 +55,13 @@ export function BuyNowModal({ open, onClose, product, onSuccess }: BuyNowModalPr
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate">{product.title}</p>
             {product.sellerName && (
-              <p className="text-sm text-muted-foreground mt-0.5">Người bán: {product.sellerName}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Người bán: {product.sellerName}
+              </p>
             )}
-            <p className="text-sm text-muted-foreground mt-0.5">Tình trạng: {product.condition}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Tình trạng: {product.condition}
+            </p>
           </div>
         </div>
  
@@ -85,7 +81,7 @@ export function BuyNowModal({ open, onClose, product, onSuccess }: BuyNowModalPr
           </div>
         </div>
  
-        {/* Ghi chú phí nền tảng (thông tin cho buyer hiểu hệ thống) */}
+        {/* Ghi chú phí nền tảng */}
         <div className="flex gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl text-xs text-blue-700 dark:text-blue-300">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <p>
@@ -95,33 +91,18 @@ export function BuyNowModal({ open, onClose, product, onSuccess }: BuyNowModalPr
           </p>
         </div>
  
-        {/* Lưu ý quy trình */}
-        <p className="text-xs text-muted-foreground text-center">
-          Sau khi đặt hàng, hãy liên hệ seller qua chat để thỏa thuận thời gian nhận hàng.
-        </p>
- 
         {/* Actions */}
         <div className="flex gap-3 pt-1">
-          <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose} disabled={loading}>
+          <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>
             <X className="w-4 h-4 mr-2" />
             Hủy
           </Button>
-          <Button className="flex-1 rounded-xl" onClick={handleConfirmBuy} disabled={loading}>
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Đang xử lý...
-              </span>
-            ) : (
-              <>
-                <ShoppingBag className="w-4 h-4 mr-2" />
-                Xác nhận mua
-              </>
-            )}
+          <Button className="flex-1 rounded-xl" onClick={handleProceed}>
+            <ShoppingBag className="w-4 h-4 mr-2" />
+            Tiếp tục đặt hàng
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
- 

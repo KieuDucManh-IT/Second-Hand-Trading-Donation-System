@@ -10,6 +10,7 @@ export interface Order {
   platformFee: number;
   sellerReceives: number;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  paymentMethod?: 'wallet' | 'cod';
   shippingInfo?: {
     name: string;
     email: string;
@@ -25,17 +26,29 @@ export interface Order {
   cancelledAt?: string;
 }
  
+export interface ShippingInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  paymentMethod?: 'wallet' | 'cod';
+}
+ 
 const authHeader = () => ({
   'Content-Type': 'application/json',
   Authorization: `Bearer ${sessionStorage.getItem('token') ?? ''}`,
 });
  
-/** Buyer tạo đơn hàng (Buy Now) cho 1 sản phẩm */
-export async function createOrder(productId: string): Promise<{ success: boolean; data: Order }> {
+/** Buyer tạo đơn hàng */
+export async function createOrder(
+  productId: string,
+  shippingInfo?: ShippingInfo,
+): Promise<{ success: boolean; data: Order }> {
   const res = await fetch(`${API_BASE}/api/orders`, {
     method: 'POST',
     headers: authHeader(),
-    body: JSON.stringify({ productId }),
+    body: JSON.stringify({ productId, shippingInfo }),
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.message || 'Đặt hàng thất bại');
@@ -70,7 +83,7 @@ export async function confirmOrder(orderId: string): Promise<{ success: boolean;
 }
  
 /** Seller hoàn tất đơn */
-export async function completeOrder(orderId: string): Promise<{ success: boolean; data: Order }> {
+export async function completeOrder(orderId: string): Promise<{ success: boolean; data: Order; message: string }> {
   const res = await fetch(`${API_BASE}/api/orders/${orderId}/complete`, {
     method: 'PUT',
     headers: authHeader(),
@@ -96,3 +109,4 @@ export async function cancelOrder(orderId: string, reason?: string): Promise<{ s
 export function formatVND(n: number): string {
   return n.toLocaleString('vi-VN') + 'đ';
 }
+ 
