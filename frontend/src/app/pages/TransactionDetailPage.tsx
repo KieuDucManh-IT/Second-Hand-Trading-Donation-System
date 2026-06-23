@@ -184,10 +184,10 @@ function normalizeTransaction(raw: any): TransactionDetail | null {
     amount: Number(transaction.amount || transaction.totalAmount || product.price || 0),
     escrowAmount: Number(
       transaction.escrowAmount ||
-        transaction.escrow ||
-        transaction.amount ||
-        transaction.totalAmount ||
-        0
+      transaction.escrow ||
+      transaction.amount ||
+      transaction.totalAmount ||
+      0
     ),
     status: transaction.status || 'pending_deposit',
     paymentMethod: transaction.paymentMethod || transaction.payment_method || 'Unknown',
@@ -344,8 +344,10 @@ export function TransactionDetailPage() {
     );
   }
 
-  const isBuyer = transaction.buyerId === user?.id || transaction.buyerId === user?._id;
-  const isSeller = transaction.sellerId === user?.id || transaction.sellerId === user?._id;
+  const currentUserId = String(user?.id || '');
+
+  const isBuyer = transaction.buyerId === currentUserId;
+  const isSeller = transaction.sellerId === currentUserId;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -418,10 +420,10 @@ export function TransactionDetailPage() {
         setTransaction((prev) =>
           prev
             ? {
-                ...prev,
-                status: 'released',
-                releasedAt: new Date().toISOString(),
-              }
+              ...prev,
+              status: 'released',
+              releasedAt: new Date().toISOString(),
+            }
             : prev
         );
       }
@@ -466,9 +468,9 @@ export function TransactionDetailPage() {
       setTransaction((prev) =>
         prev
           ? {
-              ...prev,
-              status: 'disputed',
-            }
+            ...prev,
+            status: 'disputed',
+          }
           : prev
       );
 
