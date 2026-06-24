@@ -35,9 +35,7 @@ import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 
 /* ===== TASK 19-24 ===== */
 import DonationRequest from "./pages/DonationRequest";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import Notification from "./pages/Notification";
+
 
 export const router = createBrowserRouter([
   {
@@ -99,24 +97,6 @@ export const router = createBrowserRouter([
   path: "donation-requests",
   element: <DonationRequestsPage />,
 },
-
-      /* Cart */
-      {
-        path: "cart",
-        element: <Cart />,
-      },
-
-      /* Checkout */
-      {
-        path: "checkout",
-        element: <Checkout />,
-      },
-
-      /* Notification */
-      {
-        path: "notification",
-        element: <Notification />,
-      },
 
       /* Message */
       {

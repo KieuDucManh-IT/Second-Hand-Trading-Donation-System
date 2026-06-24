@@ -8,7 +8,7 @@ import { Separator } from '../components/ui/separator';
 import { Send, Search, MoreVertical } from 'lucide-react';
 import { mockConversations } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 export function MessagesPage() {
   const { isAuthenticated } = useAuth();

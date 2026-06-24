@@ -6,7 +6,7 @@ import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { Package, Eye } from 'lucide-react';
 import { mockOrders } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 export function OrderHistoryPage() {
   const { isAuthenticated } = useAuth();
