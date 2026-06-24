@@ -5,7 +5,8 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-
+import { Wallet, ShoppingCart } from "lucide-react";
+ 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,6 @@ import {
   X,
   ArrowLeftRight,
   ShieldCheck,
-  Wallet,
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -62,7 +62,7 @@ export function Header() {
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
-
+ 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
@@ -76,35 +76,35 @@ export function Header() {
       })
       .catch(() => {});
   };
-
+ 
   useEffect(() => {
     if (!isAuthenticated) {
       setUnreadMessages(0);
       return;
     }
-
+ 
     loadUnreadMessages();
-
+ 
     const socket = connectSocket();
-
+ 
     const onNewMessage = ({ conversationId }: { conversationId: string }) => {
      
       loadUnreadMessages();
     };
-
+ 
     const onMessagesRead = () => {
       loadUnreadMessages();
     };
-
+ 
     socket.on('new_message', onNewMessage);
     socket.on('messages_read', onMessagesRead);
-
+ 
     return () => {
       socket.off('new_message', onNewMessage);
       socket.off('messages_read', onMessagesRead);
     };
   }, [isAuthenticated]);
-
+ 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -113,7 +113,7 @@ export function Header() {
       setSearchQuery('');
     }
   };
-
+ 
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -200,7 +200,6 @@ export function Header() {
               SecondLife
             </span>
           </Link>
-
           <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-2xl mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -213,7 +212,6 @@ export function Header() {
               />
             </div>
           </form>
-
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="ghost"
@@ -227,7 +225,7 @@ export function Header() {
                 <Sun className="w-5 h-5" />
               )}
             </Button>
-
+ 
             {isAuthenticated ? (
               <>
                 <Button
@@ -237,7 +235,6 @@ export function Header() {
                   <Plus className="w-5 h-5" />
                   <span className="hidden lg:inline">Post Item</span>
                 </Button>
-
                 <Button
                   variant="ghost"
                   size="sm"
@@ -251,7 +248,6 @@ export function Header() {
                     </Badge>
                   )}
                 </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="relative rounded-full">
@@ -297,7 +293,6 @@ export function Header() {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
-
                 <div className="relative">
                   <input
                     ref={avatarInputRef}
@@ -306,7 +301,7 @@ export function Header() {
                     className="hidden"
                     onChange={handleAvatarChange}
                   />
-
+ 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -319,7 +314,7 @@ export function Header() {
                         </Avatar>
                       </button>
                     </DropdownMenuTrigger>
-
+ 
                     <button
                       type="button"
                       disabled={avatarUploading}
@@ -332,43 +327,48 @@ export function Header() {
                     >
                       <Plus className="w-3 h-3" />
                     </button>
-
+ 
                     <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[9999]">
                       <div className="px-4 py-3 border-b">
                         <p className="font-medium">{user?.name}</p>
                         <p className="text-sm text-gray-500">{user?.email}</p>
                       </div>
-
+ 
                       <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
                         <User className="w-4 h-4 mr-2" />
                         My Profile
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/wallet')}>
                         <Wallet className="w-4 h-4 mr-2" />
                         My Wallet
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/orders')}>
                         <Package className="w-4 h-4 mr-2" />
                         My Orders
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/exchanges')}>
                         <ArrowLeftRight className="w-4 h-4 mr-2" />
                         Exchanges
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/transactions')}>
                         <ShieldCheck className="w-4 h-4 mr-2" />
                         Transactions
                       </DropdownMenuItem>
-
+ 
+                      <DropdownMenuItem>
+                        <Heart className="w-4 h-4 mr-2" />
+                        Favorites
+                      </DropdownMenuItem>
+ 
                       <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
                       </DropdownMenuItem>
-
+ 
                       {user?.role === 'manager' && (
                         <>
                           <DropdownMenuSeparator />
@@ -377,9 +377,9 @@ export function Header() {
                           </DropdownMenuItem>
                         </>
                       )}
-
+ 
                       <DropdownMenuSeparator />
-
+ 
                       <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="w-4 h-4 mr-2" />
                         Logout
@@ -406,7 +406,6 @@ export function Header() {
                 </Button>
               </>
             )}
-
             <Button
               variant="ghost"
               size="sm"
@@ -417,7 +416,6 @@ export function Header() {
             </Button>
           </div>
         </div>
-
         <form onSubmit={handleSearch} className="md:hidden pb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -431,7 +429,6 @@ export function Header() {
           </div>
         </form>
       </div>
-
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="px-4 py-4 space-y-2">
@@ -472,6 +469,17 @@ export function Header() {
                   Messages
                 </Button>
 
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    navigate('/cart');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full justify-start"
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  Cart
+                </Button>
                 <Button
                   variant="ghost"
                   onClick={() => {

@@ -17,7 +17,6 @@ import { ProfilePage } from "./pages/ProfilePage";
 
 import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
-import DonationRequestsPage from "./pages/DonationRequestsPage";
 
 import { ManagerDashboard } from "./pages/ManagerDashboard";
 
@@ -34,11 +33,8 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import WalletPage from "./pages/WalletPage";
 
-/* ===== TASK 19-24 ===== */
+import DonationRequestsPage from "./pages/DonationRequestsPage";
 import DonationRequest from "./pages/DonationRequest";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import Notification from "./pages/Notification";
 
 export const router = createBrowserRouter([
   {
@@ -46,29 +42,40 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { index: true, element: <HomePage /> },
+
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
       { path: "verify-email", element: <EmailVerificationPage /> },
+
       { path: "products", element: <ProductListingPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
       { path: "create-product", element: <CreateProductPage /> },
+
       { path: "donations", element: <DonationPage /> },
+      { path: "donation-request/:id", element: <DonationRequest /> },
+      { path: "donation-requests", element: <DonationRequestsPage /> },
+
       { path: "messages", element: <MessagesPage /> },
       { path: "profile/:userId", element: <ProfilePage /> },
+
       { path: "orders", element: <OrderHistoryPage /> },
+      { path: "create-order", element: <CreateOrderPage /> },
+
       { path: "exchanges", element: <ExchangeRequestsPage /> },
       { path: "exchanges/:id", element: <ExchangeDetailPage /> },
       { path: "exchange-history", element: <ExchangeHistoryPage /> },
-      { path: "create-order", element: <CreateOrderPage /> },
+
       { path: "transactions", element: <TransactionHistoryPage /> },
       { path: "transactions/:id", element: <TransactionDetailPage /> },
+
       { path: "manager", element: <ManagerDashboard /> },
-      { path: "*", element: <NotFoundPage /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
-      { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
       { path: "wallet", element: <WalletPage /> },
-      { path: "*", element: <NotFoundPage /> }
+      { path: "checkout", element: <CreateOrderPage /> },
+
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

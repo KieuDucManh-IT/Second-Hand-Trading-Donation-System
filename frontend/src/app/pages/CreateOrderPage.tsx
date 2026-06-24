@@ -1,92 +1,258 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
-import { Separator } from '../components/ui/separator';
-import { Checkbox } from '../components/ui/checkbox';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Separator } from "../components/ui/separator";
+import { Checkbox } from "../components/ui/checkbox";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
-  ShieldCheck,
-  CreditCard,
-  Wallet,
-  Building2,
-  Lock,
-  Info,
+  ShoppingBag,
   ArrowLeft,
+  Wallet,
+  Truck,
+  User,
+  Phone,
+  MapPin,
+  Mail,
   CheckCircle2,
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner';
+  AlertCircle,
+  Loader2,
+  ShieldCheck,
+  Info,
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { createOrder, payOrderByWallet, formatVND } from "../api/orderApi";
+import type { PaymentMethod } from "../api/orderApi";
+import { toast } from "sonner";
+
+const RAW_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const API_BASE = RAW_API_BASE.endsWith("/api")
+  ? RAW_API_BASE
+  : `${RAW_API_BASE}/api`;
+
+interface CheckoutProduct {
+  _id: string;
+  title: string;
+  price: number;
+  thumbnail?: string | null;
+  condition?: string;
+  sellerName?: string;
+  sellerEmail?: string;
+  ownerId?: {
+    _id?: string;
+    fullName?: string;
+    name?: string;
+  };
+  images?: Array<{ imageUrl?: string } | string>;
+}
+
+function getToken() {
+  return (
+    sessionStorage.getItem("token") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("accessToken") ||
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("authToken") ||
+    localStorage.getItem("authToken") ||
+    ""
+  );
+}
+
+function getProductImage(product: CheckoutProduct) {
+  if (product.thumbnail) return product.thumbnail;
+
+  const firstImage = product.images?.[0];
+
+  if (typeof firstImage === "string") return firstImage;
+  if (firstImage?.imageUrl) return firstImage.imageUrl;
+
+  return "";
+}
+
+function getSellerName(product: CheckoutProduct) {
+  return (
+    product.sellerName ||
+    product.ownerId?.fullName ||
+    product.ownerId?.name ||
+    "Người bán"
+  );
+}
+
+function normalizeProduct(raw: any): CheckoutProduct | null {
+  const product = raw?.data || raw?.product || raw;
+
+  if (!product) return null;
+
+  const id = product._id || product.id;
+
+  if (!id) return null;
+
+  return {
+    _id: id,
+    title: product.title || product.name || "Sản phẩm",
+    price: Number(product.price || 0),
+    thumbnail: product.thumbnail || product.productImage || product.image || null,
+    condition: product.condition || "Không rõ",
+    sellerName:
+      product.sellerName ||
+      product.ownerId?.fullName ||
+      product.ownerId?.name ||
+      product.seller?.name,
+    sellerEmail: product.sellerEmail || product.ownerId?.email,
+    ownerId: product.ownerId || product.seller,
+    images: product.images || [],
+  };
+}
 
 export function CreateOrderPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated } = useAuth();
-  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const { user, isAuthenticated } = useAuth();
+
+  const productFromState = location.state?.product as CheckoutProduct | undefined;
+  const productId = searchParams.get("productId") || productFromState?._id;
+
+  const [product, setProduct] = useState<CheckoutProduct | null>(
+    productFromState || null
+  );
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wallet");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [cardName, setCardName] = useState('');
 
-  const [product, setProduct] = useState<any>(null);
-  const [loadingProduct, setLoadingProduct] = useState(true);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(!productFromState);
   const [loadingBalance, setLoadingBalance] = useState(false);
-
-  const productId = searchParams.get('productId');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/login');
-      return;
+      navigate("/login");
     }
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (!productId) return;
-    const fetchProduct = async () => {
+    if (user) {
+      setName(user.name || "");
+      setEmail(user.email || "");
+
+      const stored = sessionStorage.getItem("user") || localStorage.getItem("user");
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+
+          setPhone(parsed.phoneNumber || parsed.phone || "");
+          setAddress(parsed.location || parsed.address || "");
+          setCity(parsed.city || "");
+        } catch {
+          // ignore invalid stored user json
+        }
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (productFromState || !productId) {
+      setLoadingProduct(false);
+      return;
+    }
+
+    let ignore = false;
+
+    async function fetchProduct() {
       try {
         setLoadingProduct(true);
-        const res = await fetch(`http://localhost:5000/api/products/${productId}`);
-        if (res.ok) {
-          const json = await res.json();
-          setProduct(json.data);
+
+        const res = await fetch(`${API_BASE}/products/${productId}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Không thể tải sản phẩm");
         }
-      } catch (err) {
-        console.error("Error fetching product:", err);
+
+        const normalized = normalizeProduct(data);
+
+        if (!normalized) {
+          throw new Error("Dữ liệu sản phẩm không hợp lệ");
+        }
+
+        if (!ignore) {
+          setProduct(normalized);
+        }
+      } catch (err: any) {
+        console.error("FETCH PRODUCT ERROR:", err);
+
+        if (!ignore) {
+          toast.error(err.message || "Không thể tải sản phẩm");
+          setProduct(null);
+        }
       } finally {
-        setLoadingProduct(false);
+        if (!ignore) {
+          setLoadingProduct(false);
+        }
       }
-    };
+    }
+
     fetchProduct();
-  }, [productId]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [productId, productFromState]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const fetchWallet = async () => {
+
+    let ignore = false;
+
+    async function fetchWallet() {
       try {
         setLoadingBalance(true);
-        const token = sessionStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/wallet", {
+
+        const token = getToken();
+
+        const res = await fetch(`${API_BASE}/wallet`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: token ? `Bearer ${token}` : "",
           },
         });
-        if (res.ok) {
-          const data = await res.json();
-          setWalletBalance(data.wallet.balance);
+
+        const data = await res.json();
+
+        if (res.ok && !ignore) {
+          const wallet = data.wallet || data.data?.wallet;
+
+          setWalletBalance(
+            Number(
+              wallet?.availableBalance ??
+                Number(wallet?.balance || 0) - Number(wallet?.lockedBalance || 0)
+            )
+          );
         }
       } catch (err) {
-        console.error("Error fetching wallet balance:", err);
+        console.error("FETCH WALLET BALANCE ERROR:", err);
       } finally {
-        setLoadingBalance(false);
+        if (!ignore) {
+          setLoadingBalance(false);
+        }
       }
-    };
+    }
+
     fetchWallet();
+
+    return () => {
+      ignore = true;
+    };
   }, [isAuthenticated]);
 
   if (!isAuthenticated) {
@@ -95,92 +261,89 @@ export function CreateOrderPage() {
 
   if (loadingProduct) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-500">Loading product details...</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-green-500" />
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">Product Not Found</h2>
-          <Button onClick={() => navigate('/products')}>Browse Products</Button>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto" />
+          <p className="text-lg text-muted-foreground">
+            Không tìm thấy thông tin sản phẩm
+          </p>
+          <Button onClick={() => navigate("/products")}>Quay lại mua sắm</Button>
+        </div>
       </div>
     );
   }
 
-  const escrowFee = product.price * 0.03;
-  const totalAmount = product.price + escrowFee;
+  const platformFee = Math.round(product.price * 0.1);
 
-  const handleCreateOrder = async () => {
+  const handleSubmit = async () => {
+    if (!name.trim() || !phone.trim() || !address.trim() || !city.trim()) {
+      toast.error("Vui lòng điền đầy đủ thông tin giao hàng");
+      return;
+    }
+
     if (!agreedToTerms) {
-      toast.error('Please agree to the terms and conditions');
+      toast.error("Vui lòng đồng ý với điều khoản giao dịch");
       return;
     }
 
-    if (paymentMethod !== 'wallet') {
-      toast.error('Currently, only payment via SecondLife Wallet is supported for escrow protection.');
-      return;
+    if (paymentMethod === "wallet" && walletBalance !== null) {
+      if (walletBalance < product.price) {
+        toast.error("Số dư ví không đủ. Vui lòng nạp thêm tiền.");
+        navigate("/wallet");
+        return;
+      }
     }
 
-    if (walletBalance !== null && walletBalance < totalAmount) {
-      toast.error('Insufficient wallet balance. Please deposit funds first.');
-      navigate('/wallet');
-      return;
-    }
+    setLoading(true);
 
     try {
-      const token = sessionStorage.getItem("token");
-      
-      // 1. Create pending order
-      const createRes = await fetch("http://localhost:5000/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ productId }),
+      const { data: order } = await createOrder(product._id, paymentMethod, {
+        name,
+        email,
+        phone,
+        address,
+        city,
       });
 
-      const createData = await createRes.json();
-      if (!createRes.ok) {
-        throw new Error(createData.message || "Failed to create order");
+      if (paymentMethod === "wallet") {
+        await payOrderByWallet(order._id);
+        toast.success(
+          "Đặt hàng và thanh toán qua ví thành công! Tiền đang được giữ an toàn."
+        );
+      } else {
+        toast.success("Đặt hàng thành công! Bạn sẽ thanh toán khi nhận hàng.");
       }
 
-      const orderId = createData.order._id;
-
-      // 2. Pay order via wallet
-      const payRes = await fetch(`http://localhost:5000/api/orders/${orderId}/pay`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const payData = await payRes.json();
-      if (!payRes.ok) {
-        throw new Error(payData.message || "Payment failed, order created in pending state");
-      }
-
-      toast.success('Order created and paid successfully! Your payment is being held in escrow.');
-      navigate('/orders');
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Checkout failed');
+      navigate("/orders");
+    } catch (err) {
+      console.error("CREATE ORDER ERROR:", err);
+      toast.error(err instanceof Error ? err.message : "Đặt hàng thất bại");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-8">
+      <div className="max-w-5xl mx-auto px-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="mb-6 -ml-2"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+          Quay lại
         </Button>
+
+        <h1 className="text-2xl font-bold mb-6">Thông tin đặt hàng</h1>
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -188,143 +351,259 @@ export function CreateOrderPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ShieldCheck className="w-6 h-6 text-green-600" />
-                  Secure Escrow Payment
+                  Thanh toán an toàn
                 </CardTitle>
               </CardHeader>
+
               <CardContent>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
                   <div className="flex gap-3">
                     <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
                       <p className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                        How Escrow Works
+                        Cách hệ thống bảo vệ giao dịch
                       </p>
                       <ul className="space-y-1 text-blue-800 dark:text-blue-200">
-                        <li>1. Your payment is securely held in escrow</li>
-                        <li>2. Seller ships the item to you</li>
-                        <li>3. You confirm receipt and satisfaction</li>
-                        <li>4. Payment is released to the seller</li>
+                        <li>1. Buyer đặt đơn và chọn phương thức thanh toán.</li>
+                        <li>2. Nếu thanh toán ví, tiền được hệ thống giữ an toàn.</li>
+                        <li>3. Seller giao hàng cho buyer.</li>
+                        <li>4. Buyer xác nhận nhận hàng, tiền mới chuyển cho seller.</li>
                       </ul>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="font-semibold mb-4">Payment Method</h3>
-                    <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="wallet" id="wallet" />
-                          <Label
-                            htmlFor="wallet"
-                            className="flex items-center gap-2 cursor-pointer flex-1"
-                          >
-                            <Wallet className="w-5 h-5" />
-                            <div className="flex flex-col">
-                              <span className="font-semibold">SecondLife Wallet</span>
-                              {walletBalance !== null ? (
-                                <span className="text-xs text-gray-500">
-                                  Available Balance: {walletBalance.toLocaleString('vi-VN')} VND
-                                </span>
-                              ) : (
-                                <span className="text-xs text-gray-500">Loading wallet balance...</span>
-                              )}
-                            </div>
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 opacity-60">
-                          <RadioGroupItem value="credit_card" id="credit_card" disabled />
-                          <Label
-                            htmlFor="credit_card"
-                            className="flex items-center gap-2 cursor-pointer flex-1"
-                          >
-                            <CreditCard className="w-5 h-5" />
-                            <span>Credit/Debit Card (Deposit via Wallet page first)</span>
-                          </Label>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                  </div>
+                <div className="bg-white dark:bg-secondary/20 rounded-2xl p-6 mb-6 shadow-sm space-y-4">
+                  <h2 className="font-semibold text-base flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Thông tin nhận hàng
+                  </h2>
 
-                  {paymentMethod === 'credit_card' && (
-                    <div className="space-y-4 pt-4">
-                      <Separator />
-                      <h4 className="font-semibold">Card Details</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="cardName">Cardholder Name</Label>
-                          <Input
-                            id="cardName"
-                            placeholder="John Doe"
-                            value={cardName}
-                            onChange={(e) => setCardName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="cardNumber">Card Number</Label>
-                          <Input
-                            id="cardNumber"
-                            placeholder="1234 5678 9012 3456"
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value)}
-                            maxLength={19}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="expiryDate">Expiry Date</Label>
-                            <Input
-                              id="expiryDate"
-                              placeholder="MM/YY"
-                              value={expiryDate}
-                              onChange={(e) => setExpiryDate(e.target.value)}
-                              maxLength={5}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="cvv">CVV</Label>
-                            <Input
-                              id="cvv"
-                              placeholder="123"
-                              value={cvv}
-                              onChange={(e) => setCvv(e.target.value)}
-                              maxLength={3}
-                              type="password"
-                            />
-                          </div>
-                        </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name" className="text-sm">
+                        Họ và tên <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Nguyễn Văn A"
+                          className="pl-9"
+                        />
                       </div>
                     </div>
-                  )}
 
-                  <Separator />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-sm">
+                        Email
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="email@example.com"
+                          className="pl-9"
+                          type="email"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id="terms"
-                      checked={agreedToTerms}
-                      onCheckedChange={(checked) =>
-                        setAgreedToTerms(checked as boolean)
-                      }
-                    />
-                    <Label htmlFor="terms" className="text-sm cursor-pointer">
-                      I agree to the{' '}
-                      <a href="#" className="text-blue-600 hover:underline">
-                        terms and conditions
-                      </a>{' '}
-                      and{' '}
-                      <a href="#" className="text-blue-600 hover:underline">
-                        escrow service agreement
-                      </a>
-                    </Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-sm">
+                        Số điện thoại <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="phone"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="0912 345 678"
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="city" className="text-sm">
+                        Tỉnh / Thành phố <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="city"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder="Hà Nội"
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <Button onClick={handleCreateOrder} className="w-full" size="lg">
-                    <Lock className="w-4 h-4 mr-2" />
-                    Secure Payment - {totalAmount.toLocaleString('vi-VN')}đ
-                  </Button>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="address" className="text-sm">
+                      Địa chỉ nhận hàng <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Số nhà, đường, phường/xã, quận/huyện"
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                <div className="bg-white dark:bg-secondary/20 rounded-2xl p-6 mb-6 shadow-sm space-y-4">
+                  <h2 className="font-semibold text-base flex items-center gap-2">
+                    <Wallet className="w-4 h-4" />
+                    Phương thức thanh toán
+                  </h2>
+
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("wallet")}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+                        paymentMethod === "wallet"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          paymentMethod === "wallet"
+                            ? "border-primary"
+                            : "border-muted-foreground"
+                        }`}
+                      >
+                        {paymentMethod === "wallet" && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center shrink-0">
+                          <Wallet className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Thanh toán qua ví</p>
+                          <p className="text-xs text-muted-foreground">
+                            {loadingBalance
+                              ? "Đang tải số dư ví..."
+                              : walletBalance !== null
+                                ? `Số dư khả dụng: ${formatVND(walletBalance)}`
+                                : "Không lấy được số dư ví"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {paymentMethod === "wallet" && (
+                        <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("cod")}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+                        paymentMethod === "cod"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          paymentMethod === "cod"
+                            ? "border-primary"
+                            : "border-muted-foreground"
+                        }`}
+                      >
+                        {paymentMethod === "cod" && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shrink-0">
+                          <Truck className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">
+                            Thanh toán khi nhận hàng (COD)
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Trả tiền mặt khi nhận hàng
+                          </p>
+                        </div>
+                      </div>
+
+                      {paymentMethod === "cod" && (
+                        <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                      )}
+                    </button>
+                  </div>
+
+                  {paymentMethod === "wallet" && (
+                    <div className="flex gap-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-xl text-xs text-green-700 dark:text-green-300">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                      <p>
+                        Tiền sẽ được hệ thống giữ an toàn và chỉ chuyển cho seller
+                        sau khi bạn xác nhận đã nhận hàng.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="terms"
+                    checked={agreedToTerms}
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                  />
+
+                  <Label htmlFor="terms" className="text-sm cursor-pointer">
+                    Tôi đồng ý với{" "}
+                    <a href="#" className="text-blue-600 hover:underline">
+                      điều khoản giao dịch
+                    </a>{" "}
+                    và{" "}
+                    <a href="#" className="text-blue-600 hover:underline">
+                      chính sách bảo vệ thanh toán
+                    </a>
+                  </Label>
+                </div>
+
+                <Button
+                  className="w-full h-12 text-base rounded-2xl mt-6"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {paymentMethod === "wallet"
+                        ? "Đang thanh toán..."
+                        : "Đang xử lý..."}
+                    </span>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-5 h-5 mr-2" />
+                      {paymentMethod === "wallet"
+                        ? `Đặt hàng & Thanh toán ví — ${formatVND(product.price)}`
+                        : `Đặt hàng (COD) — ${formatVND(product.price)}`}
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -332,21 +611,26 @@ export function CreateOrderPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
+                <CardTitle>Tóm tắt đơn hàng</CardTitle>
               </CardHeader>
+
               <CardContent className="space-y-4">
                 <div className="flex gap-3">
                   <ImageWithFallback
-                    src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
+                    src={getProductImage(product)}
                     alt={product.title}
                     className="w-20 h-20 object-cover rounded-lg"
                   />
+
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm mb-1 line-clamp-2">
                       {product.title}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Seller: {product.ownerId?.fullName || 'Seller'}
+                      Người bán: {getSellerName(product)}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Tình trạng: {product.condition || "Không rõ"}
                     </p>
                   </div>
                 </div>
@@ -355,18 +639,29 @@ export function CreateOrderPage() {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Product Price</span>
-                    <span className="font-semibold">{product.price.toLocaleString('vi-VN')}đ</span>
+                    <span>Giá sản phẩm</span>
+                    <span className="font-semibold">{formatVND(product.price)}</span>
                   </div>
+
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Escrow Fee (3%)</span>
-                    <span>{escrowFee.toLocaleString('vi-VN')}đ</span>
+                    <span>Phí vận chuyển</span>
+                    <span className="text-green-600">Miễn phí</span>
                   </div>
+
                   <Separator />
+
                   <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span>{totalAmount.toLocaleString('vi-VN')}đ</span>
+                    <span>Tổng thanh toán</span>
+                    <span>{formatVND(product.price)}</span>
                   </div>
+                </div>
+
+                <div className="flex gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl text-xs text-blue-700 dark:text-blue-300">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>
+                    Phí dịch vụ <strong>{formatVND(platformFee)}</strong> (10%)
+                    được trừ từ phần seller nhận — buyer không trả thêm.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -380,8 +675,8 @@ export function CreateOrderPage() {
                       Buyer Protection
                     </p>
                     <p className="text-green-800 dark:text-green-200">
-                      Your payment is protected until you confirm receipt of the item in
-                      satisfactory condition.
+                      Nếu thanh toán qua ví, hệ thống sẽ giữ tiền cho đến khi bạn
+                      xác nhận đã nhận hàng.
                     </p>
                   </div>
                 </div>
@@ -392,31 +687,34 @@ export function CreateOrderPage() {
               <CardHeader>
                 <CardTitle className="text-sm">Security Features</CardTitle>
               </CardHeader>
+
               <CardContent className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium">Encrypted Transactions</p>
-                    <p className="text-gray-600 dark:text-gray-400 text-xs">
-                      256-bit SSL encryption
-                    </p>
-                  </div>
-                </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-medium">Secure Escrow</p>
                     <p className="text-gray-600 dark:text-gray-400 text-xs">
-                      Funds held until delivery
+                      Funds held until delivery confirmation
                     </p>
                   </div>
                 </div>
+
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium">Refund Support</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs">
+                      Wallet payment can be refunded if order is cancelled
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-medium">Dispute Resolution</p>
                     <p className="text-gray-600 dark:text-gray-400 text-xs">
-                      24/7 support team
+                      Support team can review disputed transactions
                     </p>
                   </div>
                 </div>

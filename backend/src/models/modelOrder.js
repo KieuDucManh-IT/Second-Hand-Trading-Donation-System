@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
  
-const PLATFORM_FEE_RATE = 0.1; // 10%
+const PLATFORM_FEE_RATE = Number(process.env.PLATFORM_FEE_RATE || 0.1);
  
 const orderSchema = new mongoose.Schema(
   {
@@ -11,85 +11,113 @@ const orderSchema = new mongoose.Schema(
     },
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
+      ref: "Product",
       required: true,
     },
  
-    // ── Tài chính ─────────────────────────────────────────────────────────────
+    // Giá & phí
     totalPrice: {
       type: Number,
       required: true,
       min: 0,
-      comment: 'Số tiền buyer trả (= giá gốc sản phẩm)',
     },
     platformFeeRate: {
       type: Number,
-      default: PLATFORM_FEE_RATE, // lưu lại tỉ lệ tại thời điểm tạo đơn
+      default: PLATFORM_FEE_RATE,
     },
     platformFee: {
       type: Number,
       required: true,
-      comment: 'Phí nền tảng = totalPrice * 10%',
     },
     sellerReceives: {
       type: Number,
       required: true,
-      comment: 'Seller nhận = totalPrice * 90%',
     },
  
-    // ── Trạng thái đơn hàng ───────────────────────────────────────────────────
-    // pending   → buyer vừa đặt, chờ seller xác nhận
-    // confirmed → seller xác nhận sẽ giao
-    // completed → giao thành công, tiền được tính
-    // cancelled → hủy (buyer hoặc seller)
-    status: {
+    // Phương thức & trạng thái thanh toán
+    paymentMethod: {
       type: String,
-      enum: ['pending', 'paid', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'disputed'],
-      default: 'pending',
+      enum: ["wallet", "cod"],
+      default: "wallet",
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "paid", "released", "refunded"],
+      default: "unpaid",
     },
  
-    // Lý do hủy (nếu có)
-    cancelReason: { type: String, default: '' },
- 
-    // Thời gian mốc
-    confirmedAt: { type: Date },
-    completedAt: { type: Date },
-    cancelledAt: { type: Date },
-    disputedAt: { type: Date },
-    autoReleaseAt: { type: Date },
-
-    // Lý do khiếu nại (nếu có)
-    disputeReason: { type: String, default: '' },
-    disputeBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+    // Escrow
+    escrowStatus: {
+      type: String,
+      enum: ["none", "holding", "released", "refunded", "disputed"],
+      default: "none",
+    },
+    escrowAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
  
-    // Đã cộng balance cho seller chưa (tránh double-credit)
-    balanceCredited: { type: Boolean, default: false },
+    // Trạng thái đơn hàng
+    orderStatus: {
+      type: String,
+      enum: [
+        "pending_seller_confirm",
+        "confirmed",
+        "shipping",
+        "delivered",
+        "completed",
+        "cancelled",
+        "disputed",
+      ],
+      default: "pending_seller_confirm",
+    },
+ 
+    // Thông tin giao hàng (tuỳ chọn)
+    shippingInfo: {
+      name: String,
+      email: String,
+      phone: String,
+      address: String,
+      city: String,
+    },
+ 
+    // Timestamps nghiệp vụ
+    paidAt: Date,
+    sellerConfirmedAt: Date,
+    shippedAt: Date,
+    deliveredAt: Date,
+    confirmDeadline: Date, // deadline 7 ngày buyer xác nhận sau khi delivered
+    releasedAt: Date,
+    refundedAt: Date,
+    cancelledAt: Date,
+ 
+    cancelReason: String,
+    releaseReason: String,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
  
-// ── Tính tự động phí trước khi save ──────────────────────────────────────────
-orderSchema.pre('validate', function (next) {
+// Tự tính phí trước khi lưu
+orderSchema.pre("validate", function () {
   if (this.isNew && this.totalPrice != null) {
-    this.platformFee    = parseFloat((this.totalPrice * this.platformFeeRate).toFixed(0));
-    this.sellerReceives = parseFloat((this.totalPrice - this.platformFee).toFixed(0));
+    const rate = this.platformFeeRate ?? PLATFORM_FEE_RATE;
+    this.platformFee    = Math.round(this.totalPrice * rate);
+    this.sellerReceives = this.totalPrice - this.platformFee;
   }
-  next();
 });
  
-// ── Index ─────────────────────────────────────────────────────────────────────
 orderSchema.index({ buyerId: 1, createdAt: -1 });
 orderSchema.index({ sellerId: 1, createdAt: -1 });
 orderSchema.index({ productId: 1 });
-orderSchema.index({ status: 1 });
+orderSchema.index({ orderStatus: 1 });
+orderSchema.index({ confirmDeadline: 1, orderStatus: 1 }); // cho auto-release job
  
-module.exports = mongoose.model('Order', orderSchema);
- 
+module.exports = mongoose.model("Order", orderSchema);

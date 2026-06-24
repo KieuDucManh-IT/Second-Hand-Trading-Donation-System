@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const path = require("path");
 const http = require("http");
+const path = require("path");
 
 dotenv.config();
 
@@ -13,6 +13,9 @@ const productRoute = require("./src/routes/productRoute");
 const categoryRoute = require("./src/routes/categoryRoute");
 const reportRoute = require("./src/routes/reportRoute");
 const chatRoute = require("./src/routes/chatRoute");
+const cartRoute  = require('./src/routes/cartRoute');
+const orderRoute = require('./src/routes/orderRoute');
+
 const { initChatSocket } = require("./src/sockets/chatSocket");
 const walletRoutes = require("./src/routes/walletRoutes");
 const webhookRoutes = require("./src/routes/webhookRoutes");
@@ -45,8 +48,7 @@ app.use("/api/webhooks", webhookRoutes);
 app.use("/api/exchange-escrow", exchangeEscrowRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/donations", donationRoute);
-
-
+app.use('/api/cart',   cartRoute);
 const PORT = process.env.PORT || 5000;
 
 const httpServer = http.createServer(app);
