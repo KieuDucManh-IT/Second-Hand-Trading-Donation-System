@@ -1,0 +1,51 @@
+const mongoose = require("mongoose");
+
+const donationSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+
+    donorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    requesterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    message: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "accepted",
+        "rejected",
+        "completed"
+      ],
+      default: "pending",
+    },
+
+    acceptedAt: Date,
+    rejectedAt: Date,
+    completedAt: Date,
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model(
+  "Donation",
+  donationSchema
+);

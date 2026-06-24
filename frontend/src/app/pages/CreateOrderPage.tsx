@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -21,150 +21,82 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-type ProductForOrder = {
-  id: string;
-  title: string;
-  price: number;
-  images: string[];
-  sellerName: string;
-};
-
-function normalizeProduct(raw: any): ProductForOrder | null {
-  const product = raw?.product || raw?.data || raw;
-
-  if (!product) return null;
-
-  const id = product._id || product.id;
-
-  if (!id) return null;
-
-  const imagesRaw =
-    product.images ||
-    product.productImages ||
-    product.image ||
-    product.thumbnail ||
-    [];
-
-  let images: string[] = [];
-
-  if (Array.isArray(imagesRaw)) {
-    images = imagesRaw
-      .map((img: any) => {
-        if (typeof img === 'string') return img;
-        return img?.url || img?.secure_url || img?.imageUrl || img?.path || '';
-      })
-      .filter(Boolean);
-  } else if (typeof imagesRaw === 'string') {
-    images = [imagesRaw];
-  }
-
-  return {
-    id,
-    title: product.title || product.name || product.productName || 'Untitled Product',
-    price: Number(product.price || product.sellingPrice || 0),
-    images,
-    sellerName:
-      product.sellerName ||
-      product.seller?.name ||
-      product.owner?.name ||
-      product.user?.name ||
-      'Unknown seller',
-  };
-}
-
 export function CreateOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
-
-  const [paymentMethod, setPaymentMethod] = useState('credit_card');
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [cardName, setCardName] = useState('');
 
-  const [product, setProduct] = useState<ProductForOrder | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [product, setProduct] = useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
   const productId = searchParams.get('productId');
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/login', { replace: true });
+      navigate('/login');
+      return;
     }
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    if (!productId) {
-      setProduct(null);
-      setLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-
+    if (!productId) return;
     const fetchProduct = async () => {
       try {
-        setLoading(true);
-
-        const token = sessionStorage.getItem('token');
-
-        const res = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
-          method: 'GET',
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          signal: controller.signal,
-        });
-
-        const data = await res.json().catch(() => null);
-
-        if (!res.ok) {
-          throw new Error(data?.message || 'Cannot fetch product');
+        setLoadingProduct(true);
+        const res = await fetch(`http://localhost:5000/api/products/${productId}`);
+        if (res.ok) {
+          const json = await res.json();
+          setProduct(json.data);
         }
-
-        const normalized = normalizeProduct(data);
-
-        if (!normalized) {
-          throw new Error('Invalid product data');
-        }
-
-        setProduct(normalized);
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.error('FETCH PRODUCT ERROR:', err);
-          toast.error(err.message || 'Cannot fetch product');
-          setProduct(null);
-        }
+      } catch (err) {
+        console.error("Error fetching product:", err);
       } finally {
-        setLoading(false);
+        setLoadingProduct(false);
       }
     };
-
     fetchProduct();
+  }, [productId]);
 
-    return () => {
-      controller.abort();
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchWallet = async () => {
+      try {
+        setLoadingBalance(true);
+        const token = sessionStorage.getItem("token");
+        const res = await fetch("http://localhost:5000/api/wallet", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWalletBalance(data.wallet.balance);
+        }
+      } catch (err) {
+        console.error("Error fetching wallet balance:", err);
+      } finally {
+        setLoadingBalance(false);
+      }
     };
-  }, [isAuthenticated, productId]);
+    fetchWallet();
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return null;
   }
 
-  if (loading) {
+  if (loadingProduct) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">Loading product...</h2>
-          <p className="text-gray-500">Please wait a moment.</p>
-        </Card>
+        <p className="text-gray-500">Loading product details...</p>
       </div>
     );
   }
@@ -189,49 +121,56 @@ export function CreateOrderPage() {
       return;
     }
 
-    if (paymentMethod === 'credit_card') {
-      if (!cardNumber || !expiryDate || !cvv || !cardName) {
-        toast.error('Please fill in all card details');
-        return;
-      }
+    if (paymentMethod !== 'wallet') {
+      toast.error('Currently, only payment via SecondLife Wallet is supported for escrow protection.');
+      return;
+    }
+
+    if (walletBalance !== null && walletBalance < totalAmount) {
+      toast.error('Insufficient wallet balance. Please deposit funds first.');
+      navigate('/wallet');
+      return;
     }
 
     try {
-      setCreatingOrder(true);
-
-      const token = sessionStorage.getItem('token');
-
-      if (!token) {
-        throw new Error('You are not logged in');
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/orders`, {
-        method: 'POST',
+      const token = sessionStorage.getItem("token");
+      
+      // 1. Create pending order
+      const createRes = await fetch("http://localhost:5000/api/orders", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          productId: product.id,
-          paymentMethod,
-          escrowFee,
-          totalAmount,
-        }),
+        body: JSON.stringify({ productId }),
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.message || 'Create order failed');
+      const createData = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(createData.message || "Failed to create order");
       }
 
-      toast.success(data?.message || 'Order created successfully!');
-      navigate('/transactions');
+      const orderId = createData.order._id;
+
+      // 2. Pay order via wallet
+      const payRes = await fetch(`http://localhost:5000/api/orders/${orderId}/pay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payData = await payRes.json();
+      if (!payRes.ok) {
+        throw new Error(payData.message || "Payment failed, order created in pending state");
+      }
+
+      toast.success('Order created and paid successfully! Your payment is being held in escrow.');
+      navigate('/orders');
     } catch (err: any) {
-      console.error('CREATE ORDER ERROR:', err);
-      toast.error(err.message || 'Create order failed');
-    } finally {
-      setCreatingOrder(false);
+      console.error(err);
+      toast.error(err.message || 'Checkout failed');
     }
   };
 
@@ -252,7 +191,6 @@ export function CreateOrderPage() {
                   Secure Escrow Payment
                 </CardTitle>
               </CardHeader>
-
               <CardContent>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
                   <div className="flex gap-3">
@@ -274,39 +212,35 @@ export function CreateOrderPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold mb-4">Payment Method</h3>
-
                     <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="credit_card" id="credit_card" />
+                          <RadioGroupItem value="wallet" id="wallet" />
+                          <Label
+                            htmlFor="wallet"
+                            className="flex items-center gap-2 cursor-pointer flex-1"
+                          >
+                            <Wallet className="w-5 h-5" />
+                            <div className="flex flex-col">
+                              <span className="font-semibold">SecondLife Wallet</span>
+                              {walletBalance !== null ? (
+                                <span className="text-xs text-gray-500">
+                                  Available Balance: {walletBalance.toLocaleString('vi-VN')} VND
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-500">Loading wallet balance...</span>
+                              )}
+                            </div>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 opacity-60">
+                          <RadioGroupItem value="credit_card" id="credit_card" disabled />
                           <Label
                             htmlFor="credit_card"
                             className="flex items-center gap-2 cursor-pointer flex-1"
                           >
                             <CreditCard className="w-5 h-5" />
-                            <span>Credit/Debit Card</span>
-                          </Label>
-                        </div>
-
-                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="paypal" id="paypal" />
-                          <Label
-                            htmlFor="paypal"
-                            className="flex items-center gap-2 cursor-pointer flex-1"
-                          >
-                            <Wallet className="w-5 h-5" />
-                            <span>PayPal</span>
-                          </Label>
-                        </div>
-
-                        <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <RadioGroupItem value="bank_transfer" id="bank_transfer" />
-                          <Label
-                            htmlFor="bank_transfer"
-                            className="flex items-center gap-2 cursor-pointer flex-1"
-                          >
-                            <Building2 className="w-5 h-5" />
-                            <span>Bank Transfer</span>
+                            <span>Credit/Debit Card (Deposit via Wallet page first)</span>
                           </Label>
                         </div>
                       </div>
@@ -316,9 +250,7 @@ export function CreateOrderPage() {
                   {paymentMethod === 'credit_card' && (
                     <div className="space-y-4 pt-4">
                       <Separator />
-
                       <h4 className="font-semibold">Card Details</h4>
-
                       <div className="space-y-4">
                         <div>
                           <Label htmlFor="cardName">Cardholder Name</Label>
@@ -329,7 +261,6 @@ export function CreateOrderPage() {
                             onChange={(e) => setCardName(e.target.value)}
                           />
                         </div>
-
                         <div>
                           <Label htmlFor="cardNumber">Card Number</Label>
                           <Input
@@ -340,7 +271,6 @@ export function CreateOrderPage() {
                             maxLength={19}
                           />
                         </div>
-
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="expiryDate">Expiry Date</Label>
@@ -352,7 +282,6 @@ export function CreateOrderPage() {
                               maxLength={5}
                             />
                           </div>
-
                           <div>
                             <Label htmlFor="cvv">CVV</Label>
                             <Input
@@ -375,9 +304,10 @@ export function CreateOrderPage() {
                     <Checkbox
                       id="terms"
                       checked={agreedToTerms}
-                      onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                      onCheckedChange={(checked) =>
+                        setAgreedToTerms(checked as boolean)
+                      }
                     />
-
                     <Label htmlFor="terms" className="text-sm cursor-pointer">
                       I agree to the{' '}
                       <a href="#" className="text-blue-600 hover:underline">
@@ -390,16 +320,9 @@ export function CreateOrderPage() {
                     </Label>
                   </div>
 
-                  <Button
-                    onClick={handleCreateOrder}
-                    className="w-full"
-                    size="lg"
-                    disabled={creatingOrder}
-                  >
+                  <Button onClick={handleCreateOrder} className="w-full" size="lg">
                     <Lock className="w-4 h-4 mr-2" />
-                    {creatingOrder
-                      ? 'Creating order...'
-                      : `Secure Payment - $${totalAmount.toFixed(2)}`}
+                    Secure Payment - {totalAmount.toLocaleString('vi-VN')}đ
                   </Button>
                 </div>
               </CardContent>
@@ -411,21 +334,19 @@ export function CreateOrderPage() {
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
-
               <CardContent className="space-y-4">
                 <div className="flex gap-3">
                   <ImageWithFallback
-                    src={product.images[0] || ''}
+                    src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
                     alt={product.title}
                     className="w-20 h-20 object-cover rounded-lg"
                   />
-
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm mb-1 line-clamp-2">
                       {product.title}
                     </h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Seller: {product.sellerName}
+                      Seller: {product.ownerId?.fullName || 'Seller'}
                     </p>
                   </div>
                 </div>
@@ -435,19 +356,16 @@ export function CreateOrderPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Product Price</span>
-                    <span className="font-semibold">${product.price.toFixed(2)}</span>
+                    <span className="font-semibold">{product.price.toLocaleString('vi-VN')}đ</span>
                   </div>
-
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Escrow Fee (3%)</span>
-                    <span>${escrowFee.toFixed(2)}</span>
+                    <span>{escrowFee.toLocaleString('vi-VN')}đ</span>
                   </div>
-
                   <Separator />
-
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>${totalAmount.toFixed(2)}</span>
+                    <span>{totalAmount.toLocaleString('vi-VN')}đ</span>
                   </div>
                 </div>
               </CardContent>
@@ -474,7 +392,6 @@ export function CreateOrderPage() {
               <CardHeader>
                 <CardTitle className="text-sm">Security Features</CardTitle>
               </CardHeader>
-
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -485,7 +402,6 @@ export function CreateOrderPage() {
                     </p>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
@@ -495,7 +411,6 @@ export function CreateOrderPage() {
                     </p>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">

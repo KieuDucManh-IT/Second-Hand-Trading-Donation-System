@@ -575,6 +575,40 @@ const updateAvatar = async (req, res) => {
   }
 };
 
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        userName: user.userName,
+        role: user.role,
+        rating: user.rating,
+        avatar: user.avatar,
+        locations: user.locations,
+        joinedDate: user.createdAt || user.joinedDate || new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "Không thể lấy thông tin người dùng",
+      error: err.message,
+    });
+  }
+};
+
 module.exports = {
   login,
   sendRegisterOTP,
@@ -583,5 +617,6 @@ module.exports = {
   sendForgotPasswordOTP,
   verifyForgotPasswordOTP,
   googleLogin,
-  updateAvatar
+  updateAvatar,
+  getProfile
 };

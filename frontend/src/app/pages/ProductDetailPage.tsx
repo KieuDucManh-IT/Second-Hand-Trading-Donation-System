@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -8,8 +8,6 @@ import { Separator } from '../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import {
-  Heart,
-  Share2,
   MapPin,
   Star,
   MessageCircle,
@@ -28,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from '../components/ui/dialog';
 import { Textarea } from '../components/ui/textarea';
 import { Label } from '../components/ui/label';
@@ -38,6 +35,7 @@ import {
   ApiProduct,
   CONDITION_LABELS,
 } from '../api/productApi';
+import { getOrCreateConversation } from '../api/chatApi';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -101,7 +99,10 @@ function formatMoney(value: number) {
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+
+  const isManager = user?.role === 'manager' || location.state?.from === 'manager';
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
@@ -109,6 +110,7 @@ export function ProductDetailPage() {
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [contacting, setContacting] = useState(false);
 
   const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
   const [myProducts, setMyProducts] = useState<MyExchangeProduct[]>([]);
@@ -117,6 +119,7 @@ export function ProductDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+
     let cancelled = false;
 
     async function load() {
@@ -144,9 +147,13 @@ export function ProductDetailPage() {
           );
         }
       } catch (err: any) {
-        if (!cancelled) setError(err.message || 'Không thể tải sản phẩm');
+        if (!cancelled) {
+          setError(err.message || 'Không thể tải sản phẩm');
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -258,50 +265,89 @@ export function ProductDetailPage() {
     }
   }
 
-  const handleContact = () => {
+  const handleContact = async () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để liên hệ người bán');
       navigate('/login');
       return;
     }
 
-    navigate('/messages');
-    toast.success('Đang mở cuộc trò chuyện với người bán...');
+    if (!product?.ownerId?._id) return;
+
+    try {
+      setContacting(true);
+
+      const res = await getOrCreateConversation(product.ownerId._id, product._id);
+
+      navigate('/messages', {
+        state: {
+          conversationId: res.data.id,
+        },
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Không thể mở cuộc trò chuyện');
+    } finally {
+      setContacting(false);
+    }
   };
 
-  const handleOrder = () => {
-    if (!isAuthenticated) {
+  const handleOrder = async () => {
+    if (!isAuthenticated || !user) {
       toast.error('Vui lòng đăng nhập để thực hiện yêu cầu');
       navigate('/login');
       return;
     }
 
-    toast.success(
-      product?.type === 'donate'
-        ? 'Đã gửi yêu cầu nhận đồ tặng!'
-        : 'Đặt hàng thành công!'
-    );
-  };
-
-  const handleReport = async () => {
-    if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để gửi báo cáo');
-      navigate('/login');
-      return;
-    }
-    if (!reportReason.trim()) {
-      toast.error('Vui lòng nhập lý do báo cáo');
+    if (!product) {
+      toast.error('Không tìm thấy sản phẩm');
       return;
     }
 
     try {
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/reports', {
+      const donorId =
+        typeof product.ownerId === 'object'
+          ? product.ownerId?._id
+          : product.ownerId;
+
+      const requesterId = (user as any).id || (user as any)._id;
+
+      if (product.type === 'donate') {
+        const data = await api('/donations/request', {
+          method: 'POST',
+          body: JSON.stringify({
+            productId: product._id,
+            donorId,
+            requesterId,
+            message: 'I would like to receive this item',
+          }),
+        });
+
+        toast.success(data.message || 'Gửi yêu cầu nhận đồ thành công');
+        return;
+      }
+
+      toast.success('Order created successfully');
+    } catch (error: any) {
+      console.error('HANDLE ORDER ERROR =', error);
+      toast.error(error.message || 'Có lỗi xảy ra');
+    }
+  };
+
+  const handleReport = async () => {
+    if (!isAuthenticated) {
+      alert('Vui lòng đăng nhập để gửi báo cáo');
+      navigate('/login');
+      return;
+    }
+
+    if (!reportReason.trim()) {
+      alert('Vui lòng nhập lý do báo cáo');
+      return;
+    }
+
+    try {
+      const data = await api('/reports', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           targetType: 'product',
           targetId: product?._id,
@@ -309,17 +355,10 @@ export function ProductDetailPage() {
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.message || 'Gửi báo cáo thất bại');
-        return;
-      }
-
-      toast.success('Đã gửi báo cáo thành công. Chúng tôi sẽ xem xét sớm.');
+      alert(data.message || 'Đã gửi báo cáo thành công. Chúng tôi sẽ xem xét sớm.');
       setReportReason('');
-    } catch (error) {
-      toast.error('Không thể kết nối tới máy chủ');
+    } catch (error: any) {
+      alert(error.message || 'Không thể kết nối tới máy chủ');
     }
   };
 
@@ -344,25 +383,36 @@ export function ProductDetailPage() {
     );
   }
 
-  const images = product.images.length > 0
-    ? product.images.map(img => img.imageUrl)
-    : ['https://placehold.co/800x800?text=No+Image'];
+  const images =
+    product.images.length > 0
+      ? product.images.map((img) => img.imageUrl)
+      : ['https://placehold.co/800x800?text=No+Image'];
+
+  const owner: any = product.ownerId || {};
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => navigate('/products')}
+          onClick={() => {
+            if (isManager) {
+              navigate('/manager', {
+                state: {
+                  tab: location.state?.tab || 'products',
+                },
+              });
+            } else {
+              navigate('/products');
+            }
+          }}
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Quay lại danh sách
+          {isManager ? 'Quay lại dashboard' : 'Quay lại danh sách'}
         </Button>
 
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Image Gallery */}
           <div>
             <div className="relative aspect-square rounded-2xl overflow-hidden mb-4 bg-white dark:bg-gray-800">
               <ImageWithFallback
@@ -370,6 +420,7 @@ export function ProductDetailPage() {
                 alt={product.title}
                 className="w-full h-full object-cover"
               />
+
               {product.type === 'donate' && (
                 <Badge className="absolute top-4 left-4 bg-green-500 text-white text-lg px-4 py-2">
                   TẶNG MIỄN PHÍ
@@ -382,8 +433,11 @@ export function ProductDetailPage() {
                 {images.map((image, idx) => (
                   <div
                     key={idx}
-                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${selectedImage === idx ? 'border-green-500' : 'border-transparent'
-                      }`}
+                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
+                      selectedImage === idx
+                        ? 'border-green-500'
+                        : 'border-transparent'
+                    }`}
                     onClick={() => setSelectedImage(idx)}
                   >
                     <ImageWithFallback
@@ -397,36 +451,24 @@ export function ProductDetailPage() {
             )}
           </div>
 
-          {/* Product Info */}
           <div>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                   {product.title}
                 </h1>
+
                 {product.categoryId?.name && (
                   <Badge variant="outline">{product.categoryId.name}</Badge>
                 )}
-              </div>
-
-              <div className="flex space-x-2">
-                <Button size="sm" variant="outline" className="rounded-full">
-                  <Heart className="w-5 h-5" />
-                </Button>
-                <Button size="sm" variant="outline" className="rounded-full">
-                  <Share2 className="w-5 h-5" />
-                </Button>
               </div>
             </div>
 
             <Separator className="my-4" />
 
-            {/* Price */}
             <div className="mb-6">
               {product.type === 'donate' ? (
-                <div className="text-4xl font-bold text-green-600">
-                  MIỄN PHÍ
-                </div>
+                <div className="text-4xl font-bold text-green-600">MIỄN PHÍ</div>
               ) : (
                 <div className="text-4xl font-bold text-gray-900 dark:text-white">
                   {product.price.toLocaleString('vi-VN')}₫
@@ -434,7 +476,6 @@ export function ProductDetailPage() {
               )}
             </div>
 
-            {/* Condition */}
             <div className="mb-6">
               <Label className="text-sm text-gray-600 dark:text-gray-400">
                 Tình trạng
@@ -444,7 +485,6 @@ export function ProductDetailPage() {
               </Badge>
             </div>
 
-            {/* Location */}
             {product.location?.address && (
               <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 mb-6">
                 <MapPin className="w-5 h-5" />
@@ -452,85 +492,89 @@ export function ProductDetailPage() {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="space-y-3 mb-6">
-              <Button
-                onClick={handleOrder}
-                className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
-              >
-                {product.type === 'donate' ? 'Yêu cầu nhận đồ' : 'Mua ngay'}
-              </Button>
+            {!isManager ? (
+              <div className="space-y-3 mb-6">
+                <Button
+                  onClick={handleOrder}
+                  className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
+                >
+                  {product.type === 'donate' ? 'Yêu cầu nhận đồ' : 'Mua ngay'}
+                </Button>
 
-              {product.type === 'sell' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        toast.error('Vui lòng đăng nhập để tạo đơn hàng');
-                        navigate('/login');
-                        return;
-                      }
+                {product.type === 'sell' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          toast.error('Vui lòng đăng nhập để tạo đơn hàng');
+                          navigate('/login');
+                          return;
+                        }
 
-                      navigate(`/create-order?productId=${product._id}`);
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ShieldCheck className="w-4 h-4 mr-2" />
-                    Đặt hàng (Escrow)
-                  </Button>
+                        navigate(`/create-order?productId=${product._id}`);
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      Đặt hàng (Escrow)
+                    </Button>
 
-                  <Button
-                    onClick={openExchangeDialog}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ArrowLeftRight className="w-4 h-4 mr-2" />
-                    Đề xuất trao đổi
-                  </Button>
-                </div>
-              )}
+                    <Button
+                      onClick={openExchangeDialog}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ArrowLeftRight className="w-4 h-4 mr-2" />
+                      Đề xuất trao đổi
+                    </Button>
+                  </div>
+                )}
 
-              <Button
-                onClick={handleContact}
-                variant="outline"
-                className="w-full h-12"
-              >
-                <MessageCircle className="w-5 h-5 mr-2" />
-                Liên hệ người bán
-              </Button>
-            </div>
+                <Button
+                  onClick={handleContact}
+                  disabled={contacting}
+                  variant="outline"
+                  className="w-full h-12"
+                >
+                  {contacting ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                  )}
+                  Liên hệ người bán
+                </Button>
+              </div>
+            ) : (
+              <div className="mb-6 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-center font-medium">
+                Bạn đang xem sản phẩm này với tư cách Quản trị viên
+              </div>
+            )}
 
             <Separator className="my-6" />
 
-            {/* Seller Info */}
             {product.ownerId && (
               <Card>
                 <CardContent className="p-6">
                   <h3 className="font-semibold mb-4">Thông tin người bán</h3>
+
                   <div className="flex items-center space-x-4 mb-4">
                     <Avatar className="w-16 h-16">
-                      <AvatarImage src={product.ownerId.avatar} />
-                      <AvatarFallback>
-                        {product.ownerId.fullName?.[0] || '?'}
-                      </AvatarFallback>
+                      <AvatarImage src={owner.avatar} />
+                      <AvatarFallback>{owner.fullName?.[0] || '?'}</AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1">
-                      <h4 className="font-medium">
-                        {product.ownerId.fullName}
-                      </h4>
+                      <h4 className="font-medium">{owner.fullName}</h4>
 
-                      {product.ownerId.rating != null && (
+                      {owner.rating != null && (
                         <div className="flex items-center space-x-1 text-sm">
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span>
-                            {product.ownerId.rating.toFixed(1)} đánh giá
-                          </span>
+                          <span>{owner.rating.toFixed(1)} đánh giá</span>
                         </div>
                       )}
 
-                      {product.ownerId.isVerified && (
+                      {owner.isVerified && (
                         <Badge variant="secondary" className="mt-1 text-xs">
                           Đã xác minh
                         </Badge>
@@ -541,7 +585,7 @@ export function ProductDetailPage() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => navigate(`/profile/${product.ownerId!._id}`)}
+                    onClick={() => navigate(`/profile/${owner._id}`)}
                   >
                     Xem trang cá nhân
                   </Button>
@@ -549,48 +593,140 @@ export function ProductDetailPage() {
               </Card>
             )}
 
-            {/* Report */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full mt-4 text-red-600 hover:text-red-700"
-                >
-                  <Flag className="w-4 h-4 mr-2" />
-                  Báo cáo tin đăng này
-                </Button>
-              </DialogTrigger>
-
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Báo cáo sản phẩm</DialogTitle>
-                  <DialogDescription>
-                    Giúp chúng tôi giữ an toàn cho cộng đồng. Vui lòng mô tả vấn đề.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label>Lý do báo cáo</Label>
-                    <Textarea
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      placeholder="Mô tả vấn đề..."
-                      className="mt-2"
-                      rows={4}
-                    />
-                  </div>
-
-                  <Button onClick={handleReport} className="w-full">
-                    Gửi báo cáo
+            {!isManager && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full mt-4 text-red-600 hover:text-red-700"
+                  >
+                    <Flag className="w-4 h-4 mr-2" />
+                    Báo cáo tin đăng này
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Báo cáo sản phẩm</DialogTitle>
+                    <DialogDescription>
+                      Giúp chúng tôi giữ an toàn cho cộng đồng. Vui lòng mô tả vấn đề.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Lý do báo cáo</Label>
+                      <Textarea
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        placeholder="Mô tả vấn đề..."
+                        className="mt-2"
+                        rows={4}
+                      />
+                    </div>
+
+                    <Button onClick={handleReport} className="w-full">
+                      Gửi báo cáo
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 
-        {/* Product Details Tabs */}
+        <Dialog open={exchangeDialogOpen} onOpenChange={setExchangeDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Đề xuất trao đổi</DialogTitle>
+              <DialogDescription>
+                Chọn một sản phẩm của bạn để đề xuất trao đổi với sản phẩm này.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {exchangeLoading ? (
+                <div className="py-10 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+                </div>
+              ) : myProducts.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-8 text-center text-gray-500">
+                  Bạn chưa có sản phẩm phù hợp để trao đổi.
+                </div>
+              ) : (
+                <div className="max-h-[360px] overflow-y-auto space-y-3 pr-2">
+                  {myProducts.map((item) => {
+                    const itemId = getProductId(item);
+                    const selected = selectedOfferProductId === itemId;
+
+                    return (
+                      <button
+                        key={itemId}
+                        type="button"
+                        onClick={() => setSelectedOfferProductId(itemId)}
+                        className={`w-full rounded-xl border p-3 text-left transition ${
+                          selected
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex gap-3">
+                          <ImageWithFallback
+                            src={getProductImage(item)}
+                            alt={getProductTitle(item)}
+                            className="w-20 h-20 rounded-lg object-cover bg-gray-100"
+                          />
+
+                          <div className="flex-1">
+                            <h4 className="font-semibold line-clamp-2">
+                              {getProductTitle(item)}
+                            </h4>
+                            <p className="mt-1 text-sm text-gray-500">
+                              Giá trị: {formatMoney(getProductPrice(item))}
+                            </p>
+
+                            {selected && (
+                              <Badge className="mt-2 bg-green-500">
+                                Đã chọn
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setExchangeDialogOpen(false);
+                    setSelectedOfferProductId('');
+                  }}
+                  disabled={exchangeLoading}
+                >
+                  Hủy
+                </Button>
+
+                <Button
+                  onClick={submitExchangeRequest}
+                  disabled={exchangeLoading || !selectedOfferProductId}
+                  className="bg-gradient-to-r from-green-500 to-blue-500"
+                >
+                  {exchangeLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                  )}
+                  Gửi đề xuất
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Card className="mb-8">
           <CardContent className="p-6">
             <Tabs defaultValue="description">
@@ -621,8 +757,7 @@ export function ProductDetailPage() {
                       Tình trạng
                     </dt>
                     <dd className="text-gray-600 dark:text-gray-400">
-                      {CONDITION_LABELS[product.condition] ||
-                        product.condition}
+                      {CONDITION_LABELS[product.condition] || product.condition}
                     </dd>
                   </div>
 
@@ -669,7 +804,6 @@ export function ProductDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
@@ -677,136 +811,64 @@ export function ProductDetailPage() {
             </h2>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct) => (
-                <Card
-                  key={relatedProduct._id}
-                  className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/products/${relatedProduct._id}`)}
-                >
-                  <div className="relative h-48">
-                    <ImageWithFallback
-                      src={
-                        relatedProduct.thumbnail ||
-                        relatedProduct.images[0]?.imageUrl ||
-                        ''
-                      }
-                      alt={relatedProduct.title}
-                      className="w-full h-full object-cover"
-                    />
+              {relatedProducts.map((relatedProduct) => {
+                const relatedOwner: any = relatedProduct.ownerId || {};
 
-                    {relatedProduct.type === 'donate' && (
-                      <Badge className="absolute top-3 left-3 bg-green-500 text-white">
-                        MIỄN PHÍ
-                      </Badge>
-                    )}
-                  </div>
+                return (
+                  <Card
+                    key={relatedProduct._id}
+                    className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/products/${relatedProduct._id}`)}
+                  >
+                    <div className="relative h-48">
+                      <ImageWithFallback
+                        src={
+                          relatedProduct.thumbnail ||
+                          relatedProduct.images[0]?.imageUrl ||
+                          ''
+                        }
+                        alt={relatedProduct.title}
+                        className="w-full h-full object-cover"
+                      />
 
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-2 line-clamp-1">
-                      {relatedProduct.title}
-                    </h3>
-
-                    <div className="flex items-center justify-between">
-                      {relatedProduct.type === 'donate' ? (
-                        <span className="text-xl font-bold text-green-600">
+                      {relatedProduct.type === 'donate' && (
+                        <Badge className="absolute top-3 left-3 bg-green-500 text-white">
                           MIỄN PHÍ
-                        </span>
-                      ) : (
-                        <span className="text-xl font-bold">
-                          {relatedProduct.price.toLocaleString('vi-VN')}₫
-                        </span>
-                      )}
-
-                      {relatedProduct.ownerId?.rating != null && (
-                        <div className="flex items-center space-x-1 text-sm">
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span>{relatedProduct.ownerId.rating.toFixed(1)}</span>
-                        </div>
+                        </Badge>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold mb-2 line-clamp-1">
+                        {relatedProduct.title}
+                      </h3>
+
+                      <div className="flex items-center justify-between">
+                        {relatedProduct.type === 'donate' ? (
+                          <span className="text-xl font-bold text-green-600">
+                            MIỄN PHÍ
+                          </span>
+                        ) : (
+                          <span className="text-xl font-bold">
+                            {relatedProduct.price.toLocaleString('vi-VN')}₫
+                          </span>
+                        )}
+
+                        {relatedOwner.rating != null && (
+                          <div className="flex items-center space-x-1 text-sm">
+                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                            <span>{relatedOwner.rating.toFixed(1)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
       </div>
-
-      <Dialog open={exchangeDialogOpen} onOpenChange={setExchangeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Đề xuất trao đổi sản phẩm</DialogTitle>
-            <DialogDescription>
-              Chọn một sản phẩm của bạn để đề xuất đổi với sản phẩm này. Nếu đối phương
-              đồng ý, hệ thống sẽ tạo hóa đơn trao đổi và yêu cầu hai bên thanh toán
-              tiền bảo hiểm.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
-              Sản phẩm muốn đổi: <b>{product.title}</b>
-              <br />
-              Giá trị: <b>{formatMoney(Number(product.price || 0))}</b>
-            </div>
-
-            {exchangeLoading ? (
-              <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500">
-                Đang tải sản phẩm của bạn...
-              </div>
-            ) : myProducts.length === 0 ? (
-              <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
-                Bạn chưa có sản phẩm nào để trao đổi. Hãy đăng sản phẩm trước.
-              </div>
-            ) : (
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Chọn sản phẩm của bạn
-                </label>
-
-                <select
-                  value={selectedOfferProductId}
-                  onChange={(e) => setSelectedOfferProductId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 outline-none focus:border-blue-500"
-                >
-                  <option value="">-- Chọn sản phẩm --</option>
-
-                  {myProducts.map((item) => (
-                    <option key={getProductId(item)} value={getProductId(item)}>
-                      {getProductTitle(item)} - {formatMoney(getProductPrice(item))}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {selectedOfferProductId && (
-              <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-                Sau khi đối phương đồng ý, bạn sẽ cần thanh toán tiền bảo hiểm tương
-                ứng với giá trị sản phẩm bạn đem trao đổi. Nếu ví không đủ, hệ thống
-                sẽ yêu cầu bạn nạp thêm.
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setExchangeDialogOpen(false)}
-              disabled={exchangeLoading}
-            >
-              Hủy
-            </Button>
-
-            <Button
-              onClick={submitExchangeRequest}
-              disabled={exchangeLoading || !selectedOfferProductId}
-            >
-              Gửi yêu cầu trao đổi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

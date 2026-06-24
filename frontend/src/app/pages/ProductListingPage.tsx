@@ -18,7 +18,6 @@ import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import {
   Search,
   Filter,
-  Heart,
   MapPin,
   Star,
   Grid,
@@ -353,14 +352,6 @@ export function ProductListingPage() {
                             MIỄN PHÍ
                           </Badge>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="absolute top-2 right-2 bg-white/90 hover:bg-white rounded-full p-1.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Heart className="w-4 h-4" />
-                        </Button>
                       </div>
                       <CardContent className="p-4 flex flex-col justify-between flex-1">
                         <div>

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
+const http = require("http");
 
 dotenv.config();
 
@@ -11,10 +12,15 @@ const managerRoute = require("./src/routes/managerRoute");
 const productRoute = require("./src/routes/productRoute");
 const categoryRoute = require("./src/routes/categoryRoute");
 const reportRoute = require("./src/routes/reportRoute");
+const chatRoute = require("./src/routes/chatRoute");
+const { initChatSocket } = require("./src/sockets/chatSocket");
 const walletRoutes = require("./src/routes/walletRoutes");
 const webhookRoutes = require("./src/routes/webhookRoutes");
 const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
 const { startExchangeAutoReleaseJob } = require("./src/jobs/exchangeAutoReleaseJob");
+const orderRoutes = require("./src/routes/orderRoutes");
+const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
+const donationRoute = require("./src/routes/donationRoute");
 
 const app = express();
 
@@ -33,18 +39,28 @@ app.use("/api/location", require("./src/routes/manageLocationRoute"));
 app.use("/api/products",   productRoute);
 app.use("/api/categories", categoryRoute);
 app.use("/api/reports", reportRoute);
-
+app.use("/api/chat", chatRoute);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/exchange-escrow", exchangeEscrowRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/donations", donationRoute);
+
+
 const PORT = process.env.PORT || 5000;
+
+const httpServer = http.createServer(app);
+
+const io = initChatSocket(httpServer);
+app.set("io", io);
 
 const startServer = async () => {
   await connectDB();
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     startExchangeAutoReleaseJob();
+    startOrderAutoReleaseJob();
   });
 };
 

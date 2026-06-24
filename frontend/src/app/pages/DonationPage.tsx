@@ -4,7 +4,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-import { Heart, MapPin, Clock, Loader2 } from 'lucide-react';
+import { MapPin, Clock, Loader2 } from 'lucide-react';
 import { fetchProducts, ApiProduct } from '../api/productApi';
  
 export function DonationPage() {
@@ -71,14 +71,6 @@ export function DonationPage() {
                   <Badge className="absolute top-3 left-3 bg-green-500 text-white">
                     TẶNG MIỄN PHÍ
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="absolute top-3 right-3 bg-white/90 hover:bg-white rounded-full p-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Heart className="w-5 h-5" />
-                  </Button>
                 </div>
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-lg mb-2 line-clamp-1">

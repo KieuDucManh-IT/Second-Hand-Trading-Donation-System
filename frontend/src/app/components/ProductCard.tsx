@@ -1,4 +1,4 @@
-import { ShoppingBag, Heart } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { Product } from '../contexts/CartContext';
 import { Button } from './ui/button';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -27,23 +27,6 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           
-          {/* Hover Actions */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
-          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 space-y-2">
-            <Button
-              size="icon"
-              variant="secondary"
-              className="rounded-full shadow-lg"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toast.success('Added to wishlist!');
-              }}
-            >
-              <Heart className="w-4 h-4" />
-            </Button>
-          </div>
-
           {/* Category Badge */}
           <div className="absolute top-4 left-4">
             <span className="px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm text-xs uppercase tracking-wide">

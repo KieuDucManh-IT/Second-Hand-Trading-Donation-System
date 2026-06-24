@@ -35,6 +35,8 @@ import {
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { fetchConversations } from '../api/chatApi';
+import { connectSocket } from '../lib/socket';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -49,6 +51,7 @@ type HeaderNotification = {
   createdAt?: string;
 };
 
+
 export function Header() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, updateProfile } = useAuth();
@@ -57,71 +60,52 @@ export function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   const unreadNotifications = notifications.filter((n) => !n.isRead).length;
 
+  const loadUnreadMessages = () => {
+    fetchConversations()
+      .then((res) => {
+        const total = res.data.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        setUnreadMessages(total);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     if (!isAuthenticated) {
-      setNotifications([]);
+      setUnreadMessages(0);
       return;
     }
 
-    let ignore = false;
+    loadUnreadMessages();
 
-    const fetchNotifications = async () => {
-      try {
-        const token = sessionStorage.getItem('token');
+    const socket = connectSocket();
 
-        if (!token) {
-          setNotifications([]);
-          return;
-        }
-
-        const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error('Cannot fetch notifications');
-        }
-
-        const data = await res.json();
-
-        const list =
-          Array.isArray(data)
-            ? data
-            : Array.isArray(data.notifications)
-              ? data.notifications
-              : Array.isArray(data.data)
-                ? data.data
-                : [];
-
-        if (!ignore) {
-          setNotifications(list);
-        }
-      } catch (error) {
-        console.error('FETCH NOTIFICATIONS ERROR:', error);
-
-        if (!ignore) {
-          setNotifications([]);
-        }
-      }
+    const onNewMessage = ({ conversationId }: { conversationId: string }) => {
+     
+      loadUnreadMessages();
     };
 
-    fetchNotifications();
+    const onMessagesRead = () => {
+      loadUnreadMessages();
+    };
+
+    socket.on('new_message', onNewMessage);
+    socket.on('messages_read', onMessagesRead);
 
     return () => {
-      ignore = true;
+      socket.off('new_message', onNewMessage);
+      socket.off('messages_read', onMessagesRead);
     };
   }, [isAuthenticated]);
 
-  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (searchQuery.trim()) {
@@ -261,9 +245,11 @@ export function Header() {
                   className="relative rounded-full"
                 >
                   <MessageSquare className="w-5 h-5" />
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-                    2
-                  </Badge>
+                  {unreadMessages > 0 && (
+                    <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </Badge>
+                  )}
                 </Button>
 
                 <DropdownMenu>
@@ -378,11 +364,6 @@ export function Header() {
                         Transactions
                       </DropdownMenuItem>
 
-                      <DropdownMenuItem>
-                        <Heart className="w-4 h-4 mr-2" />
-                        Favorites
-                      </DropdownMenuItem>
-
                       <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
@@ -456,6 +437,17 @@ export function Header() {
           <div className="px-4 py-4 space-y-2">
             {isAuthenticated ? (
               <>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    navigate(`/profile/${user?.id}`);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full justify-start"
+                >
+                  <User className="w-5 h-5 mr-2" />
+                  My Profile
+                </Button>
                 <Button
                   variant="ghost"
                   onClick={() => {

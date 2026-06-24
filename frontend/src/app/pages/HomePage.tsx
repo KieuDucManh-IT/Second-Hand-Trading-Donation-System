@@ -268,14 +268,6 @@ export function HomePage() {
                     >
                       {CONDITION_LABELS[product.condition] || product.condition}
                     </Badge>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="absolute bottom-3 right-3 bg-white/90 hover:bg-white rounded-full p-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Heart className="w-5 h-5" />
-                    </Button>
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-lg mb-1 line-clamp-1">

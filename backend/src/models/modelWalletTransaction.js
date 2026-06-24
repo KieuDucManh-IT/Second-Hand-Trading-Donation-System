@@ -82,6 +82,10 @@ const walletTransactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
     },
+    exchangeInvoice: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ExchangeInvoice",
+    },
 
     metadata: {
       type: Object,

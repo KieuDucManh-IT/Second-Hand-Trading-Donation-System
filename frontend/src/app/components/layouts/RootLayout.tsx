@@ -4,8 +4,13 @@ import { Header } from '../Header';
 export function RootLayout() {
   const location = useLocation();
 
-  // Pages without header
-  const noHeaderPaths = ['/login', '/register', '/forgot-password', '/verify-email'];
+  const noHeaderPaths = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/verify-email",
+  ];
+
   const showHeader = !noHeaderPaths.includes(location.pathname);
 
   // Dashboard layouts
@@ -13,15 +18,16 @@ export function RootLayout() {
 
   if (isDashboard) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen">
         <Outlet />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen">
       {showHeader && <Header />}
+
       <main>
         <Outlet />
       </main>

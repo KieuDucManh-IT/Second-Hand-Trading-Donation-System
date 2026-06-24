@@ -49,6 +49,7 @@ const buildReportResponse = (report) => ({
   targetType: report.targetType,
   targetId: report.targetId,
   reason: report.reason,
+  adminReason: report.adminReason || "",
   status: report.status,
   createdAt: report.createdAt,
 });
@@ -69,18 +70,40 @@ const enrichReports = async (reports) => {
   return await Promise.all(
     reports.map(async (report) => {
       let targetUser = null;
+      let targetDetail = null;
       if (report.targetType === "user") {
-        targetUser = await User.findById(report.targetId).select("warningsCount fullName email").lean();
+        targetUser = await User.findById(report.targetId).select("warningsCount fullName email userName avatar status").lean();
+        if (targetUser) {
+          targetDetail = {
+            fullName: targetUser.fullName,
+            email: targetUser.email,
+            userName: targetUser.userName,
+            avatar: targetUser.avatar,
+            status: targetUser.status
+          };
+        }
       } else if (report.targetType === "product") {
         const product = await Product.findById(report.targetId).populate("ownerId", "warningsCount fullName email").lean();
-        if (product && product.ownerId) {
-          targetUser = product.ownerId;
+        if (product) {
+          if (product.ownerId) {
+            targetUser = product.ownerId;
+          }
+          targetDetail = {
+            title: product.title,
+            description: product.description,
+            price: product.price,
+            type: product.type,
+            condition: product.condition,
+            status: product.status,
+            address: product.location ? product.location.address : ""
+          };
         }
       }
       return {
         ...buildReportResponse(report),
         targetWarnings: targetUser ? (targetUser.warningsCount || 0) : 0,
         targetName: targetUser ? (targetUser.fullName || targetUser.email || "Unknown") : "Unknown",
+        targetDetail: targetDetail,
       };
     })
   );
@@ -334,12 +357,45 @@ const getReports = async (req, res) => {
 
 const acceptReport = async (req, res) => {
   try {
+    let { reason } = req.body;
+    try {
+      reason = validateInput(reason, "Lý do cảnh cáo", false);
+    } catch (valError) {
+      return res.status(400).json({ message: valError.message });
+    }
+
     const report = await Report.findById(req.params.id).populate("reporterId", "userName fullName");
     if (!report) return res.status(404).json({ message: "Không tìm thấy báo cáo" });
 
+    let userIdToWarn = null;
+
+    if (report.targetType === "user") {
+      userIdToWarn = report.targetId;
+    } else if (report.targetType === "product") {
+      const product = await Product.findById(report.targetId);
+      if (product) {
+        userIdToWarn = product.ownerId;
+      }
+    } else {
+      userIdToWarn = report.targetId;
+    }
+
+    if (userIdToWarn) {
+      const user = await User.findById(userIdToWarn);
+      if (user) {
+        user.warningsCount = (user.warningsCount || 0) + 1;
+        user.lastWarningAt = new Date();
+        if (user.warningsCount >= 3 && user.status === "active") {
+          user.status = "banned";
+        }
+        await user.save();
+      }
+    }
+
     report.status = "accept";
+    report.adminReason = reason;
     await report.save();
-    res.status(200).json({ message: "Đã chấp nhận báo cáo", report: buildReportResponse(report) });
+    res.status(200).json({ message: "Đã chấp nhận báo cáo và cộng điểm cảnh cáo cho người dùng", report: buildReportResponse(report) });
   } catch (error) {
     res.status(500).json({ message: "Không thể chấp nhận báo cáo", error: error.message });
   }
@@ -358,57 +414,7 @@ const rejectReport = async (req, res) => {
   }
 };
 
-const warnReportUser = async (req, res) => {
-  try {
-    let { reason } = req.body;
-    try {
-      reason = validateInput(reason, "Lý do cảnh cáo", false);
-    } catch (valError) {
-      return res.status(400).json({ message: valError.message });
-    }
 
-    const report = await Report.findById(req.params.id);
-    if (!report) return res.status(404).json({ message: "Không tìm thấy báo cáo" });
-
-    let userIdToWarn = null;
-
-    if (report.targetType === "user") {
-      userIdToWarn = report.targetId;
-    } else if (report.targetType === "product") {
-      const product = await Product.findById(report.targetId);
-      if (product) {
-        userIdToWarn = product.ownerId;
-      }
-    } else {
-      userIdToWarn = report.targetId;
-    }
-
-    if (!userIdToWarn) {
-      return res.status(400).json({ message: "Không xác định được người dùng cần cảnh cáo từ báo cáo này" });
-    }
-
-    const user = await User.findById(userIdToWarn);
-    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng cần cảnh cáo" });
-
-    user.warningsCount = (user.warningsCount || 0) + 1;
-    user.lastWarningAt = new Date();
-    if (user.warningsCount >= 3 && user.status === "active") {
-      user.status = "banned";
-    }
-    await user.save();
-
-    report.status = "accept";
-    await report.save();
-
-    res.status(200).json({
-      message: reason ? `Đã cảnh báo người dùng: ${reason}` : "Đã cảnh báo người dùng",
-      user: buildUserResponse(user),
-      report: buildReportResponse(report),
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Không thể cảnh báo người dùng", error: error.message });
-  }
-};
 
 const getStatistics = async (req, res) => {
   try {
@@ -453,6 +459,5 @@ module.exports = {
   getReports,
   acceptReport,
   rejectReport,
-  warnReportUser,
   getStatistics,
 };

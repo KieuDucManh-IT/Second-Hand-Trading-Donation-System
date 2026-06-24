@@ -1,22 +1,19 @@
-
- 
 const Product      = require('../models/modelProduct');
 const ProductImage = require('../models/modelProductImage');
 const { deleteFromCloudinary } = require('../config/cloudinary');
  
-// ── Danh sách từ nhạy cảm (tiếng Việt + tiếng Anh cơ bản) ──────────────────
-// Bạn có thể mở rộng list này hoặc load từ DB/config file
+
 const SENSITIVE_WORDS = [
-  // Vũ khí / nguy hiểm
+  
   'súng', 'dao', 'vũ khí', 'bom', 'thuốc nổ', 'chất độc', 'ma túy', 'cần sa',
   'heroin', 'cocaine', 'meth', 'thuốc lắc',
-  // Nội dung người lớn
+ 
   'sex', 'khiêu dâm', 'porn', 'nude', 'escort',
-  // Hàng giả / gian lận
+ 
   'hàng giả', 'hàng nhái', 'fake', 'đánh cắp', 'trộm cắp',
-  // Tiền tệ bất hợp pháp
+ 
   'tiền giả', 'rửa tiền',
-  // Tiếng Anh bổ sung
+ 
   'weapon', 'gun', 'knife', 'explosive', 'drug', 'stolen', 'counterfeit',
 ];
  
@@ -30,7 +27,7 @@ const findSensitiveWord = (text) => {
   return SENSITIVE_WORDS.find((word) => lower.includes(word.toLowerCase())) || null;
 };
  
-// ── Helper: gắn thumbnail + images vào list sản phẩm ────────────────────────
+
 const attachImages = async (products) => {
   const ids = products.map((p) => p._id);
   const allImages = await ProductImage.find({ productId: { $in: ids } }).sort({ order: 1 });
@@ -88,8 +85,6 @@ exports.createProduct = async (req, res, next) => {
       });
     }
  
-    // ── Tạo sản phẩm với status = 'pending_review' ────────────────────────────
-    // Sản phẩm sẽ không hiển thị cho người dùng khác cho đến khi manager duyệt
     const product = await Product.create({
       ownerId: req.user._id,
       categoryId,
@@ -98,20 +93,20 @@ exports.createProduct = async (req, res, next) => {
       price:    type === 'donate' ? 0 : Number(price) || 0,
       condition,
       type,
-      status:   'hidden',       // ẩn cho đến khi manager approve
-      isAvailable: false,       // chưa hiển thị
-      pendingApproval: true,    // flag để manager lọc
+      status:   'available',     
+      isAvailable: true,         
+      pendingApproval: false,    
       location: {
         type:        'Point',
         coordinates: [Number(longitude) || 0, Number(latitude) || 0],
         address:     address || '',
       },
     });
- 
+
     res.status(201).json({
       success: true,
       data: product,
-      message: 'Sản phẩm đã được tạo và đang chờ manager duyệt',
+      message: 'Sản phẩm đã được đăng thành công',
     });
   } catch (err) {
     next(err);

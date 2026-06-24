@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -47,10 +47,11 @@ const validateInput = (value: string, fieldName: string, isDescription: boolean 
 export function useManagerDashboard() {
   const { user, logout, isAuthReady } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState<ManagerDashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<DashboardTab>('products');
+  const [activeTab, setActiveTab] = useState<DashboardTab>((location.state as any)?.tab || 'products');
 
 
 
@@ -134,11 +135,19 @@ export function useManagerDashboard() {
   };
 
   const updateReportStatus = async (reportId: string, endpoint: 'accept' | 'reject') => {
+    let reason = '';
+    if (endpoint === 'accept') {
+      const inputReason = window.prompt('Nhập lý do chấp nhận báo cáo và cảnh cáo người dùng:') || '';
+      if (!inputReason.trim()) return;
+      if (!validateInput(inputReason, 'Lý do cảnh cáo', false)) return;
+      reason = inputReason;
+    }
+
     try {
       const response = await fetch(`${API_URL}/reports/${reportId}/${endpoint}`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ status: endpoint === 'accept' ? 'accept' : 'reject' }),
+        body: JSON.stringify({ reason }),
       });
 
       const result = await response.json();
@@ -252,30 +261,7 @@ export function useManagerDashboard() {
 
 
 
-  const warnReportUser = async (reportId: string) => {
-    const reason = window.prompt('Reason for warning the user?') || '';
-    if (!reason.trim()) return;
-    if (!validateInput(reason, 'Lý do cảnh cáo', false)) return;
 
-    try {
-      const response = await fetch(`${API_URL}/reports/${reportId}/warn`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ reason }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Unable to warn user');
-      }
-
-      toast.success('User warned and report accepted');
-      await refreshDashboard();
-    } catch (err: any) {
-      toast.error(err.message || 'Unable to warn user');
-    }
-  };
 
   useEffect(() => {
     if (!isAuthReady || !user || user.role !== 'manager') {
@@ -321,7 +307,6 @@ export function useManagerDashboard() {
     submitCategoryForm,
     handleDeleteCategory,
     updateUserStatus,
-    warnReportUser,
     updateProductStatus,
     updateReportStatus,
   };

@@ -1,28 +1,44 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { RootLayout } from "./components/layouts/RootLayout";
+
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { EmailVerificationPage } from "./pages/EmailVerificationPage";
+
 import { ProductListingPage } from "./pages/ProductListingPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { CreateProductPage } from "./pages/CreateProductPage";
+
 import { MessagesPage } from "./pages/MessagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
+
 import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
+import DonationRequestsPage from "./pages/DonationRequestsPage";
+
 import { ManagerDashboard } from "./pages/ManagerDashboard";
+
 import { ExchangeRequestsPage } from "./pages/ExchangeRequestsPage";
 import { ExchangeDetailPage } from "./pages/ExchangeDetailPage";
 import { ExchangeHistoryPage } from "./pages/ExchangeHistoryPage";
+
 import { CreateOrderPage } from "./pages/CreateOrderPage";
+
 import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
+
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import WalletPage from "./pages/WalletPage";
+
+/* ===== TASK 19-24 ===== */
+import DonationRequest from "./pages/DonationRequest";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import Notification from "./pages/Notification";
 
 export const router = createBrowserRouter([
   {

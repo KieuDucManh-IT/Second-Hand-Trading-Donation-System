@@ -1,632 +1,498 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
-import { Send, Search, MoreVertical, MessageSquare } from 'lucide-react';
+import { Send, Search, Loader2, MessageSquareOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-const API_ENDPOINTS = {
-  getConversations: () => '/api/conversations',
-  getMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
-  sendMessage: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
-};
-
-type Participant = {
-  id: string;
-  name: string;
-  avatar?: string;
-  isOnline?: boolean;
-};
-
-type ConversationItem = {
-  id: string;
-  productId?: string;
-  productTitle: string;
-  productImage?: string;
-  participants: Participant[];
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount: number;
-};
-
-type MessageItem = {
-  id: string;
-  conversationId?: string;
-  senderId: string;
-  senderName?: string;
-  text: string;
-  createdAt: string;
-};
-
-async function readJsonResponse(res: Response) {
-  const text = await res.text();
-
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error('Backend trả về dữ liệu không phải JSON');
-  }
+import {
+  fetchConversations,
+  fetchMessages,
+  markConversationAsRead,
+  type ApiConversation,
+  type ApiMessage,
+} from '../api/chatApi';
+import { connectSocket } from '../lib/socket';
+import type { Socket } from 'socket.io-client';
+ 
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+ 
+function initials(name?: string | null) {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
-async function apiRequest(path: string, options: RequestInit = {}) {
-  const token = sessionStorage.getItem('token');
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await readJsonResponse(res);
-
-  if (!res.ok) {
-    throw new Error(data?.message || data?.error || 'Request failed');
-  }
-
-  return data;
+// Luôn sắp xếp tin nhắn theo thời gian tạo (cũ -> mới) để tránh hiển thị
+// sai thứ tự dù dữ liệu đến từ API hay socket theo thứ tự nào.
+function sortByTime(msgs: ApiMessage[]): ApiMessage[] {
+  return [...msgs].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 }
-
-function getId(value: any): string {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  return value._id || value.id || '';
-}
-
-function getName(value: any, fallback = 'Unknown User'): string {
-  if (!value) return fallback;
-  if (typeof value === 'string') return fallback;
-  return value.name || value.fullName || value.username || fallback;
-}
-
-function getAvatar(value: any): string {
-  if (!value || typeof value === 'string') return '';
-  return value.avatar || value.avatarUrl || value.profileImage || value.image || '';
-}
-
-function getFirstImage(value: any): string {
-  if (!value) return '';
-
-  if (typeof value === 'string') return value;
-
-  if (Array.isArray(value)) {
-    const first = value[0];
-
-    if (!first) return '';
-
-    if (typeof first === 'string') return first;
-
-    return first.url || first.secure_url || first.imageUrl || first.path || first.src || '';
-  }
-
-  return value.url || value.secure_url || value.imageUrl || value.path || value.src || '';
-}
-
-function normalizeParticipant(raw: any): Participant {
-  return {
-    id: getId(raw),
-    name: getName(raw),
-    avatar: getAvatar(raw),
-    isOnline: Boolean(raw?.isOnline || raw?.online),
-  };
-}
-
-function normalizeConversation(raw: any): ConversationItem | null {
-  const conv = raw?.conversation || raw?.data?.conversation || raw?.data || raw;
-
-  if (!conv) return null;
-
-  const id = conv._id || conv.id;
-
-  if (!id) return null;
-
-  const product = conv.product || conv.productId || conv.item || {};
-
-  const participantsRaw =
-    conv.participants ||
-    conv.users ||
-    conv.members ||
-    [conv.buyer, conv.seller].filter(Boolean);
-
-  const participants = Array.isArray(participantsRaw)
-    ? participantsRaw.map(normalizeParticipant).filter((p) => p.id || p.name)
-    : [];
-
-  return {
-    id,
-    productId: getId(product) || getId(conv.productId),
-    productTitle:
-      conv.productTitle ||
-      product.title ||
-      product.name ||
-      product.productName ||
-      'Unknown Product',
-    productImage:
-      conv.productImage ||
-      getFirstImage(product.images) ||
-      getFirstImage(product.image) ||
-      getFirstImage(product.thumbnail),
-    participants,
-    lastMessage:
-      conv.lastMessage?.text ||
-      conv.lastMessage?.message ||
-      conv.lastMessage ||
-      conv.latestMessage?.text ||
-      '',
-    lastMessageTime:
-      conv.lastMessageTime ||
-      conv.lastMessage?.createdAt ||
-      conv.latestMessage?.createdAt ||
-      conv.updatedAt ||
-      conv.createdAt,
-    unreadCount: Number(conv.unreadCount || conv.unread || 0),
-  };
-}
-
-function normalizeConversationList(raw: any): ConversationItem[] {
-  const list =
-    raw?.conversations ||
-    raw?.data?.conversations ||
-    raw?.data ||
-    raw?.results ||
-    raw;
-
-  if (!Array.isArray(list)) return [];
-
-  return list
-    .map((item) => normalizeConversation(item))
-    .filter(Boolean) as ConversationItem[];
-}
-
-function normalizeMessage(raw: any): MessageItem | null {
-  const msg = raw?.message || raw?.data?.message || raw?.data || raw;
-
-  if (!msg) return null;
-
-  const id = msg._id || msg.id;
-
-  if (!id) return null;
-
-  const sender = msg.sender || msg.senderId || msg.user || {};
-
-  return {
-    id,
-    conversationId: getId(msg.conversationId) || getId(msg.conversation),
-    senderId: getId(msg.senderId) || getId(sender),
-    senderName: msg.senderName || getName(sender, ''),
-    text: msg.text || msg.message || msg.content || '',
-    createdAt: msg.createdAt || new Date().toISOString(),
-  };
-}
-
-function normalizeMessageList(raw: any): MessageItem[] {
-  const list =
-    raw?.messages ||
-    raw?.data?.messages ||
-    raw?.data ||
-    raw?.results ||
-    raw;
-
-  if (!Array.isArray(list)) return [];
-
-  return list
-    .map((item) => normalizeMessage(item))
-    .filter(Boolean) as MessageItem[];
-}
-
-function formatMessageTime(date?: string) {
-  if (!date) return '';
-
-  return new Date(date).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
+ 
+/* ── Component ───────────────────────────────────────────────────────────── */
 export function MessagesPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-
-  const [conversations, setConversations] = useState<ConversationItem[]>([]);
-  const [selectedConv, setSelectedConv] = useState<ConversationItem | null>(null);
-  const [messages, setMessages] = useState<MessageItem[]>([]);
-  const [message, setMessage] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loadingConversations, setLoadingConversations] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const location = useLocation();
+ 
+  const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ApiMessage[]>([]);
+  const [messageText, setMessageText] = useState('');
+  const [search, setSearch] = useState('');
+  const [loadingConvs, setLoadingConvs] = useState(true);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [sending, setSending] = useState(false);
-
-  const currentUserId = String((user as any)?.id || (user as any)?._id || '');
-
+  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const [initialized, setInitialized] = useState(false);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+ 
+  const socketRef = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref luôn giữ giá trị mới nhất để dùng trong socket closure
+  const selectedConvIdRef = useRef<string | null>(null);
+ 
+  const selectedConv = conversations.find((c) => c.id === selectedConvId) ?? null;
+ 
+  /* ── Auth guard ──────────────────────────────────────────────────────── */
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login', { replace: true });
-    }
+    if (!isAuthenticated) navigate('/login');
   }, [isAuthenticated, navigate]);
-
+ 
+  /* ── Kết nối Socket.IO ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    let ignore = false;
+    const socket = connectSocket();
+    socketRef.current = socket;
 
-    const fetchConversations = async () => {
-      try {
-        setLoadingConversations(true);
-
-        const data = await apiRequest(API_ENDPOINTS.getConversations(), {
-          method: 'GET',
-        });
-
-        const normalized = normalizeConversationList(data);
-
-        if (!ignore) {
-          setConversations(normalized);
-          setSelectedConv((prev) => prev || normalized[0] || null);
-        }
-      } catch (err: any) {
-        console.error('FETCH CONVERSATIONS ERROR:', err);
-
-        if (!ignore) {
-          toast.error(err.message || 'Cannot fetch conversations');
-          setConversations([]);
-          setSelectedConv(null);
-        }
-      } finally {
-        if (!ignore) {
-          setLoadingConversations(false);
-        }
-      }
+    const onConnectError = (err: Error) => {
+      console.error('Socket connect error:', err.message);
     };
 
-    fetchConversations();
+    const onNewMessage = ({ conversationId, message }: { conversationId: string; message: ApiMessage }) => {
+      setMessages((prev) => {
+        if (conversationId !== selectedConvIdRef.current) return prev;
+        if (prev.some((m) => m._id === message._id)) return prev;
 
-    return () => {
-      ignore = true;
-    };
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (!selectedConv?.id) {
-      setMessages([]);
-      return;
-    }
-
-    let ignore = false;
-
-    const fetchMessages = async () => {
-      try {
-        setLoadingMessages(true);
-
-        const data = await apiRequest(API_ENDPOINTS.getMessages(selectedConv.id), {
-          method: 'GET',
-        });
-
-        const normalized = normalizeMessageList(data);
-
-        if (!ignore) {
-          setMessages(normalized);
+        // Tin nhắn của chính mình → thay thế bản "optimistic" (temp) thay vì thêm mới,
+        // tránh hiện trùng 2 bong bóng cho 1 tin nhắn vừa gửi.
+        if (message.senderId === user?.id) {
+          const tempIndex = prev.findIndex(
+            (m) => m._id.startsWith('temp-') && m.content === message.content
+          );
+          if (tempIndex !== -1) {
+            const next = [...prev];
+            next[tempIndex] = message;
+            return sortByTime(next);
+          }
         }
-      } catch (err: any) {
-        console.error('FETCH MESSAGES ERROR:', err);
 
-        if (!ignore) {
-          toast.error(err.message || 'Cannot fetch messages');
-          setMessages([]);
-        }
-      } finally {
-        if (!ignore) {
-          setLoadingMessages(false);
-        }
-      }
-    };
-
-    fetchMessages();
-
-    return () => {
-      ignore = true;
-    };
-  }, [selectedConv?.id]);
-
-  const filteredConversations = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    if (!query) return conversations;
-
-    return conversations.filter((conv) => {
-      const participantName = conv.participants
-        .map((p) => p.name)
-        .join(' ')
-        .toLowerCase();
-
-      return (
-        conv.productTitle.toLowerCase().includes(query) ||
-        participantName.includes(query) ||
-        String(conv.lastMessage || '').toLowerCase().includes(query)
-      );
-    });
-  }, [conversations, searchQuery]);
-
-  const getOtherParticipant = (conv: ConversationItem | null): Participant => {
-    const fallback = {
-      id: '',
-      name: 'Unknown User',
-      avatar: '',
-      isOnline: false,
-    };
-
-    if (!conv || conv.participants.length === 0) return fallback;
-
-    return (
-      conv.participants.find((p) => p.id !== currentUserId) ||
-      conv.participants[0] ||
-      fallback
-    );
-  };
-
-  const handleSelectConversation = (conv: ConversationItem) => {
-    setSelectedConv(conv);
-  };
-
-  const handleSendMessage = async () => {
-    const text = message.trim();
-
-    if (!text || !selectedConv?.id) return;
-
-    try {
-      setSending(true);
-
-      const data = await apiRequest(API_ENDPOINTS.sendMessage(selectedConv.id), {
-        method: 'POST',
-        body: JSON.stringify({
-          text,
-          message: text,
-          content: text,
-        }),
+        return sortByTime([...prev, message]);
       });
 
-      const createdMessage = normalizeMessage(data);
-
-      if (createdMessage) {
-        setMessages((prev) => [...prev, createdMessage]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `temp-${Date.now()}`,
-            conversationId: selectedConv.id,
-            senderId: currentUserId,
-            senderName: user?.name,
-            text,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-      }
-
       setConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === selectedConv.id
+        prev.map((c) =>
+          c.id === conversationId
             ? {
-                ...conv,
-                lastMessage: text,
-                lastMessageTime: new Date().toISOString(),
+                ...c,
+                lastMessage: message.content,
+                lastMessageAt: message.createdAt,
+                unreadCount: conversationId === selectedConvIdRef.current ? 0 : c.unreadCount + 1,
               }
-            : conv
+            : c
         )
       );
 
-      setMessage('');
-    } catch (err: any) {
-      console.error('SEND MESSAGE ERROR:', err);
-      toast.error(err.message || 'Send message failed');
+      if (conversationId === selectedConvIdRef.current) {
+        markConversationAsRead(conversationId).catch(() => {});
+      }
+    };
+
+    const onUserTyping = ({ conversationId, userId, isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
+      if (conversationId === selectedConvIdRef.current) {
+        setTypingUsers((prev) => ({ ...prev, [userId]: isTyping }));
+      }
+    };
+
+    const onMessagesRead = ({ conversationId }: { conversationId: string }) => {
+      if (conversationId === selectedConvIdRef.current) {
+        setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
+      }
+    };
+
+    const onErrorMessage = ({ message: msg }: { message: string }) => {
+      toast.error(msg);
+    };
+
+    const onUserOnline = ({ userId }: { userId: string }) => {
+      setOnlineUserIds((prev) => new Set(prev).add(userId));
+    };
+
+    const onUserOffline = ({ userId }: { userId: string }) => {
+      setOnlineUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    };
+
+    socket.on('connect_error', onConnectError);
+    socket.on('new_message', onNewMessage);
+    socket.on('user_typing', onUserTyping);
+    socket.on('messages_read', onMessagesRead);
+    socket.on('error_message', onErrorMessage);
+    socket.on('user_online', onUserOnline);
+    socket.on('user_offline', onUserOffline);
+
+    return () => {
+      socket.off('connect_error', onConnectError);
+      socket.off('new_message', onNewMessage);
+      socket.off('user_typing', onUserTyping);
+      socket.off('messages_read', onMessagesRead);
+      socket.off('error_message', onErrorMessage);
+      socket.off('user_online', onUserOnline);
+      socket.off('user_offline', onUserOffline);
+    };
+  }, [isAuthenticated]);
+ 
+  /* ── Load conversations ──────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setLoadingConvs(true);
+    fetchConversations()
+      .then((res) => {
+        setConversations(res.data);
+        // Nếu được navigate từ trang sản phẩm với conversationId
+        const navConvId = (location.state as any)?.conversationId as string | undefined;
+        if (navConvId) {
+          setSelectedConvId(navConvId);
+          selectedConvIdRef.current = navConvId;
+        }
+        setInitialized(true);
+      })
+      .catch(() => toast.error('Không thể tải danh sách trò chuyện'))
+      .finally(() => setLoadingConvs(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+ 
+  /* ── Khi selectedConvId thay đổi: load messages + join socket room ───── */
+  const handleSelectConversation = useCallback(
+    async (convId: string) => {
+      if (convId === selectedConvIdRef.current) return;
+ 
+      // Rời phòng cũ
+      if (selectedConvIdRef.current) {
+        socketRef.current?.emit('leave_conversation', selectedConvIdRef.current);
+      }
+ 
+      setSelectedConvId(convId);
+      selectedConvIdRef.current = convId;
+      setMessages([]);
+      setTypingUsers({});
+      setLoadingMsgs(true);
+ 
+      try {
+        const res = await fetchMessages(convId);
+        setMessages(sortByTime(res.data));
+        await markConversationAsRead(convId);
+        setConversations((prev) =>
+          prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
+        );
+      } catch {
+        toast.error('Không thể tải tin nhắn');
+      } finally {
+        setLoadingMsgs(false);
+      }
+ 
+      socketRef.current?.emit('join_conversation', convId);
+    },
+    []
+  );
+ 
+  // Sau khi load conversations xong, nếu có selectedConvId từ navigation → load messages
+  useEffect(() => {
+    if (initialized && selectedConvId) {
+      handleSelectConversation(selectedConvId);
+    }
+    // chỉ chạy 1 lần khi initialized
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialized]);
+ 
+  /* ── Auto scroll ─────────────────────────────────────────────────────── */
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+ 
+  /* ── Gửi tin nhắn ────────────────────────────────────────────────────── */
+  const handleSend = () => {
+    if (!messageText.trim() || !selectedConvId || sending) return;
+ 
+    const content = messageText.trim();
+    setMessageText('');
+    setSending(true);
+ 
+    // Optimistic update — dùng temp id, server sẽ gửi lại message thật qua socket
+    const tempMsg: ApiMessage = {
+      _id: `temp-${Date.now()}`,
+      conversationId: selectedConvId,
+      senderId: user!.id,
+      content,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setMessages((prev) => sortByTime([...prev, tempMsg]));
+ 
+    try {
+      socketRef.current?.emit('send_message', { conversationId: selectedConvId, content });
+    } catch {
+      setMessages((prev) => prev.filter((m) => m._id !== tempMsg._id));
+      toast.error('Không thể gửi tin nhắn');
     } finally {
       setSending(false);
     }
   };
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  const selectedParticipant = getOtherParticipant(selectedConv);
-
+ 
+  /* ── Typing indicator ────────────────────────────────────────────────── */
+  const handleInputChange = (val: string) => {
+    setMessageText(val);
+    if (!selectedConvId) return;
+ 
+    socketRef.current?.emit('typing', { conversationId: selectedConvId, isTyping: true });
+ 
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      socketRef.current?.emit('typing', { conversationId: selectedConvId, isTyping: false });
+    }, 1500);
+  };
+ 
+  /* ── Filter ──────────────────────────────────────────────────────────── */
+  const filteredConversations = conversations.filter((c) => {
+    const q = search.toLowerCase();
+    return (
+      c.participant?.name?.toLowerCase().includes(q) ||
+      c.productTitle?.toLowerCase().includes(q) ||
+      c.lastMessage?.toLowerCase().includes(q)
+    );
+  });
+ 
+  const isTypingAnyone = Object.values(typingUsers).some(Boolean);
+ 
+  /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div className="h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-full">
         <Card className="h-full overflow-hidden">
-          <div className="grid md:grid-cols-[350px_1fr] h-full">
-            <div className="border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-              <div className="p-4 border-b">
-                <h2 className="text-xl font-bold mb-4">Messages</h2>
-
+          <div className="grid md:grid-cols-[340px_1fr] h-full">
+ 
+            {/* ── Danh sách cuộc trò chuyện ──────────────────────────── */}
+            <div className="border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
+              <div className="p-4 border-b flex-shrink-0">
+                <h2 className="text-xl font-bold mb-3">Tin nhắn</h2>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="Search messages..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Tìm kiếm..."
                     className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
-
-              <div>
-                {loadingConversations ? (
-                  <div className="p-6 text-center text-sm text-gray-500">
-                    Loading conversations...
+ 
+              <div className="overflow-y-auto flex-1">
+                {loadingConvs ? (
+                  <div className="flex justify-center items-center h-32">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                   </div>
                 ) : filteredConversations.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-gray-500">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    No conversations found
+                  <div className="flex flex-col items-center justify-center h-32 text-gray-400 gap-2">
+                    <MessageSquareOff className="w-8 h-8" />
+                    <p className="text-sm">Chưa có cuộc trò chuyện nào</p>
                   </div>
                 ) : (
-                  filteredConversations.map((conv) => {
-                    const participant = getOtherParticipant(conv);
-
-                    return (
-                      <div
-                        key={conv.id}
-                        onClick={() => handleSelectConversation(conv)}
-                        className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                          selectedConv?.id === conv.id
-                            ? 'bg-gray-100 dark:bg-gray-800'
-                            : ''
-                        }`}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <Avatar>
-                            <AvatarImage src={participant.avatar} />
-                            <AvatarFallback>
-                              {participant.name?.[0]?.toUpperCase() || 'U'}
-                            </AvatarFallback>
+                  filteredConversations.map((conv) => (
+                    <div
+                      key={conv.id}
+                      onClick={() => handleSelectConversation(conv.id)}
+                      className={`p-4 cursor-pointer border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                        selectedConvId === conv.id
+                          ? 'bg-green-50 dark:bg-green-950 border-l-4 border-l-green-500'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="w-11 h-11">
+                            <AvatarImage src={conv.participant?.avatar} />
+                            <AvatarFallback>{initials(conv.participant?.name)}</AvatarFallback>
                           </Avatar>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-semibold truncate">
-                                {participant.name}
-                              </h3>
-
-                              {conv.unreadCount > 0 && (
-                                <Badge className="ml-2 bg-green-500">
-                                  {conv.unreadCount}
-                                </Badge>
-                              )}
-                            </div>
-
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                              {conv.productTitle}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <span className="font-semibold text-sm truncate">
+                              {conv.participant?.name ?? 'Người dùng'}
+                            </span>
+                            <span className="text-xs text-gray-400 ml-2 flex-shrink-0">
+                              {conv.lastMessageAt ? formatTime(conv.lastMessageAt) : ''}
+                            </span>
+                          </div>
+                          {conv.productTitle && (
+                            <p className="text-xs text-green-600 dark:text-green-400 truncate mb-0.5">
+                              📦 {conv.productTitle}
                             </p>
-
-                            <p className="text-sm text-gray-500 truncate">
-                              {conv.lastMessage || 'No messages yet'}
+                          )}
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-500 truncate flex-1">
+                              {conv.lastMessage || 'Chưa có tin nhắn'}
                             </p>
+                            {conv.unreadCount > 0 && (
+                              <Badge className="ml-2 bg-green-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center">
+                                {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 )}
               </div>
             </div>
-
-            <div className="flex flex-col h-full">
-              {!selectedConv ? (
-                <div className="flex-1 flex items-center justify-center text-center p-8">
+ 
+            {/* ── Khu vực chat ───────────────────────────────────────── */}
+            {selectedConv ? (
+              <div className="flex flex-col h-full">
+                {/* Header */}
+                <div className="p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white dark:bg-gray-900">
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={selectedConv.participant?.avatar} />
+                    <AvatarFallback>{initials(selectedConv.participant?.name)}</AvatarFallback>
+                  </Avatar>
                   <div>
-                    <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-xl font-semibold mb-2">No conversation selected</h3>
-                    <p className="text-gray-500">
-                      Select a conversation to start messaging.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="p-4 border-b flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarImage src={selectedParticipant.avatar} />
-                        <AvatarFallback>
-                          {selectedParticipant.name?.[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-
-                      <div>
-                        <h3 className="font-semibold">{selectedParticipant.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedConv.productTitle}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="w-5 h-5" />
-                    </Button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {loadingMessages ? (
-                      <div className="text-center text-sm text-gray-500">
-                        Loading messages...
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-center text-gray-500">
-                        <div>
-                          <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                          <p>No messages yet</p>
-                        </div>
-                      </div>
-                    ) : (
-                      messages.map((msg) => {
-                        const isMine = msg.senderId === currentUserId;
-
-                        return (
-                          <div
-                            key={msg.id}
-                            className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={
-                                isMine
-                                  ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-2xl rounded-tr-none px-4 py-2 max-w-xs'
-                                  : 'bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-none px-4 py-2 max-w-xs'
-                              }
-                            >
-                              <p>{msg.text}</p>
-
-                              <p
-                                className={`text-xs mt-1 ${
-                                  isMine ? 'text-white/80' : 'text-gray-500'
-                                }`}
-                              >
-                                {formatMessageTime(msg.createdAt)}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })
+                    <h3 className="font-semibold leading-tight">
+                      {selectedConv.participant?.name ?? 'Người dùng'}
+                    </h3>
+                    {selectedConv.productTitle && (
+                      <p className="text-xs text-gray-500"> {selectedConv.productTitle}</p>
                     )}
                   </div>
-
-                  <div className="p-4 border-t">
-                    <div className="flex space-x-2">
-                      <Input
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1"
-                        disabled={sending}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage();
-                          }
-                        }}
-                      />
-
-                      <Button
-                        className="bg-gradient-to-r from-green-500 to-blue-500"
-                        onClick={handleSendMessage}
-                        disabled={sending || !message.trim()}
-                      >
-                        <Send className="w-5 h-5" />
-                      </Button>
+                </div>
+ 
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-950">
+                  {loadingMsgs ? (
+                    <div className="flex justify-center items-center h-full">
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                     </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+                      <MessageSquareOff className="w-10 h-10" />
+                      <p>Hãy bắt đầu cuộc trò chuyện!</p>
+                    </div>
+                  ) : (
+                    messages.map((msg) => {
+                      const isMine = msg.senderId === user?.id;
+                      return (
+                        <div key={msg._id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          {!isMine && (
+                            <Avatar className="w-7 h-7 mr-2 flex-shrink-0 self-end">
+                              <AvatarImage src={selectedConv.participant?.avatar} />
+                              <AvatarFallback>{initials(selectedConv.participant?.name)}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div
+                            className={`max-w-[65%] px-4 py-2 rounded-2xl shadow-sm ${
+                              isMine
+                                ? 'bg-linear-to-r from-green-500 to-blue-500 text-white rounded-tr-none'
+                                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-none'
+                            }`}
+                          >
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                              {msg.content}
+                            </p>
+                            <p className={`text-xs mt-1 text-right ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                              {formatTime(msg.createdAt)}
+                              {isMine && (
+                                <span className="ml-1">{msg.isRead ? '✓✓' : '✓'}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+ 
+                  {/* Typing indicator */}
+                  {isTypingAnyone && (
+                    <div className="flex justify-start">
+                      <Avatar className="w-7 h-7 mr-2 self-end flex-shrink-0">
+                        <AvatarImage src={selectedConv.participant?.avatar} />
+                        <AvatarFallback>{initials(selectedConv.participant?.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="bg-white dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm">
+                        <div className="flex gap-1 items-center">
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+ 
+                  <div ref={messagesEndRef} />
+                </div>
+ 
+                {/* Input */}
+                <div className="p-4 border-t bg-white dark:bg-gray-900 flex-shrink-0">
+                  <div className="flex gap-2">
+                    <Input
+                      value={messageText}
+                      onChange={(e) => handleInputChange(e.target.value)}
+                      placeholder="Nhập tin nhắn..."
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={handleSend}
+                      disabled={!messageText.trim() || sending}
+                      className="bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                    >
+                      {sending ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
+                    </Button>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
+                <MessageSquareOff className="w-14 h-14" />
+                <p className="text-lg">Chọn một cuộc trò chuyện để bắt đầu</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>

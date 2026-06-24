@@ -1,86 +1,95 @@
-const mongoose = require("mongoose");
-
+const mongoose = require('mongoose');
+ 
+const PLATFORM_FEE_RATE = 0.1; // 10%
+ 
 const orderSchema = new mongoose.Schema(
   {
     buyerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+      ref: 'Product',
       required: true,
     },
-    amount: {
+ 
+    // ── Tài chính ─────────────────────────────────────────────────────────────
+    totalPrice: {
       type: Number,
       required: true,
       min: 0,
+      comment: 'Số tiền buyer trả (= giá gốc sản phẩm)',
     },
+    platformFeeRate: {
+      type: Number,
+      default: PLATFORM_FEE_RATE, // lưu lại tỉ lệ tại thời điểm tạo đơn
+    },
+    platformFee: {
+      type: Number,
+      required: true,
+      comment: 'Phí nền tảng = totalPrice * 10%',
+    },
+    sellerReceives: {
+      type: Number,
+      required: true,
+      comment: 'Seller nhận = totalPrice * 90%',
+    },
+ 
+    // ── Trạng thái đơn hàng ───────────────────────────────────────────────────
+    // pending   → buyer vừa đặt, chờ seller xác nhận
+    // confirmed → seller xác nhận sẽ giao
+    // completed → giao thành công, tiền được tính
+    // cancelled → hủy (buyer hoặc seller)
     status: {
       type: String,
-      enum: ["pending", "confirmed", "shipped", "completed", "cancelled"],
-      default: "pending",
+      enum: ['pending', 'paid', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'disputed'],
+      default: 'pending',
     },
-    
-    paymentMethod: {
-      type: String,
-      enum: ["wallet", "payos", "cod"],
-      default: "cod",
+ 
+    // Lý do hủy (nếu có)
+    cancelReason: { type: String, default: '' },
+ 
+    // Thời gian mốc
+    confirmedAt: { type: Date },
+    completedAt: { type: Date },
+    cancelledAt: { type: Date },
+    disputedAt: { type: Date },
+    autoReleaseAt: { type: Date },
+
+    // Lý do khiếu nại (nếu có)
+    disputeReason: { type: String, default: '' },
+    disputeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
-
-    paymentStatus: {
-      type: String,
-      enum: ["unpaid", "paid", "released", "refunded"],
-      default: "unpaid",
-    },
-
-    escrowStatus: {
-      type: String,
-      enum: ["none", "holding", "released", "refunded", "disputed"],
-      default: "none",
-    },
-
-    escrowAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-
-    orderStatus: {
-      type: String,
-      enum: [
-        "pending_seller_confirm",
-        "confirmed",
-        "shipping",
-        "delivered",
-        "completed",
-        "cancelled",
-        "disputed"
-      ],
-      default: "pending_seller_confirm",
-    },
-
-    paidAt: Date,
-    sellerConfirmedAt: Date,
-    shippedAt: Date,
-    deliveredAt: Date,
-    confirmDeadline: Date,
-    releasedAt: Date,
-    refundedAt: Date,
-    cancelledAt: Date,
-
-    cancelReason: String,
-    releaseReason: String,
+ 
+    // Đã cộng balance cho seller chưa (tránh double-credit)
+    balanceCredited: { type: Boolean, default: false },
   },
-  {
-    timestamps: { createdAt: true, updatedAt: false },
-  }
+  { timestamps: true }
 );
-
-module.exports = mongoose.model("Order", orderSchema);
+ 
+// ── Tính tự động phí trước khi save ──────────────────────────────────────────
+orderSchema.pre('validate', function (next) {
+  if (this.isNew && this.totalPrice != null) {
+    this.platformFee    = parseFloat((this.totalPrice * this.platformFeeRate).toFixed(0));
+    this.sellerReceives = parseFloat((this.totalPrice - this.platformFee).toFixed(0));
+  }
+  next();
+});
+ 
+// ── Index ─────────────────────────────────────────────────────────────────────
+orderSchema.index({ buyerId: 1, createdAt: -1 });
+orderSchema.index({ sellerId: 1, createdAt: -1 });
+orderSchema.index({ productId: 1 });
+orderSchema.index({ status: 1 });
+ 
+module.exports = mongoose.model('Order', orderSchema);
+ 

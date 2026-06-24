@@ -55,6 +55,23 @@ exports.getMyWallet = async (req, res) => {
         const wallet = await ensureWallet(userId);
 
         const transactions = await WalletTransaction.find({ user: userId })
+            .populate({
+                path: "order",
+                populate: [
+                    { path: "productId", select: "title thumbnail images price" },
+                    { path: "buyerId", select: "fullName email avatar userName" },
+                    { path: "sellerId", select: "fullName email avatar userName" }
+                ]
+            })
+            .populate({
+                path: "exchangeInvoice",
+                populate: [
+                    { path: "requesterProduct", select: "title thumbnail images price" },
+                    { path: "receiverProduct", select: "title thumbnail images price" },
+                    { path: "requester", select: "fullName email avatar userName" },
+                    { path: "receiver", select: "fullName email avatar userName" }
+                ]
+            })
             .sort({ createdAt: -1 })
             .limit(20);
 
@@ -436,6 +453,51 @@ exports.syncWithdrawStatus = async (req, res) => {
         return res.status(400).json({
             success: false,
             message: error.message || "Không thể đồng bộ trạng thái rút tiền",
+        });
+    }
+};
+
+exports.getMyTransactions = async (req, res) => {
+    try {
+        const userId = getUserId(req);
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Bạn chưa đăng nhập",
+            });
+        }
+
+        const transactions = await WalletTransaction.find({ user: userId })
+            .populate({
+                path: "order",
+                populate: [
+                    { path: "productId", select: "title thumbnail images price" },
+                    { path: "buyerId", select: "fullName email avatar userName" },
+                    { path: "sellerId", select: "fullName email avatar userName" }
+                ]
+            })
+            .populate({
+                path: "exchangeInvoice",
+                populate: [
+                    { path: "requesterProduct", select: "title thumbnail images price" },
+                    { path: "receiverProduct", select: "title thumbnail images price" },
+                    { path: "requester", select: "fullName email avatar userName" },
+                    { path: "receiver", select: "fullName email avatar userName" }
+                ]
+            })
+            .sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            transactions,
+        });
+    } catch (error) {
+        console.error("GET TRANSACTIONS ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Không thể lấy danh sách lịch sử giao dịch",
+            error: error.message,
         });
     }
 };
