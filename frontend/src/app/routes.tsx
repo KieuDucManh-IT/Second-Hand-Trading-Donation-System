@@ -21,7 +21,8 @@ import { TransactionDetailPage } from "./pages/TransactionDetailPage";
 import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
-import { OrdersPage } from './components/OrdersPage'; 
+import { OrdersPage } from './components/OrdersPage';
+import WalletPage from './pages/WalletPage';
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
       { path: "transactions/:id", element: <TransactionDetailPage /> },
       { path: "manager", element: <ManagerDashboard /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
+      { path: "wallet", element: <WalletPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },
