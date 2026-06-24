@@ -53,7 +53,15 @@ exports.handlePayosWebhook = async (req, res) => {
     const paidAmount = Number(paymentData.amount);
 
     const paymentCode = paymentData.code || req.body.code;
-    const paymentSuccess = req.body.success !== false && paymentCode === "00";
+    const paymentDesc = paymentData.desc || req.body.desc;
+    const paymentStatus = paymentData.status || req.body.status;
+
+    const paymentSuccess =
+      req.body.success === true ||
+      paymentCode === "00" ||
+      paymentDesc === "success" ||
+      paymentStatus === "PAID" ||
+      paymentStatus === "SUCCESS";
 
     console.log("PAYOS PAYMENT DATA:", {
       orderCode,
@@ -89,7 +97,7 @@ exports.handlePayosWebhook = async (req, res) => {
 
     if (!paymentSuccess) {
       transaction.status = "failed";
-      transaction.providerStatus = paymentCode || "failed";
+      transaction.providerStatus = paymentCode || paymentStatus || "failed";
       transaction.providerPayload = req.body;
       transaction.note = "payOS báo giao dịch không thành công";
 
@@ -101,7 +109,7 @@ exports.handlePayosWebhook = async (req, res) => {
       });
     }
 
-    if (paidAmount !== Number(transaction.amount)) {
+    if (Number.isFinite(paidAmount) && paidAmount !== Number(transaction.amount)) {
       transaction.status = "failed";
       transaction.providerStatus = "amount_mismatch";
       transaction.providerPayload = req.body;
