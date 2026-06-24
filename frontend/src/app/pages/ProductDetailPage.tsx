@@ -21,10 +21,11 @@ import {
   Flag,
   ArrowLeft,
   ArrowLeftRight,
-  ShieldCheck,
+  ShoppingCart,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useCart } from "../contexts/CartContext";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -94,6 +95,7 @@ export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { addToCart, loading: cartLoading } = useCart();
  
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
@@ -398,19 +400,21 @@ export function ProductDetailPage() {
               {product.type === "sell" && (
                 <div className="grid grid-cols-2 gap-3">
                   <Button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!isAuthenticated) {
-                        toast.error("Vui lòng đăng nhập để tạo đơn hàng");
+                        toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
                         navigate("/login");
                         return;
                       }
-                      navigate(`/create-order?productId=${product._id}`);
+                      await addToCart(product._id);
+                      toast.success("Đã thêm vào giỏ hàng!");
                     }}
+                    disabled={cartLoading}
                     variant="outline"
                     className="w-full"
                   >
-                    <ShieldCheck className="w-4 h-4 mr-2" />
-                    Đặt hàng (Escrow)
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {cartLoading ? "Đang thêm..." : "Thêm vào giỏ"}
                   </Button>
  
                   <Button
@@ -727,4 +731,3 @@ export function ProductDetailPage() {
     </div>
   );
 }
- 
