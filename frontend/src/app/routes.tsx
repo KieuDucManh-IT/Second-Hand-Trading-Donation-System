@@ -51,7 +51,7 @@ export const router = createBrowserRouter([
       { path: "*", element: <NotFoundPage /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
       { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
-      { path: "/wallet", element: <WalletPage /> },
+      { path: "wallet", element: <WalletPage /> },
       { path: "*", element: <NotFoundPage /> }
     ],
   },
