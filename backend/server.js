@@ -22,7 +22,6 @@ const orderRoutes = require("./src/routes/orderRoutes");
 const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
 const donationRoute = require("./src/routes/donationRoute");
 
-console.log("donationRoute =", donationRoute);
 const app = express();
 
 app.use(cors());
