@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import {
   ShoppingBag, Trash2, ArrowLeft, CheckCircle,
   MapPin, Phone, User, AlertCircle, ShoppingCart,

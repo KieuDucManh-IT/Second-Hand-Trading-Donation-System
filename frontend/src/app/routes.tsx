@@ -22,6 +22,7 @@ import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import { OrdersPage } from './components/OrdersPage';
+import { CartPage } from './components/CartPage';
 import WalletPage from './pages/WalletPage';
 export const router = createBrowserRouter([
   {
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
       { path: "manager", element: <ManagerDashboard /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
       { path: "wallet", element: <WalletPage /> },
+      { path: "cart", element: <CartPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

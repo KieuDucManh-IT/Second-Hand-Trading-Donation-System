@@ -5,8 +5,8 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { Wallet } from "lucide-react";
-
+import { Wallet, ShoppingCart } from "lucide-react";
+ 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +36,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { mockNotifications } from '../data/mockData';
 import { fetchConversations } from '../api/chatApi';
 import { connectSocket } from '../lib/socket';
-
+ 
 export function Header() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, updateProfile } = useAuth();
@@ -45,12 +45,12 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
-
+ 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-
+ 
   const unreadNotifications = mockNotifications.filter(n => !n.isRead).length;
-
+ 
   /* ── Số tin nhắn chưa đọc (lấy từ API thật) ───────────────────────────── */
   const loadUnreadMessages = () => {
     fetchConversations()
@@ -60,37 +60,37 @@ export function Header() {
       })
       .catch(() => {});
   };
-
+ 
   useEffect(() => {
     if (!isAuthenticated) {
       setUnreadMessages(0);
       return;
     }
-
+ 
     loadUnreadMessages();
-
+ 
     const socket = connectSocket();
-
+ 
     const onNewMessage = ({ conversationId }: { conversationId: string }) => {
       // Nếu đang mở đúng cuộc trò chuyện đó trong trang Messages thì nó sẽ tự
       // đánh dấu đã đọc; để đơn giản và luôn chính xác, gọi lại API đếm tổng.
       loadUnreadMessages();
     };
-
+ 
     const onMessagesRead = () => {
       loadUnreadMessages();
     };
-
+ 
     socket.on('new_message', onNewMessage);
     socket.on('messages_read', onMessagesRead);
-
+ 
     return () => {
       socket.off('new_message', onNewMessage);
       socket.off('messages_read', onMessagesRead);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
-
+ 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -98,39 +98,39 @@ export function Header() {
       setSearchQuery('');
     }
   };
-
+ 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
-
+ 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
-
+ 
   if (!file) return;
-
+ 
   if (!file.type.startsWith("image/")) {
     toast.error("Please select an image file");
     return;
   }
-
+ 
   if (file.size > 2 * 1024 * 1024) {
     toast.error("Image must be smaller than 2MB");
     return;
   }
-
+ 
   try {
     setAvatarUploading(true);
-
+ 
     const token = sessionStorage.getItem("token");
-
+ 
     if (!token) {
       throw new Error("You are not logged in");
     }
-
+ 
     const formData = new FormData();
     formData.append("avatar", file);
-
+ 
     const res = await fetch("http://localhost:5000/api/auth/update-avatar", {
       method: "PATCH",
       headers: {
@@ -138,11 +138,11 @@ export function Header() {
       },
       body: formData,
     });
-
+ 
     const contentType = res.headers.get("content-type");
-
+ 
     let data: any;
-
+ 
     if (contentType && contentType.includes("application/json")) {
       data = await res.json();
     } else {
@@ -150,19 +150,19 @@ export function Header() {
       console.error("SERVER RETURNED NON JSON:", text);
       throw new Error("Backend trả về HTML, kiểm tra lại route update-avatar hoặc lỗi server backend");
     }
-
+ 
     console.log("UPDATE AVATAR RESPONSE:", data);
-
+ 
     if (!res.ok) {
       throw new Error(data.message || "Upload avatar failed");
     }
-
+ 
     const newAvatarUrl = `${data.user.avatar}?t=${Date.now()}`;
-
+ 
     updateProfile({
       avatar: newAvatarUrl,
     });
-
+ 
     toast.success(data.message || "Avatar updated successfully");
   } catch (err: any) {
     console.error("UPLOAD AVATAR ERROR:", err);
@@ -185,7 +185,7 @@ export function Header() {
               SecondLife
             </span>
           </Link>
-
+ 
           {/* Search Bar - Desktop */}
           <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-2xl mx-8">
             <div className="relative w-full">
@@ -199,7 +199,7 @@ export function Header() {
               />
             </div>
           </form>
-
+ 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Theme Toggle */}
@@ -215,7 +215,7 @@ export function Header() {
                 <Sun className="w-5 h-5" />
               )}
             </Button>
-
+ 
             {isAuthenticated ? (
               <>
                 {/* Create Post Button */}
@@ -226,7 +226,7 @@ export function Header() {
                   <Plus className="w-5 h-5" />
                   <span className="hidden lg:inline">Post Item</span>
                 </Button>
-
+ 
                 {/* Messages */}
                 <Button
                   variant="ghost"
@@ -241,7 +241,17 @@ export function Header() {
                     </Badge>
                   )}
                 </Button>
-
+ 
+                {/* Cart */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/cart')}
+                  className="relative rounded-full"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                </Button>
+ 
                 {/* Notifications */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -277,7 +287,7 @@ export function Header() {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
-
+ 
                 {/* User Menu */}
                 <div className="relative">
                   <input
@@ -287,7 +297,7 @@ export function Header() {
                     className="hidden"
                     onChange={handleAvatarChange}
                   />
-
+ 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -300,7 +310,7 @@ export function Header() {
                         </Avatar>
                       </button>
                     </DropdownMenuTrigger>
-
+ 
                     <button
                       type="button"
                       disabled={avatarUploading}
@@ -313,48 +323,48 @@ export function Header() {
                     >
                       <Plus className="w-3 h-3" />
                     </button>
-
+ 
                     <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[9999]">
                       <div className="px-4 py-3 border-b">
                         <p className="font-medium">{user?.name}</p>
                         <p className="text-sm text-gray-500">{user?.email}</p>
                       </div>
-
+ 
                       <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
                         <User className="w-4 h-4 mr-2" />
                         My Profile
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/wallet')}>
                         <Wallet className="w-4 h-4 mr-2" />
                         My Wallet
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/orders')}>
                         <Package className="w-4 h-4 mr-2" />
                         My Orders
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/exchanges')}>
                         <ArrowLeftRight className="w-4 h-4 mr-2" />
                         Exchanges
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/transactions')}>
                         <ShieldCheck className="w-4 h-4 mr-2" />
                         Transactions
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem>
                         <Heart className="w-4 h-4 mr-2" />
                         Favorites
                       </DropdownMenuItem>
-
+ 
                       <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
                       </DropdownMenuItem>
-
+ 
                       {user?.role === 'manager' && (
                         <>
                           <DropdownMenuSeparator />
@@ -363,9 +373,9 @@ export function Header() {
                           </DropdownMenuItem>
                         </>
                       )}
-
+ 
                       <DropdownMenuSeparator />
-
+ 
                       <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="w-4 h-4 mr-2" />
                         Logout
@@ -391,7 +401,7 @@ export function Header() {
                 </Button>
               </>
             )}
-
+ 
             {/* Mobile Menu Toggle */}
             <Button
               variant="ghost"
@@ -403,7 +413,7 @@ export function Header() {
             </Button>
           </div>
         </div>
-
+ 
         {/* Mobile Search */}
         <form onSubmit={handleSearch} className="md:hidden pb-4">
           <div className="relative">
@@ -418,7 +428,7 @@ export function Header() {
           </div>
         </form>
       </div>
-
+ 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -446,6 +456,17 @@ export function Header() {
                 >
                   <MessageSquare className="w-5 h-5 mr-2" />
                   Messages
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    navigate('/cart');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full justify-start"
+                >
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  Cart
                 </Button>
                 <Button
                   variant="ghost"
