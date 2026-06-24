@@ -1,8 +1,65 @@
 const exchangeEscrowService = require("../services/exchangeEscrowService");
-const ExchangeInvoice = require("../models/ExchangeInvoice");
+const ExchangeInvoice = require("../models/modelExchangeInvoice");
+const ProductImage = require("../models/modelProductImage");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
 function getUserId(req) {
   return req.user?._id || req.user?.id || req.userId;
+}
+
+async function attachProductImagesToInvoices(invoices) {
+  const plainInvoices = invoices.map((invoice) =>
+    invoice.toObject ? invoice.toObject() : invoice
+  );
+
+  const productIds = [];
+
+  plainInvoices.forEach((invoice) => {
+    if (invoice.requesterProduct?._id) {
+      productIds.push(invoice.requesterProduct._id);
+    }
+
+    if (invoice.receiverProduct?._id) {
+      productIds.push(invoice.receiverProduct._id);
+    }
+  });
+
+  const images = await ProductImage.find({
+    productId: { $in: productIds },
+  })
+    .sort({ order: 1, createdAt: 1 })
+    .lean();
+
+  const imageMap = {};
+
+  images.forEach((img) => {
+    const key = String(img.productId);
+
+    if (!imageMap[key]) {
+      imageMap[key] = [];
+    }
+
+    imageMap[key].push({
+      _id: img._id,
+      imageUrl: img.imageUrl,
+      publicId: img.publicId,
+      order: img.order,
+    });
+  });
+
+  plainInvoices.forEach((invoice) => {
+    if (invoice.requesterProduct?._id) {
+      invoice.requesterProduct.images =
+        imageMap[String(invoice.requesterProduct._id)] || [];
+    }
+
+    if (invoice.receiverProduct?._id) {
+      invoice.receiverProduct.images =
+        imageMap[String(invoice.receiverProduct._id)] || [];
+    }
+  });
+
+  return plainInvoices;
 }
 
 exports.getMyExchangeInvoices = async (req, res) => {
@@ -18,11 +75,15 @@ exports.getMyExchangeInvoices = async (req, res) => {
       .populate("receiverProduct")
       .sort({ createdAt: -1 });
 
+    const invoicesWithImages = await attachProductImagesToInvoices(invoices);
+
     res.json({
       success: true,
-      invoices,
+      invoices: invoicesWithImages,
     });
   } catch (error) {
+    console.error("GET MY EXCHANGE INVOICES ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: error.message || "Không thể lấy danh sách trao đổi",
@@ -129,10 +190,41 @@ exports.disputeExchange = async (req, res) => {
     const { invoiceId } = req.params;
     const { reason } = req.body;
 
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập lý do khiếu nại",
+      });
+    }
+
+    const uploadedEvidences = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const isVideo = file.mimetype.startsWith("video");
+
+        const result = await uploadToCloudinary(file.buffer, {
+          folder: "exchange-complaints",
+          resourceType: isVideo ? "video" : "image",
+        });
+
+        uploadedEvidences.push({
+          url: result.secure_url,
+          publicId: result.public_id,
+          type: isVideo ? "video" : "image",
+          resourceType: result.resource_type,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+        });
+      }
+    }
+
     const invoice = await exchangeEscrowService.disputeExchange(
       invoiceId,
       userId,
-      reason
+      reason,
+      uploadedEvidences
     );
 
     res.json({
@@ -141,6 +233,8 @@ exports.disputeExchange = async (req, res) => {
       invoice,
     });
   } catch (error) {
+    console.error("DISPUTE EXCHANGE ERROR:", error);
+
     res.status(400).json({
       success: false,
       message: error.message || "Không thể mở khiếu nại",
@@ -184,8 +278,11 @@ exports.getExchangeInvoiceDetail = async (req, res) => {
       });
     }
 
-    const isRequester = String(invoice.requester?._id || invoice.requester) === String(userId);
-    const isReceiver = String(invoice.receiver?._id || invoice.receiver) === String(userId);
+    const isRequester =
+      String(invoice.requester?._id || invoice.requester) === String(userId);
+
+    const isReceiver =
+      String(invoice.receiver?._id || invoice.receiver) === String(userId);
 
     if (!isRequester && !isReceiver) {
       return res.status(403).json({
@@ -194,11 +291,15 @@ exports.getExchangeInvoiceDetail = async (req, res) => {
       });
     }
 
+    const [invoiceWithImages] = await attachProductImagesToInvoices([invoice]);
+
     res.json({
       success: true,
-      invoice,
+      invoice: invoiceWithImages,
     });
   } catch (error) {
+    console.error("GET EXCHANGE DETAIL ERROR:", error);
+
     res.status(500).json({
       success: false,
       message: error.message || "Không thể lấy chi tiết hóa đơn trao đổi",

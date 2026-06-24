@@ -35,7 +35,7 @@ router.get('/seller/:userId', getSellerProducts);
 
 // ── User protected routes cần đặt TRƯỚC /:id ────────────────────────────────
 router.get('/my', protect, getMyProducts);
-router.get('/my/exchange', protect, getMyProductsForExchange);
+router.get("/my/exchange", protect, getMyProductsForExchange);
 
 // ── Manager routes cần đặt TRƯỚC /:id ───────────────────────────────────────
 router.get('/pending', protect, requireManager, getPendingProducts);

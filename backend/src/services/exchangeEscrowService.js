@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 
-const ExchangeInvoice = require("../models/ExchangeInvoice");
-const Wallet = require("../models/Wallet");
-const WalletTransaction = require("../models/WalletTransaction");
+const ExchangeInvoice = require("../models/modelExchangeInvoice");
+const Wallet = require("../models/modelWallet");
+const WalletTransaction = require("../models/modelWalletTransaction");
 const Product = require("../models/modelProduct");
 
 const EXCHANGE_FEE_RATE = Number(process.env.EXCHANGE_FEE_RATE || 0.1);
@@ -91,16 +91,23 @@ async function createWalletTransaction({
 }
 
 function getProductOwner(product) {
-  return product.user || product.owner || product.seller || product.createdBy;
+  return (
+    product.ownerId ||
+    product.userId ||
+    product.user ||
+    product.owner ||
+    product.seller ||
+    product.createdBy
+  );
 }
 
 function getProductPrice(product) {
   const price = Number(
     product.price ??
-      product.productPrice ??
-      product.currentPrice ??
-      product.value ??
-      0
+    product.productPrice ??
+    product.currentPrice ??
+    product.value ??
+    0
   );
 
   if (!price || price <= 0) {
@@ -334,6 +341,10 @@ async function releaseExchangeDeposits(invoiceId, reason = "auto_after_7_days") 
       throw new Error("Không tìm thấy hóa đơn trao đổi");
     }
 
+    if (invoice.status === "disputed" || invoice.autoRefundPaused) {
+      throw new Error("Giao dịch đang khiếu nại, không thể hoàn tiền tự động");
+    }
+
     if (!["active", "both_confirmed"].includes(invoice.status)) {
       throw new Error("Hóa đơn không ở trạng thái có thể hoàn tiền");
     }
@@ -449,7 +460,7 @@ async function releaseExchangeDeposits(invoiceId, reason = "auto_after_7_days") 
 /**
  * Một bên khiếu nại, hệ thống dừng hoàn tiền tự động.
  */
-async function disputeExchange(invoiceId, userId, reason = "") {
+async function disputeExchange(invoiceId, userId, reason = "", evidences = []) {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
   if (!invoice) {
@@ -460,13 +471,28 @@ async function disputeExchange(invoiceId, userId, reason = "") {
     throw new Error("Bạn không thuộc hóa đơn trao đổi này");
   }
 
+  if (invoice.status === "disputed") {
+    throw new Error("Giao dịch này đã có khiếu nại");
+  }
+
   if (invoice.status !== "active") {
     throw new Error("Chỉ có thể khiếu nại giao dịch đang hoạt động");
   }
 
+  const finalReason = reason?.trim() || "Người dùng mở khiếu nại";
+
   invoice.status = "disputed";
   invoice.disputedAt = new Date();
-  invoice.disputeReason = reason || "Người dùng mở khiếu nại";
+  invoice.disputeReason = finalReason;
+  invoice.disputeBy = userId;
+  invoice.autoRefundPaused = true;
+
+  invoice.complaint = {
+    reason: finalReason,
+    evidences: Array.isArray(evidences) ? evidences : [],
+    status: "pending",
+    createdAt: new Date(),
+  };
 
   await invoice.save();
 
@@ -481,6 +507,7 @@ async function autoReleaseExpiredExchangeInvoices() {
 
   const invoices = await ExchangeInvoice.find({
     status: "active",
+    autoRefundPaused: { $ne: true },
     requesterDepositStatus: "paid",
     receiverDepositStatus: "paid",
     autoReleaseAt: { $lte: now },

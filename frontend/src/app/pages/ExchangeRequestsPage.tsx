@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useNavigate } from "react-router";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import {
   ArrowLeftRight,
@@ -22,6 +23,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = "http://localhost:5000/api";
+const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
 
 type ExchangeStatus =
   | "pending_receiver_accept"
@@ -53,11 +55,30 @@ type ProductMini = {
   name?: string;
   productTitle?: string;
   image?: string;
+  imageUrl?: string;
   productImage?: string;
-  images?: string[];
+  thumbnail?: string;
+  images?: Array<string | { imageUrl?: string; url?: string }>;
   price?: number;
   value?: number;
   productValue?: number;
+};
+
+type ComplaintEvidence = {
+  url?: string;
+  publicId?: string;
+  type?: "image" | "video";
+  resourceType?: string;
+  originalName?: string;
+  mimeType?: string;
+  size?: number;
+};
+
+type Complaint = {
+  reason?: string;
+  evidences?: ComplaintEvidence[];
+  status?: "pending" | "reviewing" | "resolved" | "rejected";
+  createdAt?: string;
 };
 
 type ExchangeInvoice = {
@@ -96,6 +117,10 @@ type ExchangeInvoice = {
 
   disputeReason?: string;
   cancelReason?: string;
+
+  autoRefundPaused?: boolean;
+  disputeBy?: string | UserMini;
+  complaint?: Complaint;
 };
 
 function getToken() {
@@ -118,6 +143,7 @@ function getId(value: any) {
 
 function getName(user: any) {
   if (!user || typeof user === "string") return "Người dùng";
+
   return (
     user.name ||
     user.fullName ||
@@ -138,36 +164,66 @@ function getInvoiceId(invoice: ExchangeInvoice) {
 
 function getProductTitle(product: any) {
   if (!product || typeof product === "string") return "Sản phẩm";
-  return (
-    product.title ||
-    product.name ||
-    product.productTitle ||
-    "Sản phẩm"
-  );
+
+  return product.title || product.name || product.productTitle || "Sản phẩm";
+}
+
+function normalizeImageUrl(url?: string) {
+  if (!url) return "";
+
+  const cleanUrl = String(url).trim();
+
+  if (!cleanUrl) return "";
+
+  if (
+    cleanUrl.startsWith("http://") ||
+    cleanUrl.startsWith("https://") ||
+    cleanUrl.startsWith("data:") ||
+    cleanUrl.startsWith("blob:")
+  ) {
+    return cleanUrl;
+  }
+
+  if (cleanUrl.startsWith("/uploads")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("uploads/")) {
+    return `${API_ORIGIN}/${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("/")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  return cleanUrl;
 }
 
 function getProductImage(product: any) {
-  if (!product || typeof product === "string") {
-    return "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400";
+  if (!product || typeof product === "string") return "";
+
+  if (product.thumbnail) return normalizeImageUrl(product.thumbnail);
+  if (product.productImage) return normalizeImageUrl(product.productImage);
+  if (product.imageUrl) return normalizeImageUrl(product.imageUrl);
+  if (product.image) return normalizeImageUrl(product.image);
+
+  const firstImage = product.images?.[0];
+
+  if (typeof firstImage === "string") {
+    return normalizeImageUrl(firstImage);
   }
 
-  return (
-    product.productImage ||
-    product.image ||
-    product.images?.[0] ||
-    "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=400"
-  );
+  if (firstImage && typeof firstImage === "object") {
+    return normalizeImageUrl(firstImage.imageUrl || firstImage.url || "");
+  }
+
+  return "";
 }
 
 function getProductValue(product: any) {
   if (!product || typeof product === "string") return 0;
 
-  return Number(
-    product.price ??
-      product.value ??
-      product.productValue ??
-      0
-  );
+  return Number(product.price ?? product.value ?? product.productValue ?? 0);
 }
 
 function formatMoney(value?: number) {
@@ -243,9 +299,17 @@ function getStatusIcon(status?: ExchangeStatus) {
   }
 }
 
+function isEvidenceVideo(file: ComplaintEvidence) {
+  return (
+    file.type === "video" ||
+    file.resourceType === "video" ||
+    file.mimeType?.startsWith("video")
+  );
+}
+
 export function ExchangeRequestsPage() {
+  const navigate = useNavigate();
   const auth: any = useAuth();
-  const isAuthenticated = auth.isAuthenticated;
   const user = auth.user || auth.currentUser || auth.authUser;
 
   const currentUserId = getId(user);
@@ -254,42 +318,67 @@ export function ExchangeRequestsPage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [complaintInvoice, setComplaintInvoice] =
+    useState<ExchangeInvoice | null>(null);
+  const [complaintReason, setComplaintReason] = useState(
+    "Sản phẩm không đúng mô tả"
+  );
+  const [complaintFiles, setComplaintFiles] = useState<File[]>([]);
+
+  const complaintPreviewItems = useMemo(() => {
+    return complaintFiles.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isVideo: file.type.startsWith("video"),
+    }));
+  }, [complaintFiles]);
+
+  useEffect(() => {
+    return () => {
+      complaintPreviewItems.forEach((item) => {
+        URL.revokeObjectURL(item.previewUrl);
+      });
+    };
+  }, [complaintPreviewItems]);
+
   async function api(path: string, options: RequestInit = {}) {
-  const token = getToken();
-  const url = `${API_BASE}${path}`;
+    const token = getToken();
+    const url = `${API_BASE}${path}`;
 
-  console.log("CALL API:", url);
+    console.log("CALL API:", url);
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
-      ...(options.headers || {}),
-    },
-  });
+    const isFormData = options.body instanceof FormData;
 
-  const text = await res.text();
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        Authorization: token ? `Bearer ${token}` : "",
+        ...(options.headers || {}),
+      },
+    });
 
-  let data: any = {};
+    const text = await res.text();
 
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    console.error("API trả về không phải JSON");
-    console.error("URL:", url);
-    console.error("HTTP status:", res.status);
-    console.error("Response text:", text.slice(0, 300));
+    let data: any = {};
 
-    throw new Error(`API không trả JSON. Kiểm tra backend route: ${url}`);
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error("API trả về không phải JSON");
+      console.error("URL:", url);
+      console.error("HTTP status:", res.status);
+      console.error("Response text:", text.slice(0, 300));
+
+      throw new Error(`API không trả JSON. Kiểm tra backend route: ${url}`);
+    }
+
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Có lỗi xảy ra");
+    }
+
+    return data;
   }
-
-  if (!res.ok) {
-    throw new Error(data.message || data.error || "Có lỗi xảy ra");
-  }
-
-  return data;
-}
 
   async function fetchExchangeInvoices() {
     try {
@@ -347,14 +436,109 @@ export function ExchangeRequestsPage() {
     }
   }
 
+  function closeComplaintModal() {
+    setComplaintInvoice(null);
+    setComplaintReason("Sản phẩm không đúng mô tả");
+    setComplaintFiles([]);
+  }
+
+  function openComplaintModal(invoice: ExchangeInvoice) {
+    setComplaintInvoice(invoice);
+    setComplaintReason(
+      invoice.complaint?.reason ||
+        invoice.disputeReason ||
+        "Sản phẩm không đúng mô tả"
+    );
+    setComplaintFiles([]);
+  }
+
+  function handleComplaintFilesChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+
+    if (files.length > 5) {
+      alert("Chỉ được upload tối đa 5 file bằng chứng");
+      e.target.value = "";
+      setComplaintFiles([]);
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+    ];
+
+    const invalidFile = files.find((file) => !allowedTypes.includes(file.type));
+
+    if (invalidFile) {
+      alert(
+        `File không hợp lệ: ${invalidFile.name}. Chỉ cho phép ảnh hoặc video.`
+      );
+      e.target.value = "";
+      setComplaintFiles([]);
+      return;
+    }
+
+    const tooLargeFile = files.find((file) => file.size > 50 * 1024 * 1024);
+
+    if (tooLargeFile) {
+      alert(`File quá lớn: ${tooLargeFile.name}. Tối đa 50MB/file.`);
+      e.target.value = "";
+      setComplaintFiles([]);
+      return;
+    }
+
+    setComplaintFiles(files);
+  }
+
+  async function submitComplaint() {
+    if (!complaintInvoice) return;
+
+    const invoiceId = getInvoiceId(complaintInvoice);
+
+    if (!complaintReason.trim()) {
+      alert("Vui lòng nhập lý do khiếu nại");
+      return;
+    }
+
+    try {
+      setActionLoading(`${invoiceId}-dispute`);
+
+      const formData = new FormData();
+      formData.append("reason", complaintReason.trim());
+
+      complaintFiles.forEach((file) => {
+        formData.append("evidences", file);
+      });
+
+      await api(`/exchange-escrow/${invoiceId}/dispute`, {
+        method: "POST",
+        body: formData,
+      });
+
+      closeComplaintModal();
+      await fetchExchangeInvoices();
+    } catch (error: any) {
+      alert(error.message || "Không thể gửi khiếu nại");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   useEffect(() => {
-    if (!isAuthenticated) {
-      window.location.href = "/login";
+    const token = getToken();
+
+    if (!token) {
+      navigate("/login", { replace: true });
       return;
     }
 
     fetchExchangeInvoices();
-  }, [isAuthenticated]);
+  }, []);
 
   function isRequester(invoice: ExchangeInvoice) {
     return getId(invoice.requester) === currentUserId;
@@ -377,7 +561,7 @@ export function ExchangeRequestsPage() {
   const activeInvoices = useMemo(
     () =>
       invoices.filter((item) =>
-        ["waiting_deposits", "active", "both_confirmed"].includes(
+        ["waiting_deposits", "active", "both_confirmed", "disputed"].includes(
           item.status || "pending_receiver_accept"
         )
       ),
@@ -422,8 +606,7 @@ export function ExchangeRequestsPage() {
     const isLoading = (action: string) =>
       actionLoading === `${invoiceId}-${action}`;
 
-    const canAccept =
-      receiverSide && status === "pending_receiver_accept";
+    const canAccept = receiverSide && status === "pending_receiver_accept";
 
     const canPayDeposit =
       ["waiting_deposits", "active"].includes(status) &&
@@ -431,13 +614,9 @@ export function ExchangeRequestsPage() {
       myDepositStatus !== "refunded";
 
     const canConfirmCompleted =
-      status === "active" &&
-      myDepositStatus === "paid" &&
-      !myConfirmed;
+      status === "active" && myDepositStatus === "paid" && !myConfirmed;
 
-    const canDispute =
-      status === "active" &&
-      myDepositStatus === "paid";
+    const canDispute = status === "active" && myDepositStatus === "paid";
 
     return (
       <Card className="hover:shadow-lg transition-shadow">
@@ -501,7 +680,11 @@ export function ExchangeRequestsPage() {
                   </div>
                 </div>
 
-                <Badge className={`${getStatusColor(status)} flex w-fit items-center gap-1`}>
+                <Badge
+                  className={`${getStatusColor(
+                    status
+                  )} flex w-fit items-center gap-1`}
+                >
                   {getStatusIcon(status)}
                   {getStatusLabel(status)}
                 </Badge>
@@ -513,7 +696,9 @@ export function ExchangeRequestsPage() {
                   <p className="font-bold">{formatMoney(myDepositAmount)}</p>
                   <p className="mt-1 text-xs text-gray-500">
                     Trạng thái:{" "}
-                    <span className="font-semibold">{myDepositStatus || "unpaid"}</span>
+                    <span className="font-semibold">
+                      {myDepositStatus || "unpaid"}
+                    </span>
                   </p>
                 </div>
 
@@ -562,10 +747,50 @@ export function ExchangeRequestsPage() {
 
               {status === "disputed" && (
                 <div className="mt-4 rounded-lg bg-orange-50 p-3 text-sm text-orange-800">
-                  Giao dịch đang khiếu nại. Hệ thống tạm dừng hoàn tiền tự động.
-                  {invoice.disputeReason && (
-                    <p className="mt-1">Lý do: {invoice.disputeReason}</p>
+                  <p>
+                    Giao dịch đang khiếu nại. Hệ thống tạm dừng hoàn tiền tự
+                    động.
+                  </p>
+
+                  {(invoice.complaint?.reason || invoice.disputeReason) && (
+                    <p className="mt-1">
+                      Lý do: {invoice.complaint?.reason || invoice.disputeReason}
+                    </p>
                   )}
+
+                  {invoice.complaint?.evidences &&
+                    invoice.complaint.evidences.length > 0 && (
+                      <div className="mt-3">
+                        <p className="font-semibold mb-2">Bằng chứng:</p>
+
+                        <div className="flex flex-wrap gap-3">
+                          {invoice.complaint.evidences.map((file, index) => {
+                            const evidenceUrl = normalizeImageUrl(file.url);
+
+                            return (
+                              <div
+                                key={`${file.publicId || evidenceUrl}-${index}`}
+                                className="rounded-lg border bg-white p-2"
+                              >
+                                {isEvidenceVideo(file) ? (
+                                  <video
+                                    src={evidenceUrl}
+                                    controls
+                                    className="h-24 w-36 rounded object-cover"
+                                  />
+                                ) : (
+                                  <img
+                                    src={evidenceUrl}
+                                    alt={`Bằng chứng ${index + 1}`}
+                                    className="h-24 w-24 rounded object-cover"
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                 </div>
               )}
 
@@ -574,7 +799,7 @@ export function ExchangeRequestsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    window.location.href = `/exchanges/${invoiceId}`;
+                    navigate(`/exchanges/${invoiceId}`);
                   }}
                 >
                   <Eye className="w-4 h-4 mr-2" />
@@ -651,20 +876,7 @@ export function ExchangeRequestsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      const reason =
-                        window.prompt(
-                          "Lý do khiếu nại:",
-                          "Sản phẩm không đúng mô tả"
-                        ) || "Sản phẩm không đúng mô tả";
-
-                      runAction(
-                        invoiceId,
-                        "dispute",
-                        `/exchange-escrow/${invoiceId}/dispute`,
-                        { reason }
-                      );
-                    }}
+                    onClick={() => openComplaintModal(invoice)}
                     disabled={!!actionLoading}
                     className="border-orange-300 text-orange-700 hover:bg-orange-50"
                   >
@@ -736,18 +948,13 @@ export function ExchangeRequestsPage() {
     }
 
     if (list.length === 0) {
-      return (
-        <EmptyState title={emptyTitle} description={emptyDescription} />
-      );
+      return <EmptyState title={emptyTitle} description={emptyDescription} />;
     }
 
     return (
       <div className="space-y-4">
         {list.map((invoice) => (
-          <ExchangeInvoiceCard
-            key={getInvoiceId(invoice)}
-            invoice={invoice}
-          />
+          <ExchangeInvoiceCard key={getInvoiceId(invoice)} invoice={invoice} />
         ))}
       </div>
     );
@@ -760,7 +967,8 @@ export function ExchangeRequestsPage() {
           <div>
             <h1 className="text-3xl font-bold mb-2">Exchange Requests</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Quản lý yêu cầu trao đổi, thanh toán bảo hiểm và xác nhận hoàn tất.
+              Quản lý yêu cầu trao đổi, thanh toán bảo hiểm và xác nhận hoàn
+              tất.
             </p>
           </div>
 
@@ -779,7 +987,7 @@ export function ExchangeRequestsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                window.location.href = "/exchange-history";
+                navigate("/exchange-history");
               }}
             >
               <History className="w-4 h-4 mr-2" />
@@ -802,9 +1010,7 @@ export function ExchangeRequestsPage() {
             <TabsTrigger value="received">
               Received ({receivedInvoices.length})
             </TabsTrigger>
-            <TabsTrigger value="sent">
-              Sent ({sentInvoices.length})
-            </TabsTrigger>
+            <TabsTrigger value="sent">Sent ({sentInvoices.length})</TabsTrigger>
             <TabsTrigger value="active">
               Active ({activeInvoices.length})
             </TabsTrigger>
@@ -830,10 +1036,112 @@ export function ExchangeRequestsPage() {
             <InvoiceList
               list={activeInvoices}
               emptyTitle="No active exchanges"
-              emptyDescription="Các giao dịch đang đặt cọc hoặc đang trao đổi sẽ xuất hiện tại đây."
+              emptyDescription="Các giao dịch đang đặt cọc, đang trao đổi hoặc đang khiếu nại sẽ xuất hiện tại đây."
             />
           </TabsContent>
         </Tabs>
+
+        {complaintInvoice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+              <div className="mb-4">
+                <h2 className="text-xl font-bold">Gửi khiếu nại</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Vui lòng nhập lý do và tải lên ảnh/video làm bằng chứng.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Lý do khiếu nại
+                  </label>
+
+                  <textarea
+                    value={complaintReason}
+                    onChange={(e) => setComplaintReason(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-orange-400 dark:bg-gray-800"
+                    placeholder="Ví dụ: Sản phẩm không đúng mô tả, bị lỗi, thiếu phụ kiện..."
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Ảnh/video bằng chứng
+                  </label>
+
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={handleComplaintFilesChange}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                  />
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    Hỗ trợ ảnh JPG, PNG, WEBP và video MP4, MOV, WEBM. Tối đa 5
+                    file, 50MB/file.
+                  </p>
+                </div>
+
+                {complaintPreviewItems.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium">File đã chọn:</p>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {complaintPreviewItems.map((item, index) => (
+                        <div
+                          key={`${item.file.name}-${index}`}
+                          className="rounded-lg border p-2"
+                        >
+                          {item.isVideo ? (
+                            <video
+                              src={item.previewUrl}
+                              controls
+                              className="h-24 w-full rounded object-cover"
+                            />
+                          ) : (
+                            <img
+                              src={item.previewUrl}
+                              alt={item.file.name}
+                              className="h-24 w-full rounded object-cover"
+                            />
+                          )}
+
+                          <p className="mt-1 line-clamp-1 text-xs text-gray-500">
+                            {item.file.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={closeComplaintModal}
+                  disabled={!!actionLoading}
+                >
+                  Hủy
+                </Button>
+
+                <Button
+                  onClick={submitComplaint}
+                  disabled={!!actionLoading}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {actionLoading?.includes("-dispute") && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Gửi khiếu nại
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

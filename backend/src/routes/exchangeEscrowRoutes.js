@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middlewares/authMiddleware");
+const uploadComplaintEvidence = require("../middlewares/uploadComplaintEvidenceMiddleware");
 const exchangeEscrowController = require("../controllers/exchangeEscrowController");
 
 // Lấy danh sách hóa đơn trao đổi của user hiện tại
@@ -46,10 +47,11 @@ router.post(
   exchangeEscrowController.confirmExchangeCompleted
 );
 
-// Khiếu nại
+// Khiếu nại + upload ảnh/video bằng chứng
 router.post(
   "/:invoiceId/dispute",
   protect,
+  uploadComplaintEvidence.array("evidences", 5),
   exchangeEscrowController.disputeExchange
 );
 
