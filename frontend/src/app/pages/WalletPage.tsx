@@ -12,7 +12,11 @@ import {
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const RAW_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const API_BASE = RAW_API_BASE.endsWith("/api")
+    ? RAW_API_BASE
+    : `${RAW_API_BASE}/api`;
 
 type WalletData = {
     id: string;
@@ -28,7 +32,7 @@ type Transaction = {
     _id: string;
     type: "deposit" | "withdraw";
     status: "pending" | "completed" | "failed" | "rejected" | "expired";
-    amount: number;
+    amount: number | string;
     code: string;
     transferContent?: string;
     createdAt: string;
@@ -60,8 +64,18 @@ const banks = [
     { name: "Agribank", bin: "970405" },
 ];
 
-function formatMoney(value: number) {
-    return new Intl.NumberFormat("vi-VN").format(value) + "đ";
+function toNumber(value: any) {
+    const number = Number(value);
+
+    if (Number.isNaN(number) || !Number.isFinite(number)) {
+        return 0;
+    }
+
+    return number;
+}
+
+function formatMoney(value: any) {
+    return new Intl.NumberFormat("vi-VN").format(toNumber(value)) + "đ";
 }
 
 function getToken() {
@@ -95,6 +109,48 @@ function StatusIcon({ status }: { status: string }) {
     if (status === "completed") return <CheckCircle2 size={16} />;
     if (status === "pending") return <Clock size={16} />;
     return <XCircle size={16} />;
+}
+
+function extractAmount(item: any) {
+    const rawAmount =
+        item.amount ??
+        item.money ??
+        item.value ??
+        item.totalAmount ??
+        item.depositAmount ??
+        item.withdrawAmount ??
+        item.transactionAmount ??
+        item.payment?.amount ??
+        item.deposit?.amount ??
+        item.withdraw?.amount ??
+        item.transaction?.amount ??
+        item.metadata?.amount ??
+        item.payload?.amount ??
+        item.raw?.amount ??
+        0;
+
+    if (typeof rawAmount === "object" && rawAmount !== null) {
+        if (rawAmount.$numberDecimal) return Number(rawAmount.$numberDecimal);
+        if (rawAmount.$numberInt) return Number(rawAmount.$numberInt);
+        if (rawAmount.$numberLong) return Number(rawAmount.$numberLong);
+    }
+
+    const number = Number(rawAmount);
+
+    return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeTransaction(item: any): Transaction {
+    return {
+        _id: item._id || item.id,
+        type: item.type,
+        status: item.status,
+        amount: extractAmount(item),
+        code: item.code || item.transactionCode || item.transferCode || "",
+        transferContent: item.transferContent || item.description || item.content || "",
+        createdAt: item.createdAt || new Date().toISOString(),
+        bankInfo: item.bankInfo,
+    };
 }
 
 export default function WalletPage() {
@@ -156,7 +212,7 @@ export default function WalletPage() {
             setLoading(true);
             const data = await api("/wallet");
             setWallet(data.wallet);
-            setTransactions(data.transactions || []);
+            setTransactions((data.transactions || []).map(normalizeTransaction));
         } catch (error: any) {
             alert(error.message || "Không thể tải ví");
         } finally {
@@ -180,9 +236,35 @@ export default function WalletPage() {
                 body: JSON.stringify({ amount }),
             });
 
-            setDepositPayment(data.payment);
+            console.log("DEPOSIT RESPONSE:", data);
+
+            const payment =
+                data.payment ||
+                data.data?.payment ||
+                data.depositPayment ||
+                data.data ||
+                data;
+
+            if (!payment) {
+                throw new Error("Backend không trả về thông tin thanh toán");
+            }
+
+            setDepositPayment({
+                orderCode: Number(payment.orderCode || payment.order_code || payment.code),
+                amount: Number(payment.amount || amount),
+                transferContent:
+                    payment.transferContent ||
+                    payment.transfer_content ||
+                    payment.description ||
+                    payment.content ||
+                    "",
+                checkoutUrl: payment.checkoutUrl || payment.checkout_url || "",
+                qrCode: payment.qrCode || payment.qr_code || "",
+            });
+
             await fetchWallet();
         } catch (error: any) {
+            console.error("CREATE DEPOSIT ERROR:", error);
             alert(error.message || "Không thể tạo yêu cầu nạp tiền");
         } finally {
             setLoading(false);

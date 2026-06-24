@@ -39,8 +39,8 @@ exports.handlePayosWebhook = async (req, res) => {
       verifiedData?.orderCode
         ? verifiedData
         : verifiedData?.data
-        ? verifiedData.data
-        : req.body?.data;
+          ? verifiedData.data
+          : req.body?.data;
 
     if (!paymentData || !paymentData.orderCode) {
       return res.status(200).json({
@@ -63,8 +63,12 @@ exports.handlePayosWebhook = async (req, res) => {
     });
 
     const transaction = await WalletTransaction.findOne({
-      orderCode,
       type: "deposit",
+      $or: [
+        { orderCode: orderCode },
+        { orderCode: String(orderCode) },
+        { code: `DEP${orderCode}` },
+      ],
     });
 
     if (!transaction) {
