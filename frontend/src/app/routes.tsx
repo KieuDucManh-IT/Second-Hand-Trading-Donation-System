@@ -17,6 +17,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 
 import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
+import DonationRequestsPage from "./pages/DonationRequestsPage";
 
 import { ManagerDashboard } from "./pages/ManagerDashboard";
 

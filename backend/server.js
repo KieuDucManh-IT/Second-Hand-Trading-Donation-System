@@ -20,7 +20,9 @@ const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
 const { startExchangeAutoReleaseJob } = require("./src/jobs/exchangeAutoReleaseJob");
 const orderRoutes = require("./src/routes/orderRoutes");
 const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
+const donationRoute = require("./src/routes/donationRoute");
 
+console.log("donationRoute =", donationRoute);
 const app = express();
 
 app.use(cors());
@@ -43,6 +45,9 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/exchange-escrow", exchangeEscrowRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/donations", donationRoute);
+
+
 const PORT = process.env.PORT || 5000;
 
 // Tạo HTTP server thủ công để gắn Socket.IO cùng với Express
