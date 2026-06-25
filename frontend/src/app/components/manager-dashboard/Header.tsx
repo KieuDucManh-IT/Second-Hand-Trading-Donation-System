@@ -13,7 +13,7 @@ export function Header({ setActiveTab }: HeaderProps) {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
-              Manager Dashboard
+              Trang quản trị
             </h1>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -23,7 +23,7 @@ export function Header({ setActiveTab }: HeaderProps) {
               onClick={() => setActiveTab("reports")}
             >
               <Flag className="h-4 w-4" />
-              Review reports
+              Xem báo cáo
             </button>
           </div>
         </div>

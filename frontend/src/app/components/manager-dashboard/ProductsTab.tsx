@@ -50,14 +50,14 @@ export function ProductsTab({
     <Card className="border-slate-200/80 bg-white/85 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/40">
       <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <CardTitle>Products management</CardTitle>
+          <CardTitle>Quản lý sản phẩm</CardTitle>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {/* Search Input */}
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search product or seller..."
+              placeholder="Tìm kiếm sản phẩm hoặc người bán..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 rounded-xl border-slate-200 focus:border-emerald-400 dark:border-slate-800 dark:bg-slate-900/70"
@@ -70,7 +70,7 @@ export function ProductsTab({
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
-            <option value="all">All Categories</option>
+            <option value="all">Tất cả danh mục</option>
             {categoriesList.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
@@ -84,9 +84,9 @@ export function ProductsTab({
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
           >
-            <option value="all">All Statuses</option>
-            <option value="available">Available</option>
-            <option value="hidden">Hidden</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="available">Đang hiển thị</option>
+            <option value="hidden">Đã ẩn</option>
           </select>
         </div>
       </CardHeader>
@@ -94,13 +94,13 @@ export function ProductsTab({
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/70 dark:bg-slate-900/40">
-              <TableHead className="pl-6">Product</TableHead>
-              <TableHead>Seller</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="pr-6 text-right">Actions</TableHead>
+              <TableHead className="pl-6">Sản phẩm</TableHead>
+              <TableHead>Người bán</TableHead>
+              <TableHead>Danh mục</TableHead>
+              <TableHead>Giá</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead>Ngày đăng</TableHead>
+              <TableHead className="pr-6 text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -111,7 +111,7 @@ export function ProductsTab({
                     <div className="max-w-[320px]">
                       <div className="font-medium text-slate-900 dark:text-slate-50">{product.title}</div>
                       <div className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-muted-foreground">
-                        {product.description || 'No description provided'}
+                        {product.description || 'Không có mô tả'}
                       </div>
                     </div>
                   </TableCell>
@@ -119,7 +119,7 @@ export function ProductsTab({
                   <TableCell className="align-top">{product.category}</TableCell>
                   <TableCell className="align-top">
                     {product.isDonation ? (
-                      <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">Free</Badge>
+                      <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">Miễn phí</Badge>
                     ) : (
                       `${product.price.toLocaleString('vi-VN')} đ`
                     )}
@@ -140,7 +140,7 @@ export function ProductsTab({
                         size="icon"
                         variant="outline"
                         onClick={() => navigate(`/products/${product.id}`, { state: { from: 'manager' } })}
-                        title="View product"
+                        title="Xem chi tiết sản phẩm"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -149,7 +149,7 @@ export function ProductsTab({
                           size="icon"
                           className="bg-emerald-600 text-white hover:bg-emerald-700"
                           onClick={() => updateProductStatus(product.id, 'available')}
-                          title="Show/Approve product"
+                          title="Hiển thị/Duyệt sản phẩm"
                         >
                           <Check className="h-4 w-4" />
                         </Button>
@@ -159,7 +159,7 @@ export function ProductsTab({
                           variant="outline"
                           className="border-amber-300 text-amber-600 hover:bg-amber-50"
                           onClick={() => updateProductStatus(product.id, 'hidden')}
-                          title="Hide product"
+                          title="Ẩn sản phẩm"
                         >
                           <EyeOff className="h-4 w-4" />
                         </Button>
@@ -171,7 +171,7 @@ export function ProductsTab({
             ) : (
               <TableRow>
                 <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                  No products match your search or filter criteria.
+                  Không có sản phẩm nào khớp với tìm kiếm hoặc bộ lọc của bạn.
                 </TableCell>
               </TableRow>
             )}

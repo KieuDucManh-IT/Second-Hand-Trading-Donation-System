@@ -10,6 +10,7 @@ import { ReportsTab } from './ReportsTab';
 import { UsersTab } from './UsersTab';
 import { CategoriesTab } from './CategoriesTab';
 import { Modals } from './Modals';
+import { ConfigTab } from './ConfigTab';
 
 type DashboardViewProps = {
   user: any;
@@ -18,8 +19,6 @@ type DashboardViewProps = {
   activeTab: DashboardTab;
   setActiveTab: (tab: DashboardTab) => void;
   data: ManagerDashboardData;
-  isAuthReady: boolean;
-  allProductsList: Array<any>;
   productViewList: Array<any>;
   pendingReportsCount: number;
   activeUsersCount: number;
@@ -101,15 +100,19 @@ export function ManagerDashboardView(props: DashboardViewProps) {
               <CardContent className="p-3 sm:p-4">
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTab)}>
                   <div className="overflow-x-auto">
-                    <TabsList className="grid h-auto w-full min-w-[760px] grid-cols-4 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
-                      {(['products', 'reports', 'users', 'categories'] as DashboardTab[]).map(
+                    <TabsList className="grid h-auto w-full min-w-[760px] grid-cols-5 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                      {(['products', 'reports', 'users', 'categories', 'config'] as DashboardTab[]).map(
                         (tab) => (
                           <TabsTrigger
                             key={tab}
                             value={tab}
                             className="rounded-xl py-3 text-sm font-medium data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-slate-900"
                           >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            {tab === 'products' && 'Sản phẩm'}
+                            {tab === 'reports' && 'Báo cáo'}
+                            {tab === 'users' && 'Người dùng'}
+                            {tab === 'categories' && 'Danh mục'}
+                            {tab === 'config' && 'Cấu hình'}
                           </TabsTrigger>
                         )
                       )}
@@ -142,6 +145,10 @@ export function ManagerDashboardView(props: DashboardViewProps) {
                       handleOpenCategoryEdit={handleOpenCategoryEdit}
                       handleDeleteCategory={handleDeleteCategory}
                     />
+                  </TabsContent>
+
+                  <TabsContent value="config" className="mt-6 space-y-6">
+                    <ConfigTab />
                   </TabsContent>
                 </Tabs>
               </CardContent>

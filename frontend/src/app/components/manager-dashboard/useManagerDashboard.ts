@@ -94,7 +94,7 @@ export function useManagerDashboard() {
       const response = await fetch(`${API_URL}/dashboard`, { headers: authHeaders() });
       const result = await response.json();
 
-      if (!response.ok) throw new Error(result.message || 'Failed to load dashboard');
+      if (!response.ok) throw new Error(result.message || 'Không thể tải dữ liệu bảng quản lý');
 
       setData({
         users: result.users || [],
@@ -105,7 +105,7 @@ export function useManagerDashboard() {
       });
       await fetchAllProducts();
     } catch (err: any) {
-      const message = err.message || 'Unable to load dashboard';
+      const message = err.message || 'Không thể tải dữ liệu bảng quản lý';
       setError(message);
       toast.error(message);
     } finally {
@@ -124,13 +124,13 @@ export function useManagerDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Unable to update product');
+        throw new Error(result.message || 'Không thể cập nhật trạng thái sản phẩm');
       }
 
-      toast.success(status === 'available' ? 'Product is now visible' : 'Product is now hidden');
+      toast.success(status === 'available' ? 'Sản phẩm hiện đã hiển thị' : 'Sản phẩm hiện đã được ẩn');
       await refreshDashboard();
     } catch (err: any) {
-      toast.error(err.message || 'Unable to update product');
+      toast.error(err.message || 'Không thể cập nhật trạng thái sản phẩm');
     }
   };
 
@@ -153,13 +153,13 @@ export function useManagerDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Unable to update report');
+        throw new Error(result.message || 'Không thể cập nhật báo cáo');
       }
 
-      toast.success(endpoint === 'accept' ? 'Report accepted' : 'Report rejected');
+      toast.success(endpoint === 'accept' ? 'Đã chấp nhận báo cáo và cảnh cáo' : 'Đã từ chối báo cáo');
       await refreshDashboard();
     } catch (err: any) {
-      toast.error(err.message || 'Unable to update report');
+      toast.error(err.message || 'Không thể cập nhật báo cáo');
     }
   };
 
@@ -205,19 +205,19 @@ export function useManagerDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to save category');
+        throw new Error(result.message || 'Lưu danh mục thất bại');
       }
 
-      toast.success(categoryModalMode === 'create' ? 'Category created' : 'Category updated');
+      toast.success(categoryModalMode === 'create' ? 'Tạo danh mục thành công' : 'Cập nhật danh mục thành công');
       setIsCategoryModalOpen(false);
       await refreshDashboard();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save category');
+      toast.error(err.message || 'Lưu danh mục thất bại');
     }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
-    if (!window.confirm('Delete this category?')) return;
+    if (!window.confirm('Xóa danh mục này?')) return;
 
     try {
       const response = await fetch(`${API_URL}/categories/${categoryId}`, {
@@ -228,13 +228,13 @@ export function useManagerDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to delete category');
+        throw new Error(result.message || 'Xóa danh mục thất bại');
       }
 
-      toast.success('Category deleted successfully');
+      toast.success('Xóa danh mục thành công');
       await refreshDashboard();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete category');
+      toast.error(err.message || 'Xóa danh mục thất bại');
     }
   };
 
@@ -249,13 +249,13 @@ export function useManagerDashboard() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Unable to update user');
+        throw new Error(result.message || 'Không thể cập nhật trạng thái người dùng');
       }
 
-      toast.success(`User ${status === 'active' ? 'reactivated' : status}`);
+      toast.success(status === 'active' ? 'Đã khôi phục tài khoản người dùng' : 'Đã khóa tài khoản người dùng');
       await refreshDashboard();
     } catch (err: any) {
-      toast.error(err.message || 'Unable to update user');
+      toast.error(err.message || 'Không thể cập nhật trạng thái người dùng');
     }
   };
 
@@ -271,7 +271,6 @@ export function useManagerDashboard() {
     refreshDashboard();
   }, [isAuthReady, user]);
 
-  const warningCount = data.statistics.warningUsers;
   const pendingReportsCount = data.reports.filter(
     (report) => report.status === 'pending' || report.status === 'reviewing'
   ).length;
@@ -290,9 +289,7 @@ export function useManagerDashboard() {
     refreshDashboard,
     showAllProducts,
     setShowAllProducts,
-    allProductsList,
     productViewList,
-    warningCount,
     pendingReportsCount,
     activeUsersCount,
     isCategoryModalOpen,

@@ -15,6 +15,7 @@ const {
   approveProduct,
   rejectProduct,
   getMyProductsForExchange,
+  getSensitiveWordsRoute,
 } = require('../controllers/productController');
 
 const { protect }       = require('../middlewares/authMiddleware');
@@ -29,8 +30,8 @@ const requireManager = (req, res, next) => {
 };
  
 // ── Public routes ─────────────────────────────────────────────────────────────
-// ── Public routes ─────────────────────────────────────────────────────────────
 router.get('/', getProducts);
+router.get('/sensitive-words', getSensitiveWordsRoute);
 router.get('/seller/:userId', getSellerProducts);
 
 // ── User protected routes cần đặt TRƯỚC /:id ────────────────────────────────

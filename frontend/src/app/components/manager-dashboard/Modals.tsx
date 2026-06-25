@@ -33,12 +33,12 @@ export function Modals({
           <div className="bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(180deg,_rgba(15,23,42,0.03),_transparent)] px-6 py-6 dark:bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),_transparent_35%),linear-gradient(180deg,_rgba(255,255,255,0.03),_transparent)]">
             <DialogHeader className="text-left">
               <DialogTitle className="text-2xl">
-                {categoryModalMode === 'create' ? 'Create category' : 'Edit category'}
+                {categoryModalMode === 'create' ? 'Tạo danh mục' : 'Sửa danh mục'}
               </DialogTitle>
-              <DialogDescription>Keep category names concise so the marketplace stays easy to scan.</DialogDescription>
+              <DialogDescription>Đặt tên danh mục ngắn gọn để người dùng dễ dàng tìm kiếm sản phẩm.</DialogDescription>
             </DialogHeader>
             <form onSubmit={submitCategoryForm} className="mt-6 space-y-4">
-              <Field label="Category name">
+              <Field label="Tên danh mục">
                 <Input
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
@@ -47,10 +47,10 @@ export function Modals({
                   maxLength={100}
                   pattern="^[^<>]*$"
                   title="Tên danh mục không được chứa các ký tự < hoặc >"
-                  placeholder="Example: Electronics"
+                  placeholder="Ví dụ: Thiết bị điện tử"
                 />
               </Field>
-              <Field label="Description">
+              <Field label="Mô tả">
                 <Textarea
                   value={categoryDescription}
                   onChange={(e) => setCategoryDescription(e.target.value)}
@@ -58,14 +58,14 @@ export function Modals({
                   minLength={5}
                   maxLength={500}
                   className="min-h-28"
-                  placeholder="Short description of the category"
+                  placeholder="Mô tả ngắn gọn về danh mục"
                 />
               </Field>
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setIsCategoryModalOpen(false)}>
-                  Cancel
+                  Hủy
                 </Button>
-                <Button type="submit">{categoryModalMode === 'create' ? 'Create' : 'Save changes'}</Button>
+                <Button type="submit">{categoryModalMode === 'create' ? 'Tạo' : 'Lưu thay đổi'}</Button>
               </div>
             </form>
           </div>

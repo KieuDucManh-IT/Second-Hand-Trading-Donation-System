@@ -29,14 +29,14 @@ export function CategoriesTab({
     <Card className="border-slate-200/80 bg-white/85 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/40">
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Categories</CardTitle>
+          <CardTitle>Danh mục</CardTitle>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search categories..."
+              placeholder="Tìm kiếm danh mục..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-4 rounded-xl h-9 w-full sm:w-[220px]"
@@ -47,7 +47,7 @@ export function CategoriesTab({
             className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
           >
             <FolderPlus className="h-4 w-4" />
-            Add category
+            Thêm danh mục
           </Button>
         </div>
       </CardHeader>
@@ -55,9 +55,9 @@ export function CategoriesTab({
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/70 dark:bg-slate-900/40">
-              <TableHead className="pl-6">Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="pr-6 text-right">Actions</TableHead>
+              <TableHead className="pl-6">Tên</TableHead>
+              <TableHead>Mô tả</TableHead>
+              <TableHead className="pr-6 text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -69,10 +69,10 @@ export function CategoriesTab({
                   <TableCell className="pr-6 align-top">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleOpenCategoryEdit(category)}>
-                        Edit
+                        Sửa
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDeleteCategory(category._id)}>
-                        Delete
+                        Xóa
                       </Button>
                     </div>
                   </TableCell>
@@ -81,7 +81,7 @@ export function CategoriesTab({
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="py-12 text-center text-muted-foreground">
-                  {data.categories.length ? 'No categories found matching your search.' : 'No categories available.'}
+                  {data.categories.length ? 'Không tìm thấy danh mục nào khớp với tìm kiếm.' : 'Không có danh mục nào.'}
                 </TableCell>
               </TableRow>
             )}

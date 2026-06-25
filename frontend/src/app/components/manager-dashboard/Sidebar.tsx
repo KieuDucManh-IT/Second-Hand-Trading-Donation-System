@@ -9,6 +9,7 @@ import {
   Package,
   ShieldCheck,
   Users,
+  Settings,
 } from 'lucide-react';
 import type { DashboardTab } from './managerDashboardTypes';
 
@@ -29,20 +30,20 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
           <ShieldCheck className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold">Manager Dashboard</h2>
+          <h2 className="text-lg font-semibold">Trang quản trị</h2>
         </div>
       </div>
       <div className="mt-6 rounded-3xl border border-emerald-200/70 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/25">
-        <p className="text-xs uppercase tracking-[0.25em] text-emerald-700 dark:text-emerald-300">Signed in as</p>
+        <p className="text-xs uppercase tracking-[0.25em] text-emerald-700 dark:text-emerald-300">Đăng nhập với tư cách</p>
         <p className="mt-2 text-lg font-semibold">{user.name}</p>
         <p className="text-sm text-muted-foreground">{user.role}</p>
         <div className="mt-4 flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
           <CircleAlert className="h-4 w-4" />
-          Live moderation center
+          Trung tâm kiểm duyệt trực tiếp
         </div>
       </div>
       <nav className="mt-6 space-y-2">
-        {(['products', 'reports', 'users', 'categories'] as DashboardTab[]).map((tab) => (
+        {(['products', 'reports', 'users', 'categories', 'config'] as DashboardTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -63,17 +64,25 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
                 {tab === 'reports' && <Flag className="h-4 w-4" />}
                 {tab === 'users' && <Users className="h-4 w-4" />}
                 {tab === 'categories' && <FolderPlus className="h-4 w-4" />}
+                {tab === 'config' && <Settings className="h-4 w-4" />}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+                  <span className="font-medium">
+                    {tab === 'products' && 'Sản phẩm'}
+                    {tab === 'reports' && 'Báo cáo'}
+                    {tab === 'users' && 'Người dùng'}
+                    {tab === 'categories' && 'Danh mục'}
+                    {tab === 'config' && 'Cấu hình'}
+                  </span>
                   {activeTab === tab ? <ArrowRight className="h-4 w-4 shrink-0" /> : null}
                 </div>
                 <p className={`mt-1 text-sm ${activeTab === tab ? 'text-white/80' : 'text-muted-foreground'}`}>
-                  {tab === 'products' && 'Moderation queue'}
-                  {tab === 'reports' && 'Resolve disputes'}
-                  {tab === 'users' && 'Manage accounts'}
-                  {tab === 'categories' && 'Organize inventory'}
+                  {tab === 'products' && 'Hàng đợi kiểm duyệt'}
+                  {tab === 'reports' && 'Giải quyết khiếu nại'}
+                  {tab === 'users' && 'Quản lý tài khoản'}
+                  {tab === 'categories' && 'Quản lý danh mục'}
+                  {tab === 'config' && 'Cấu hình hệ thống'}
                 </p>
               </div>
             </div>
@@ -90,7 +99,7 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
           }}
         >
           <LogOut className="h-4 w-4" />
-          Logout
+          Đăng xuất
         </Button>
       </div>
     </aside>

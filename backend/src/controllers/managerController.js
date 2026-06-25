@@ -3,6 +3,7 @@ const Category = require("../models/modelCategory");
 const Product = require("../models/modelProduct");
 const Report = require("../models/modelReport");
 const Order = require("../models/modelOrder");
+const SystemConfig = require("../models/modelSystemConfig");
 
 const validateInput = (value, fieldName, isDescription = false) => {
   if (!value || typeof value !== "string" || !value.trim()) {
@@ -444,6 +445,69 @@ const getStatistics = async (req, res) => {
   }
 };
 
+const getConfig = async (req, res) => {
+  try {
+    let config = await SystemConfig.findOne();
+    if (!config) {
+      config = await SystemConfig.create({ value: [] });
+    }
+    res.status(200).json({ success: true, keywords: config.value || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Không thể lấy cấu hình hệ thống", error: error.message });
+  }
+};
+
+const updateConfig = async (req, res) => {
+  try {
+    let { keywords } = req.body;
+    
+    let wordsArray = [];
+    if (Array.isArray(keywords)) {
+      wordsArray = keywords;
+    } else if (typeof keywords === 'string') {
+      wordsArray = keywords.split(/[,;]/);
+    } else {
+      return res.status(400).json({ success: false, message: "Danh sách từ khóa không hợp lệ" });
+    }
+
+    const cleanKeywords = [...new Set(wordsArray.map(k => typeof k === 'string' ? k.trim().toLowerCase() : '').filter(Boolean))];
+
+    let config = await SystemConfig.findOne();
+    if (!config) {
+      config = new SystemConfig({ value: cleanKeywords });
+    } else {
+      config.value = cleanKeywords;
+    }
+    await config.save();
+
+    res.status(200).json({ success: true, message: "Cập nhật cấu hình thành công", keywords: config.value });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Không thể cập nhật cấu hình hệ thống", error: error.message });
+  }
+};
+
+const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+
+    const ProductImage = require("../models/modelProductImage");
+    const { deleteFromCloudinary } = require("../config/cloudinary");
+    const images = await ProductImage.find({ productId: product._id });
+    await Promise.all(images.map((img) => {
+      if (img.publicId) {
+        return deleteFromCloudinary(img.publicId).catch(err => console.error("Cloudinary delete failed:", err));
+      }
+    }));
+    await ProductImage.deleteMany({ productId: product._id });
+    await product.deleteOne();
+
+    res.status(200).json({ message: "Xóa sản phẩm thành công" });
+  } catch (error) {
+    res.status(500).json({ message: "Không thể xóa sản phẩm", error: error.message });
+  }
+};
+
 module.exports = {
   getDashboard,
   updateUserStatus,
@@ -460,4 +524,7 @@ module.exports = {
   acceptReport,
   rejectReport,
   getStatistics,
+  getConfig,
+  updateConfig,
+  deleteProduct,
 };

@@ -17,6 +17,9 @@ const {
   acceptReport,
   rejectReport,
   getStatistics,
+  getConfig,
+  updateConfig,
+  deleteProduct,
 } = require("../controllers/managerController");
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
@@ -42,9 +45,15 @@ router.delete("/categories/:id", deleteCategory);
 router.get("/products", getAllProducts);
 router.get("/products/pending", getPendingProducts);
 router.patch("/products/:id/status", updateProductStatus);
+router.delete("/products/:id", deleteProduct);
 
 // Reports
 router.get("/reports", getReports);
 router.patch("/reports/:id/accept", acceptReport);
 router.patch("/reports/:id/reject", rejectReport);
+
+// System Config
+router.get("/config", getConfig);
+router.post("/config", updateConfig);
+
 module.exports = router;

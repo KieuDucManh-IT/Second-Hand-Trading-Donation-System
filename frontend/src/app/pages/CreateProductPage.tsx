@@ -12,22 +12,6 @@ import { useAuth } from '../contexts/AuthContext';
  
 const API_URL = 'http://localhost:5000/api';
  
-// ── Validate từ nhạy cảm PHÍA CLIENT (same list với backend) ─────────────────
-const SENSITIVE_WORDS = [
-  'súng', 'dao', 'vũ khí', 'bom', 'thuốc nổ', 'chất độc', 'ma túy', 'cần sa',
-  'heroin', 'cocaine', 'meth', 'thuốc lắc',
-  'sex', 'khiêu dâm', 'porn', 'nude', 'escort',
-  'hàng giả', 'hàng nhái', 'fake', 'đánh cắp', 'trộm cắp',
-  'tiền giả', 'rửa tiền',
-  'weapon', 'gun', 'knife', 'explosive', 'drug', 'stolen', 'counterfeit',
-];
- 
-function checkSensitive(text: string): string | null {
-  if (!text) return null;
-  const lower = text.toLowerCase();
-  return SENSITIVE_WORDS.find((w) => lower.includes(w.toLowerCase())) || null;
-}
- 
 interface Category {
   _id: string;
   name: string;
@@ -54,6 +38,7 @@ export function CreateProductPage() {
   // Ảnh preview (local URL) và file thật
   const [imageFiles, setImageFiles]     = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [forbiddenKeywords, setForbiddenKeywords] = useState<string[]>([]);
  
   const [errors, setErrors]   = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +72,28 @@ export function CreateProductPage() {
     };
     load();
   }, []);
+
+  // Load forbidden keywords từ API
+  useEffect(() => {
+    const loadForbidden = async () => {
+      try {
+        const res = await fetch(`${API_URL}/products/sensitive-words`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setForbiddenKeywords(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load sensitive words:', err);
+      }
+    };
+    loadForbidden();
+  }, []);
+
+  const checkSensitiveDynamic = (text: string): string | null => {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    return forbiddenKeywords.find((w) => lower.includes(w.toLowerCase())) || null;
+  };
  
   // ── Validate ─────────────────────────────────────────────────────────────────
   const validate = (): boolean => {
@@ -95,7 +102,7 @@ export function CreateProductPage() {
     if (!formData.title.trim()) {
       newErrors.title = 'Vui lòng nhập tiêu đề';
     } else {
-      const bad = checkSensitive(formData.title);
+      const bad = checkSensitiveDynamic(formData.title);
       if (bad) newErrors.title = `Tiêu đề chứa từ không được phép: "${bad}"`;
     }
  
@@ -104,7 +111,7 @@ export function CreateProductPage() {
     } else if (formData.description.trim().length < 20) {
       newErrors.description = 'Mô tả quá ngắn (ít nhất 20 ký tự)';
     } else {
-      const bad = checkSensitive(formData.description);
+      const bad = checkSensitiveDynamic(formData.description);
       if (bad) newErrors.description = `Mô tả chứa từ không được phép: "${bad}"`;
     }
  

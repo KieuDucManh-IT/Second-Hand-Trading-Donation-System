@@ -45,29 +45,24 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
 
   const selectedGroup = selectedTargetId ? groupedReportsMap[selectedTargetId] : null;
 
-  // Get all accepted reasons from reports of the same targetId that were accepted
-  const getAcceptedReasons = (targetId: string) => {
-    return data.reports.filter(
-      (r) => r.targetId === targetId && r.status === 'accept' && r.adminReason
-    );
-  };
+
 
   return (
     <>
       <Card className="border-slate-200/80 bg-white/85 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/40">
         <CardHeader>
-          <CardTitle>Reports management</CardTitle>
+          <CardTitle>Quản lý báo cáo</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/70 dark:bg-slate-900/40">
-                <TableHead className="pl-6">Reported Target</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Report Count</TableHead>
-                <TableHead>Current Warnings</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="pr-6 text-right">Actions</TableHead>
+                <TableHead className="pl-6">Đối tượng bị báo cáo</TableHead>
+                <TableHead>Loại</TableHead>
+                <TableHead>Số lượt báo cáo</TableHead>
+                <TableHead>Cảnh cáo hiện tại</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className="pr-6 text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +75,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                       {/* Target */}
                       <TableCell className="pl-6 align-middle font-medium">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
-                          {group.targetName}
+                          {group.targetName === 'Unknown Target' ? 'Không rõ' : group.targetName}
                         </div>
                         <div className="text-[11px] text-slate-400">ID: {group.targetId}</div>
                       </TableCell>
@@ -92,7 +87,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                             : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
                         }`}>
-                          {group.targetType === 'product' ? 'Product' : 'User'}
+                          {group.targetType === 'product' ? 'Sản phẩm' : 'Người dùng'}
                         </span>
                       </TableCell>
 
@@ -110,11 +105,11 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                       <TableCell className="align-middle">
                         {hasPending ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 dark:bg-rose-900/25 dark:text-rose-400">
-                            Pending
+                            Chờ duyệt
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/25 dark:text-emerald-400">
-                            Resolved
+                            Đã giải quyết
                           </span>
                         )}
                       </TableCell>
@@ -128,7 +123,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                               variant="outline"
                               className="h-9 w-9 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-800"
                               onClick={() => navigate(`/products/${group.targetId}`, { state: { from: 'manager', tab: 'reports' } })}
-                              title="View product details"
+                              title="Xem chi tiết sản phẩm"
                             >
                               <Eye className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                             </Button>
@@ -138,7 +133,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                             variant="outline"
                             className="h-9 w-9 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-800 relative"
                             onClick={() => setSelectedTargetId(group.targetId)}
-                            title={`View report details (${group.reports.length})`}
+                            title={`Xem chi tiết báo cáo (${group.reports.length})`}
                           >
                             <Flag className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                             {group.reports.length > 0 && (
@@ -155,7 +150,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                    No reports found.
+                    Không tìm thấy báo cáo nào.
                   </TableCell>
                 </TableRow>
               )}
@@ -169,10 +164,10 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
         <DialogContent className="max-w-2xl rounded-3xl border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95 max-h-[85vh] overflow-y-auto">
           <DialogHeader className="text-left">
             <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-50">
-              Grouped Report Details
+              Chi tiết báo cáo được nhóm
             </DialogTitle>
             <DialogDescription className="text-slate-500 dark:text-slate-400 text-xs">
-              View all user reports and resolution history for this item
+              Xem tất cả báo cáo của người dùng và lịch sử giải quyết cho mục này
             </DialogDescription>
           </DialogHeader>
 
@@ -181,29 +176,29 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
               {/* Target info */}
               <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 space-y-2 border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Reported Target</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Đối tượng bị báo cáo</span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
                     selectedGroup.targetType === 'product'
                       ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                       : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
                   }`}>
-                    {selectedGroup.targetType === 'product' ? 'Product' : 'User'}
+                    {selectedGroup.targetType === 'product' ? 'Sản phẩm' : 'Người dùng'}
                   </span>
                 </div>
                 <div className="text-base font-bold text-slate-900 dark:text-slate-50">
-                  {selectedGroup.targetName}
+                  {selectedGroup.targetName === 'Unknown Target' ? 'Không rõ' : selectedGroup.targetName}
                 </div>
                 <div className="text-xs text-slate-400">ID: {selectedGroup.targetId}</div>
                 <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center mt-1">
                   <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-                  Total warnings of this target: {selectedGroup.targetWarnings}
+                  Tổng số cảnh cáo của đối tượng này: {selectedGroup.targetWarnings}
                 </div>
               </div>
 
               {/* Reports List */}
               <div>
                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center">
-                  Reports List ({selectedGroup.reports.length})
+                  Danh sách báo cáo ({selectedGroup.reports.length})
                 </h4>
                 <div className="space-y-3">
                   {selectedGroup.reports.map((report) => (
@@ -217,20 +212,20 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                             {report.reporterName}
                           </span>
                           <span className="text-xs text-slate-400">
-                            • {new Date(report.createdAt).toLocaleString('en-US')}
+                            • {new Date(report.createdAt).toLocaleString('vi-VN')}
                           </span>
                         </div>
                         <StatusBadge status={report.status} />
                       </div>
                       
                       <div className="text-sm text-slate-600 dark:text-gray-300 bg-slate-50/55 dark:bg-slate-950/20 p-2.5 rounded-xl border border-slate-100/50 dark:border-slate-900">
-                        <span className="text-xs text-slate-400 font-medium block mb-1">Report Reason:</span>
+                        <span className="text-xs text-slate-400 font-medium block mb-1">Lý do báo cáo:</span>
                         {report.reason}
                       </div>
 
                       {report.adminReason && (
                         <div className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/10 p-2 rounded-xl border border-emerald-100/40">
-                          <span className="font-semibold">Admin Reason:</span> {report.adminReason}
+                          <span className="font-semibold">Lý do:</span> {report.adminReason}
                         </div>
                       )}
 
@@ -241,7 +236,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                             className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
                             onClick={() => updateReportStatus(report.id, 'accept')}
                           >
-                            Accept (Warn)
+                            Chấp nhận (Cảnh cáo)
                           </Button>
                           <Button
                             size="sm"
@@ -249,7 +244,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                             className="h-8"
                             onClick={() => updateReportStatus(report.id, 'reject')}
                           >
-                            Reject
+                            Từ chối
                           </Button>
                         </div>
                       )}
@@ -258,51 +253,12 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                 </div>
               </div>
 
-              {/* Accepted Reports History */}
-              {(() => {
-                const acceptedReasons = getAcceptedReasons(selectedGroup.targetId);
-                return (
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3">
-                      Accepted Reports History ({acceptedReasons.length})
-                    </h4>
-                    {acceptedReasons.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 py-6 text-center text-sm text-slate-400">
-                        No reports have been accepted for this target yet.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {acceptedReasons.map((r, idx) => (
-                          <div
-                            key={r.id}
-                            className="rounded-2xl border border-emerald-100 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-950/20 p-3"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shrink-0">
-                                  {idx + 1}
-                                </span>
-                                <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">{r.adminReason}</p>
-                              </div>
-                              <span className="text-[11px] text-slate-400 whitespace-nowrap shrink-0">
-                                {new Date(r.createdAt).toLocaleDateString('en-US')}
-                              </span>
-                            </div>
-                            <div className="ml-7 mt-1 text-xs text-slate-400">
-                              Reported by: {r.reporterName}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+
 
               {/* Close Button */}
               <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
                 <Button variant="outline" type="button" onClick={() => setSelectedTargetId(null)}>
-                  Close
+                  Đóng
                 </Button>
               </div>
             </div>
