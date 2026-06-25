@@ -29,13 +29,13 @@ export function UsersTab({
     <Card className="border-slate-200/80 bg-white/85 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/40">
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>User management</CardTitle>
+          <CardTitle>Quản lý người dùng</CardTitle>
         </div>
         <div className="relative w-full sm:w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search users by name or email..."
+            placeholder="Tìm kiếm người dùng..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-4 rounded-xl h-9 w-full"
@@ -46,12 +46,12 @@ export function UsersTab({
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/70 dark:bg-slate-900/40">
-              <TableHead className="pl-6">Name</TableHead>
+              <TableHead className="pl-6">Tên</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="pr-6 text-right">Actions</TableHead>
+              <TableHead>Vai trò</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead>Ngày tham gia</TableHead>
+              <TableHead className="pr-6 text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -62,17 +62,17 @@ export function UsersTab({
                   <TableCell className="align-top">{member.email}</TableCell>
                   <TableCell className="align-top">
                     <Badge variant="secondary" className="rounded-full capitalize">
-                      {member.role}
+                      {member.role === 'admin' ? 'Quản trị viên' : member.role === 'manager' ? 'Quản lý' : member.role === 'user' ? 'Người dùng' : member.role}
                     </Badge>
                   </TableCell>
                   <TableCell className="align-top">
                     {(!member.status || member.status === 'active') ? (
                       <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600 capitalize">
-                        active
+                        Hoạt động
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="rounded-full capitalize">
-                        {member.status}
+                        {member.status === 'banned' ? 'Bị khóa' : member.status}
                       </Badge>
                     )}
                   </TableCell>
@@ -92,13 +92,13 @@ export function UsersTab({
                             size="sm"
                             variant="destructive"
                             onClick={() => {
-                              if (window.confirm(`Ban account "${member.name}"? This can be reversed later.`)) {
+                              if (window.confirm(`Khóa tài khoản "${member.name}"? Bạn có thể mở khóa lại sau.`)) {
                                 updateUserStatus(member.id, 'banned');
                               }
                             }}
                           >
                             <Ban className="h-4 w-4" />
-                            Ban
+                            Khóa
                           </Button>
                         ) : null}
                         {member.status === 'banned' ? (
@@ -108,12 +108,12 @@ export function UsersTab({
                             onClick={() => updateUserStatus(member.id, 'active')}
                           >
                             <UserCheck className="h-4 w-4" />
-                            Restore
+                            Khôi phục
                           </Button>
                         ) : null}
                       </div>
                     ) : (
-                      <span className="text-xs italic text-muted-foreground">Current account</span>
+                      <span className="text-xs italic text-muted-foreground">Tài khoản hiện tại</span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -121,7 +121,7 @@ export function UsersTab({
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                  {data.users.length ? 'No users found matching your search.' : 'No users loaded.'}
+                  {data.users.length ? 'Không tìm thấy người dùng nào khớp với tìm kiếm.' : 'Không có người dùng nào được tải.'}
                 </TableCell>
               </TableRow>
             )}

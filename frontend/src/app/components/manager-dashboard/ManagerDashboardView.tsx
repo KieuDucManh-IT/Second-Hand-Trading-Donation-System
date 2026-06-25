@@ -109,7 +109,10 @@ export function ManagerDashboardView(props: DashboardViewProps) {
                             value={tab}
                             className="rounded-xl py-3 text-sm font-medium data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-slate-900"
                           >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            {tab === 'products' && 'Sản phẩm'}
+                            {tab === 'reports' && 'Báo cáo'}
+                            {tab === 'users' && 'Người dùng'}
+                            {tab === 'categories' && 'Danh mục'}
                           </TabsTrigger>
                         )
                       )}

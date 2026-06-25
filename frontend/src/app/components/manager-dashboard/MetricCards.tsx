@@ -12,30 +12,30 @@ export function MetricCards({ data, activeUsersCount, pendingReportsCount }: Met
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <MetricCard
-        title="Total users"
+        title="Tổng số người dùng"
         value={data.statistics.totalUsers}
-        note={`Active: ${activeUsersCount}`}
+        note={`Đang hoạt động: ${activeUsersCount}`}
         icon={Users}
         accent="from-emerald-500 to-teal-500"
       />
       <MetricCard
-        title="Products"
+        title="Sản phẩm"
         value={data.statistics.totalProducts}
-        note={`Pending review: ${data.pendingProducts.length}`}
+        note={`Chờ kiểm duyệt: ${data.pendingProducts.length}`}
         icon={Package}
         accent="from-sky-500 to-indigo-500"
       />
       <MetricCard
-        title="Reports"
+        title="Báo cáo"
         value={data.statistics.totalReports}
-        note={`Open queue: ${pendingReportsCount}`}
+        note={`Hàng đợi mở: ${pendingReportsCount}`}
         icon={Flag}
         accent="from-amber-500 to-orange-500"
       />
       <MetricCard
-        title="Transactions"
+        title="Giao dịch"
         value={data.statistics.totalTransactions}
-        note={`Orders: ${data.statistics.totalOrders}`}
+        note={`Đơn hàng: ${data.statistics.totalOrders}`}
         icon={BarChart3}
         accent="from-violet-500 to-fuchsia-500"
       />
