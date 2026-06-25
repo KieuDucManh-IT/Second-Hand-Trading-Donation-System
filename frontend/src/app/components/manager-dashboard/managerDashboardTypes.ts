@@ -57,7 +57,7 @@ export type ManagerDashboardData = {
   statistics: DashboardStatistics;
 };
 
-export type DashboardTab = 'products' | 'reports' | 'users' | 'categories';
+export type DashboardTab = 'products' | 'reports' | 'users' | 'categories' | 'config';
 
 export const emptyData: ManagerDashboardData = {
   users: [],

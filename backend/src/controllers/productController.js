@@ -1,30 +1,39 @@
 const Product      = require('../models/modelProduct');
 const ProductImage = require('../models/modelProductImage');
 const { deleteFromCloudinary } = require('../config/cloudinary');
+const SystemConfig = require('../models/modelSystemConfig');
  
 
-const SENSITIVE_WORDS = [
-  
-  'súng', 'dao', 'vũ khí', 'bom', 'thuốc nổ', 'chất độc', 'ma túy', 'cần sa',
-  'heroin', 'cocaine', 'meth', 'thuốc lắc',
- 
-  'sex', 'khiêu dâm', 'porn', 'nude', 'escort',
- 
-  'hàng giả', 'hàng nhái', 'fake', 'đánh cắp', 'trộm cắp',
- 
-  'tiền giả', 'rửa tiền',
- 
-  'weapon', 'gun', 'knife', 'explosive', 'drug', 'stolen', 'counterfeit',
-];
+const getSensitiveWords = async () => {
+  try {
+    const config = await SystemConfig.findOne();
+    if (config && Array.isArray(config.value)) {
+      return config.value;
+    }
+  } catch (err) {
+    console.error('Error fetching sensitive words from DB:', err);
+  }
+  return [];
+};
  
 /**
  * Kiểm tra văn bản có chứa từ nhạy cảm không
- * @returns {string|null} từ vi phạm đầu tiên, hoặc null nếu sạch
+ * @returns {Promise<string|null>} từ vi phạm đầu tiên, hoặc null nếu sạch
  */
-const findSensitiveWord = (text) => {
+const findSensitiveWord = async (text) => {
   if (!text) return null;
   const lower = text.toLowerCase();
-  return SENSITIVE_WORDS.find((word) => lower.includes(word.toLowerCase())) || null;
+  const words = await getSensitiveWords();
+  return words.find((word) => lower.includes(word.toLowerCase())) || null;
+};
+
+exports.getSensitiveWordsRoute = async (req, res, next) => {
+  try {
+    const words = await getSensitiveWords();
+    res.json({ success: true, data: words });
+  } catch (err) {
+    next(err);
+  }
 };
  
 
@@ -67,7 +76,7 @@ exports.createProduct = async (req, res, next) => {
     }
  
     // ── Content moderation ───────────────────────────────────────────────────
-    const violationInTitle = findSensitiveWord(title);
+    const violationInTitle = await findSensitiveWord(title);
     if (violationInTitle) {
       return res.status(400).json({
         success: false,
@@ -76,7 +85,7 @@ exports.createProduct = async (req, res, next) => {
       });
     }
  
-    const violationInDesc = findSensitiveWord(description);
+    const violationInDesc = await findSensitiveWord(description);
     if (violationInDesc) {
       return res.status(400).json({
         success: false,
@@ -283,11 +292,11 @@ exports.updateProduct = async (req, res, next) => {
     const textChanged = req.body.title !== undefined || req.body.description !== undefined;
  
     if (req.body.title) {
-      const v = findSensitiveWord(req.body.title);
+      const v = await findSensitiveWord(req.body.title);
       if (v) return res.status(400).json({ success: false, message: `Tiêu đề chứa từ không được phép: "${v}"`, field: 'title' });
     }
     if (req.body.description) {
-      const v = findSensitiveWord(req.body.description);
+      const v = await findSensitiveWord(req.body.description);
       if (v) return res.status(400).json({ success: false, message: `Mô tả chứa từ không được phép: "${v}"`, field: 'description' });
     }
  

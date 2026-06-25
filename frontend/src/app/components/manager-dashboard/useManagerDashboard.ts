@@ -271,7 +271,6 @@ export function useManagerDashboard() {
     refreshDashboard();
   }, [isAuthReady, user]);
 
-  const warningCount = data.statistics.warningUsers;
   const pendingReportsCount = data.reports.filter(
     (report) => report.status === 'pending' || report.status === 'reviewing'
   ).length;
@@ -290,9 +289,7 @@ export function useManagerDashboard() {
     refreshDashboard,
     showAllProducts,
     setShowAllProducts,
-    allProductsList,
     productViewList,
-    warningCount,
     pendingReportsCount,
     activeUsersCount,
     isCategoryModalOpen,

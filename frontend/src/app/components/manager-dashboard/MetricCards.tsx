@@ -28,7 +28,7 @@ export function MetricCards({ data, activeUsersCount, pendingReportsCount }: Met
       <MetricCard
         title="Báo cáo"
         value={data.statistics.totalReports}
-        note={`Hàng đợi mở: ${pendingReportsCount}`}
+        note={`Đã xử lý: ${pendingReportsCount}`}
         icon={Flag}
         accent="from-amber-500 to-orange-500"
       />
