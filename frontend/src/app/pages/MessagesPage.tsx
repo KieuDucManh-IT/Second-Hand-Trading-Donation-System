@@ -33,7 +33,7 @@ function initials(name?: string | null) {
     .join('')
     .toUpperCase();
 }
-
+ 
 // Luôn sắp xếp tin nhắn theo thời gian tạo (cũ -> mới) để tránh hiển thị
 // sai thứ tự dù dữ liệu đến từ API hay socket theo thứ tự nào.
 function sortByTime(msgs: ApiMessage[]): ApiMessage[] {
@@ -76,19 +76,19 @@ export function MessagesPage() {
   /* ── Kết nối Socket.IO ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!isAuthenticated) return;
-
+ 
     const socket = connectSocket();
     socketRef.current = socket;
-
+ 
     const onConnectError = (err: Error) => {
       console.error('Socket connect error:', err.message);
     };
-
-    const onNewMessage = ({ conversationId, message }: { conversationId: string; message: ApiMessage }) => {
+ 
+    const onNewMessage = ({ conversationId, message, participant }: { conversationId: string; message: ApiMessage; participant?: { id: string; name: string; avatar: string } | null }) => {
       setMessages((prev) => {
         if (conversationId !== selectedConvIdRef.current) return prev;
         if (prev.some((m) => m._id === message._id)) return prev;
-
+ 
         // Tin nhắn của chính mình → thay thế bản "optimistic" (temp) thay vì thêm mới,
         // tránh hiện trùng 2 bong bóng cho 1 tin nhắn vừa gửi.
         if (message.senderId === user?.id) {
@@ -101,48 +101,68 @@ export function MessagesPage() {
             return sortByTime(next);
           }
         }
-
+ 
         return sortByTime([...prev, message]);
       });
-
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId
-            ? {
-                ...c,
-                lastMessage: message.content,
-                lastMessageAt: message.createdAt,
-                unreadCount: conversationId === selectedConvIdRef.current ? 0 : c.unreadCount + 1,
-              }
-            : c
-        )
-      );
-
+ 
+      setConversations((prev) => {
+        const exists = prev.some((c) => c.id === conversationId);
+        if (exists) {
+          return prev.map((c) =>
+            c.id === conversationId
+              ? {
+                  ...c,
+                  // Nếu participant chưa có (null), cập nhật từ socket data
+                  participant: c.participant ?? participant ?? null,
+                  lastMessage: message.content,
+                  lastMessageAt: message.createdAt,
+                  unreadCount: conversationId === selectedConvIdRef.current ? 0 : c.unreadCount + 1,
+                }
+              : c
+          );
+        }
+        // Conversation chưa có trong danh sách (tin nhắn mới từ người lạ) → thêm vào
+        return [
+          {
+            id: conversationId,
+            productId: null,
+            productTitle: null,
+            productImage: null,
+            participant: participant ?? null,
+            lastMessage: message.content,
+            lastMessageAt: message.createdAt,
+            lastMessageSender: message.senderId,
+            unreadCount: conversationId === selectedConvIdRef.current ? 0 : 1,
+          },
+          ...prev,
+        ];
+      });
+ 
       if (conversationId === selectedConvIdRef.current) {
         markConversationAsRead(conversationId).catch(() => {});
       }
     };
-
+ 
     const onUserTyping = ({ conversationId, userId, isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
       if (conversationId === selectedConvIdRef.current) {
         setTypingUsers((prev) => ({ ...prev, [userId]: isTyping }));
       }
     };
-
+ 
     const onMessagesRead = ({ conversationId }: { conversationId: string }) => {
       if (conversationId === selectedConvIdRef.current) {
         setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
       }
     };
-
+ 
     const onErrorMessage = ({ message: msg }: { message: string }) => {
       toast.error(msg);
     };
-
+ 
     const onUserOnline = ({ userId }: { userId: string }) => {
       setOnlineUserIds((prev) => new Set(prev).add(userId));
     };
-
+ 
     const onUserOffline = ({ userId }: { userId: string }) => {
       setOnlineUserIds((prev) => {
         const next = new Set(prev);
@@ -150,7 +170,7 @@ export function MessagesPage() {
         return next;
       });
     };
-
+ 
     socket.on('connect_error', onConnectError);
     socket.on('new_message', onNewMessage);
     socket.on('user_typing', onUserTyping);
@@ -158,7 +178,7 @@ export function MessagesPage() {
     socket.on('error_message', onErrorMessage);
     socket.on('user_online', onUserOnline);
     socket.on('user_offline', onUserOffline);
-
+ 
     return () => {
       socket.off('connect_error', onConnectError);
       socket.off('new_message', onNewMessage);

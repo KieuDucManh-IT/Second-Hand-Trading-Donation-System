@@ -1,16 +1,16 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-
+ 
 const User         = require('../models/modelUser');
 const Conversation = require('../models/modelConversation');
 const Message      = require('../models/modelMessage');
-
+ 
 // ── Theo dõi user online trong bộ nhớ ─────────────────────────────────────
 // userId -> số lượng kết nối (1 user có thể mở nhiều tab/thiết bị)
 // Dùng đếm số socket thay vì cờ true/false để tránh báo "offline" nhầm khi
 // user chỉ đóng 1 trong nhiều tab đang mở.
 const onlineUsers = new Map();
-
+ 
 const markUserOnline = (io, userId) => {
   const count = onlineUsers.get(userId) || 0;
   onlineUsers.set(userId, count + 1);
@@ -18,7 +18,7 @@ const markUserOnline = (io, userId) => {
     io.emit('user_online', { userId });
   }
 };
-
+ 
 const markUserOffline = (io, userId) => {
   const count = onlineUsers.get(userId) || 0;
   if (count <= 1) {
@@ -28,7 +28,7 @@ const markUserOffline = (io, userId) => {
     onlineUsers.set(userId, count - 1);
   }
 };
-
+ 
 /**
  * Khởi tạo Socket.IO, gắn middleware xác thực JWT và đăng ký các event chat.
  * @param {import('http').Server} httpServer
@@ -41,40 +41,40 @@ const initChatSocket = (httpServer) => {
       methods: ['GET', 'POST'],
     },
   });
-
+ 
   // ── Middleware xác thực: client gửi token qua socket.handshake.auth.token ──
   io.use(async (socket, next) => {
     try {
       const token =
         socket.handshake.auth?.token ||
         socket.handshake.headers?.authorization?.split(' ')[1];
-
+ 
       if (!token) {
         return next(new Error('Không có token xác thực'));
       }
-
+ 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('-password');
-
+ 
       if (!user) {
         return next(new Error('Tài khoản không tồn tại'));
       }
-
+ 
       socket.user = user;
       next();
     } catch (err) {
       next(new Error('Token không hợp lệ hoặc đã hết hạn'));
     }
   });
-
+ 
   io.on('connection', (socket) => {
     const userId = socket.user._id.toString();
-
+ 
     // Mỗi user có 1 room riêng -> server có thể emit tới mọi tab/thiết bị của user đó
     socket.join(`user:${userId}`);
-
+ 
     markUserOnline(io, userId);
-
+ 
     // ── Cho client hỏi trạng thái online của 1 danh sách user (lúc mới mở trang) ──
     socket.on('get_online_status', (userIds = [], callback) => {
       const result = {};
@@ -83,7 +83,7 @@ const initChatSocket = (httpServer) => {
       });
       if (typeof callback === 'function') callback(result);
     });
-
+ 
     // ── Tham gia phòng của một cuộc trò chuyện cụ thể ──────────────────────
     socket.on('join_conversation', async (conversationId) => {
       try {
@@ -91,63 +91,74 @@ const initChatSocket = (httpServer) => {
         if (!conv) return;
         const isParticipant = conv.participants.some((p) => p.toString() === userId);
         if (!isParticipant) return;
-
+ 
         socket.join(`conversation:${conversationId}`);
       } catch (err) {
         socket.emit('error_message', { message: 'Không thể tham gia cuộc trò chuyện' });
       }
     });
-
+ 
     socket.on('leave_conversation', (conversationId) => {
       socket.leave(`conversation:${conversationId}`);
     });
-
+ 
     // ── Gửi tin nhắn realtime ───────────────────────────────────────────────
     socket.on('send_message', async ({ conversationId, content }) => {
       try {
         if (!content || !content.trim()) return;
-
-        const conv = await Conversation.findById(conversationId);
+ 
+        const conv = await Conversation.findById(conversationId)
+          .populate('participants', 'fullName avatar');
         if (!conv) {
           return socket.emit('error_message', { message: 'Không tìm thấy cuộc trò chuyện' });
         }
-        const isParticipant = conv.participants.some((p) => p.toString() === userId);
+        const isParticipant = conv.participants.some((p) => p._id.toString() === userId);
         if (!isParticipant) {
           return socket.emit('error_message', { message: 'Bạn không có quyền gửi tin nhắn ở đây' });
         }
-
+ 
         const message = await Message.create({
           conversationId,
           senderId: userId,
           content: content.trim(),
         });
-
+ 
         conv.lastMessage = content.trim();
         conv.lastMessageAt = message.createdAt;
         conv.lastMessageSender = userId;
-
+ 
         conv.participants.forEach((p) => {
-          const pid = p.toString();
+          const pid = p._id.toString();
           if (pid !== userId) {
             const current = conv.unreadCounts?.get(pid) || 0;
             conv.unreadCounts.set(pid, current + 1);
           }
         });
-
+ 
         await conv.save();
-
-        // Gửi cho tất cả participant (kể cả các tab khác của chính người gửi)
+ 
+        // Gửi cho tất cả participant kèm thông tin participant để frontend hiển thị tên/avatar
         conv.participants.forEach((p) => {
-          io.to(`user:${p.toString()}`).emit('new_message', {
+          const receiverId = p._id.toString();
+          // Với mỗi người nhận, "participant" là người còn lại (người gửi)
+          const otherParticipant = conv.participants.find(
+            (op) => op._id.toString() !== receiverId
+          );
+          const participantInfo = otherParticipant
+            ? { id: otherParticipant._id, name: otherParticipant.fullName || otherParticipant.userName || '', avatar: otherParticipant.avatar || '' }
+            : null;
+ 
+          io.to(`user:${receiverId}`).emit('new_message', {
             conversationId,
             message,
+            participant: participantInfo,
           });
         });
       } catch (err) {
         socket.emit('error_message', { message: 'Không thể gửi tin nhắn', error: err.message });
       }
     });
-
+ 
     // ── Trạng thái đang nhập ─────────────────────────────────────────────────
     socket.on('typing', ({ conversationId, isTyping }) => {
       socket.to(`conversation:${conversationId}`).emit('user_typing', {
@@ -156,7 +167,7 @@ const initChatSocket = (httpServer) => {
         isTyping: !!isTyping,
       });
     });
-
+ 
     // ── Đánh dấu đã đọc ───────────────────────────────────────────────────────
     socket.on('mark_as_read', async ({ conversationId }) => {
       try {
@@ -164,19 +175,19 @@ const initChatSocket = (httpServer) => {
         if (!conv) return;
         const isParticipant = conv.participants.some((p) => p.toString() === userId);
         if (!isParticipant) return;
-
+ 
         conv.unreadCounts.set(userId, 0);
         await conv.save();
-
+ 
         // Đọc xong -> hẹn giờ tự xóa khỏi DB sau 2 tháng (theo yêu cầu).
         const expireAt = new Date();
         expireAt.setMonth(expireAt.getMonth() + 2);
-
+ 
         await Message.updateMany(
           { conversationId, senderId: { $ne: userId }, isRead: false },
           { $set: { isRead: true, expireAt } }
         );
-
+ 
         conv.participants.forEach((p) => {
           if (p.toString() !== userId) {
             io.to(`user:${p.toString()}`).emit('messages_read', {
@@ -189,13 +200,13 @@ const initChatSocket = (httpServer) => {
         socket.emit('error_message', { message: 'Không thể cập nhật trạng thái đã đọc' });
       }
     });
-
+ 
     socket.on('disconnect', () => {
       markUserOffline(io, userId);
     });
   });
-
+ 
   return io;
 };
-
+ 
 module.exports = { initChatSocket };

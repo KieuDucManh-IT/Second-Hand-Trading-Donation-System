@@ -52,8 +52,8 @@ export function BuyNowModal({ open, onClose, product }: BuyNowModalProps) {
           ) : (
             <div className="w-20 h-20 rounded-lg bg-secondary shrink-0" />
           )}
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{product.title}</p>
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <p className="font-medium text-sm leading-snug line-clamp-2 break-words">{product.title}</p>
             {product.sellerName && (
               <p className="text-sm text-muted-foreground mt-0.5">
                 Người bán: {product.sellerName}
