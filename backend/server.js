@@ -14,7 +14,7 @@ const categoryRoute = require("./src/routes/categoryRoute");
 const reportRoute = require("./src/routes/reportRoute");
 const chatRoute = require("./src/routes/chatRoute");
 const cartRoute  = require('./src/routes/cartRoute');
-const orderRoute = require('./src/routes/orderRoute');
+const orderRoute = require('./src/routes/orderRoutes');
 
 const { initChatSocket } = require("./src/sockets/chatSocket");
 const walletRoutes = require("./src/routes/walletRoutes");

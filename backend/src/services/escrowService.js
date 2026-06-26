@@ -636,4 +636,65 @@ module.exports = {
   buyerConfirmReceived,
   openOrderDispute,
   autoReleaseExpiredOrders,
+  autoCancelExpiredPendingOrders,
+  rateSeller,
 };
+
+// ── Auto cancel pending orders past 24h payment deadline ──────────────────
+async function autoCancelExpiredPendingOrders() {
+  const now = new Date();
+  const expired = await Order.find({
+    $or: [{ status: "pending" }, { orderStatus: "pending" }, { orderStatus: "pending_seller_confirm" }],
+    paymentStatus: { $ne: "paid" },
+    paymentDeadline: { $lt: now },
+  });
+
+  let cancelled = 0;
+  for (const order of expired) {
+    try {
+      setOrderStatus(order, "cancelled");
+      order.cancelReason = "Hết hạn thanh toán (24h)";
+      order.cancelledAt = now;
+      await order.save();
+
+      // Trả sản phẩm về available
+      await Product.findByIdAndUpdate(order.productId, {
+        status: "available",
+        isAvailable: true,
+      });
+      cancelled++;
+    } catch (e) {
+      console.error("[autoCancelExpiredPending] error:", e.message);
+    }
+  }
+  return { cancelled, total: expired.length };
+}
+
+
+async function rateSeller(orderId, buyerId, rating, comment) {
+  const order = await Order.findById(orderId);
+  if (!order) throw new Error("Không tìm thấy đơn hàng");
+  if (!sameId(order.buyerId, buyerId)) throw new Error("Bạn không phải người mua đơn này");
+
+  const currentStatus = getOrderStatus(order);
+  if (currentStatus !== "completed") throw new Error("Chỉ có thể đánh giá sau khi đơn hàng hoàn thành");
+  if (order.sellerRating && order.sellerRating.rating) throw new Error("Bạn đã đánh giá đơn hàng này rồi");
+
+  if (!rating || rating < 1 || rating > 5) throw new Error("Điểm đánh giá phải từ 1 đến 5");
+
+  order.sellerRating = { rating, comment: comment || "", ratedAt: new Date() };
+  await order.save();
+
+  
+  const User = require("../models/modelUser");
+  const ratedOrders = await Order.find({
+    sellerId: order.sellerId,
+    "sellerRating.rating": { $exists: true, $gt: 0 },
+  });
+  if (ratedOrders.length > 0) {
+    const avg = ratedOrders.reduce((sum, o) => sum + (o.sellerRating?.rating || 0), 0) / ratedOrders.length;
+    await User.findByIdAndUpdate(order.sellerId, { rating: Math.round(avg * 10) / 10 });
+  }
+
+  return order;
+}

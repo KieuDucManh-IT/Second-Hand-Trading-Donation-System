@@ -21,5 +21,8 @@ router.post("/:orderId/dispute", protect, orderEscrowController.openOrderDispute
 
 // Admin / Manual trigger for auto release
 router.post("/auto-release", protect, orderEscrowController.manualRunAutoRelease);
+router.post("/auto-cancel-pending", protect, orderEscrowController.manualRunAutoCancelPending);
+router.post("/:orderId/rate-seller", protect, orderEscrowController.rateSeller);
 
 module.exports = router;
+ 

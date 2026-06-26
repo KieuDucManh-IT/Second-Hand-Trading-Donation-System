@@ -99,18 +99,35 @@ const orderSchema = new mongoose.Schema(
  
     cancelReason: String,
     releaseReason: String,
+
+   
+    paymentDeadline: Date,
+
+    
+    sellerRating: {
+      rating: { type: Number, min: 1, max: 5 },
+      comment: { type: String },
+      ratedAt: { type: Date },
+    },
   },
   {
     timestamps: true,
   }
 );
  
-// Tự tính phí trước khi lưu
+
 orderSchema.pre("validate", function () {
   if (this.isNew && this.totalPrice != null) {
     const rate = this.platformFeeRate ?? PLATFORM_FEE_RATE;
     this.platformFee    = Math.round(this.totalPrice * rate);
     this.sellerReceives = this.totalPrice - this.platformFee;
+
+    
+    if (!this.paymentDeadline) {
+      const deadline = new Date();
+      deadline.setHours(deadline.getHours() + 24);
+      this.paymentDeadline = deadline;
+    }
   }
 });
  

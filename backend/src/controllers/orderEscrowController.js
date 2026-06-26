@@ -100,6 +100,29 @@ exports.manualRunAutoRelease = async (req, res) => {
   }
 };
 
+// Cron: tự động huỷ đơn pending quá 24h chưa thanh toán
+exports.manualRunAutoCancelPending = async (req, res) => {
+  try {
+    const result = await escrowService.autoCancelExpiredPendingOrders();
+    res.json({ success: true, message: "Đã huỷ các đơn hàng quá hạn thanh toán", result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || "Không thể chạy auto cancel" });
+  }
+};
+
+// Buyer đánh giá người bán sau khi đơn hoàn thành
+exports.rateSeller = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { orderId } = req.params;
+    const { rating, comment } = req.body;
+    const order = await escrowService.rateSeller(orderId, userId, rating, comment);
+    res.json({ success: true, message: "Đã đánh giá người bán thành công", order });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message || "Không thể đánh giá" });
+  }
+};
+
 const Order = require("../models/modelOrder");
 const Product = require("../models/modelProduct");
 
