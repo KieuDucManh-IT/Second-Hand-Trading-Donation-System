@@ -24,6 +24,16 @@ const donationSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    rejectReason: {
+  type: String,
+  default: "",
+},
+
+deliveryStatus: {
+    type: String,
+    enum: ["shipping", "delivered"],
+    default: "shipping",
+},
 
     status: {
       type: String,

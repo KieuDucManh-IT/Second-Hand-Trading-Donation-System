@@ -29,4 +29,9 @@ router.put(
   donationController.rejectDonation
 );
 
+router.put(
+  "/delivery/:id",
+  donationController.updateDeliveryStatus
+);
+
 module.exports = router;

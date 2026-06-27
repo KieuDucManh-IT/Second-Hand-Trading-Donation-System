@@ -23,6 +23,7 @@ exports.acceptDonation = async (req, res) => {
       req.params.id,
       {
         status: "accepted",
+        deliveryStatus: "shipping",
         acceptedAt: new Date(),
       },
       { new: true }
@@ -42,6 +43,7 @@ exports.rejectDonation = async (req, res) => {
       req.params.id,
       {
         status: "rejected",
+        rejectReason: req.body.reason,
         rejectedAt: new Date(),
       },
       { new: true }
@@ -77,6 +79,24 @@ exports.getMyDonations = async (req, res) => {
       .populate("requesterId");
 
     res.status(200).json(donations);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+exports.updateDeliveryStatus = async (req, res) => {
+  try {
+    const donation = await Donation.findByIdAndUpdate(
+      req.params.id,
+      {
+        deliveryStatus: req.body.deliveryStatus,
+      },
+      { new: true }
+    );
+
+    res.status(200).json(donation);
   } catch (error) {
     res.status(500).json({
       message: error.message,

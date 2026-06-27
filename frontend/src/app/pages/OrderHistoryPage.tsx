@@ -19,6 +19,15 @@ export function OrderHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [donations, setDonations] = useState<any[]>([]);
 
+const receivedDonations = donations.filter(
+  (donation: any) =>
+    donation.donorId?._id === user?.id
+);
+
+const myDonations = donations.filter(
+  (donation: any) =>
+    donation.requesterId?._id === user?.id
+);
 
   const fetchOrders = async () => {
     try {
@@ -123,11 +132,23 @@ const handleAcceptDonation = async (id: string) => {
 };
 
 const handleRejectDonation = async (id: string) => {
+  const reason = prompt(
+    "Reason?\n\nExample:\n- Address too far\n- Item unavailable\n- Not eligible"
+  );
+
+  if (!reason) return;
+
   try {
     const res = await fetch(
       `http://localhost:5000/api/donations/reject/${id}`,
       {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason,
+        }),
       }
     );
 
@@ -136,13 +157,36 @@ const handleRejectDonation = async (id: string) => {
     }
 
     toast.success("Rejected donation request");
-
     fetchDonations();
   } catch (err: any) {
     toast.error(err.message);
   }
 };
+const updateDeliveryStatus = async (
+  id: string,
+  deliveryStatus: string
+) => {
+  try {
+    await fetch(
+      `http://localhost:5000/api/donations/delivery/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          deliveryStatus,
+        }),
+      }
+    );
 
+    fetchDonations();
+
+    toast.success("Delivery status updated");
+  } catch (err) {
+    toast.error("Update failed");
+  }
+};
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; className: string }> = {
       pending: { label: "Pending Payment", className: "bg-yellow-500 text-white" },
@@ -371,63 +415,231 @@ const handleRejectDonation = async (id: string) => {
               )}
             </TabsContent>
 
-<TabsContent value="donations" className="space-y-4 mt-0">
-  {donations.length === 0 ? (
-    <Card>
-      <CardContent className="p-12 text-center text-gray-500">
-        No donation requests.
-      </CardContent>
-    </Card>
-  ) : (
-    donations.map((donation: any) => (
-      <Card key={donation._id}>
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center">
+<TabsContent value="donations" className="mt-0">
 
-            <div>
+  <Tabs defaultValue="received">
+
+    <TabsList className="mb-6">
+      <TabsTrigger value="received">
+        Received Requests ({receivedDonations.length})
+      </TabsTrigger>
+
+      <TabsTrigger value="my">
+        My Requests ({myDonations.length})
+      </TabsTrigger>
+    </TabsList>
+
+    {/* ================= RECEIVED REQUESTS ================= */}
+
+    <TabsContent value="received" className="space-y-4">
+
+      {receivedDonations.length === 0 ? (
+
+        <Card>
+          <CardContent className="p-12 text-center text-gray-500">
+            No donation requests.
+          </CardContent>
+        </Card>
+
+      ) : (
+
+        receivedDonations.map((donation: any) => (
+
+          <Card key={donation._id}>
+            <CardContent className="p-6">
+
+              <div className="flex justify-between items-center">
+
+                <div>
+
+                  <h3 className="font-semibold text-lg">
+                    {donation.productId?.title}
+                  </h3>
+
+                  <p className="text-sm text-gray-500">
+                    Requester:{" "}
+                    {donation.requesterId?.fullName ||
+                      donation.requesterId?.userName}
+                  </p>
+
+                  <p className="mt-2">
+                    Status:
+                    <span className="font-semibold ml-2">
+                      {donation.status}
+                    </span>
+                  </p>
+
+                  {donation.status === "accepted" && (
+                    <p className="text-green-600 mt-2">
+                      Delivery Status:
+                      <span className="font-semibold ml-2">
+                        {donation.deliveryStatus === "shipping"
+                          ? "🚚 Shipping"
+                          : "✅ Delivered"}
+                      </span>
+                    </p>
+                  )}
+
+                  {donation.status === "rejected" && (
+                    <p className="text-red-500 mt-2">
+                      Reason:
+                      <span className="font-semibold ml-2">
+                        {donation.rejectReason}
+                      </span>
+                    </p>
+                  )}
+
+                </div>
+
+                <div>
+
+                  {donation.status === "pending" && (
+                    <div className="flex gap-2">
+
+                      <Button
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() =>
+                          handleAcceptDonation(donation._id)
+                        }
+                      >
+                        Accept
+                      </Button>
+
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          handleRejectDonation(donation._id)
+                        }
+                      >
+                        Reject
+                      </Button>
+
+                    </div>
+                  )}
+
+                  {donation.status === "accepted" && (
+                    <div className="flex gap-2">
+
+                      <Button
+                        size="sm"
+                        className={
+                          donation.deliveryStatus === "shipping"
+                            ? "bg-blue-600 text-white"
+                            : ""
+                        }
+                        onClick={() =>
+                          updateDeliveryStatus(
+                            donation._id,
+                            "shipping"
+                          )
+                        }
+                      >
+                        🚚 Shipping
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        className={
+                          donation.deliveryStatus === "delivered"
+                            ? "bg-green-600 text-white"
+                            : ""
+                        }
+                        onClick={() =>
+                          updateDeliveryStatus(
+                            donation._id,
+                            "delivered"
+                          )
+                        }
+                      >
+                        ✅ Delivered
+                      </Button>
+
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+            </CardContent>
+          </Card>
+
+        ))
+
+      )}
+
+    </TabsContent>
+
+    {/* ================= MY REQUESTS ================= */}
+
+    <TabsContent value="my" className="space-y-4">
+
+      {myDonations.length === 0 ? (
+
+        <Card>
+          <CardContent className="p-12 text-center text-gray-500">
+            You haven't requested any donations.
+          </CardContent>
+        </Card>
+
+      ) : (
+
+        myDonations.map((donation: any) => (
+
+          <Card key={donation._id}>
+            <CardContent className="p-6">
+
               <h3 className="font-semibold text-lg">
                 {donation.productId?.title}
               </h3>
 
               <p className="text-sm text-gray-500">
-                Requester:
-                {" "}
-                {donation.requesterId?.fullName ||
-                  donation.requesterId?.userName}
+                Donor:{" "}
+                {donation.donorId?.fullName ||
+                  donation.donorId?.userName}
               </p>
 
-              <p className="text-sm text-gray-500">
-                Status: {donation.status}
+              <p className="mt-2">
+                Status:
+                <span className="font-semibold ml-2">
+                  {donation.status}
+                </span>
               </p>
-            </div>
 
-            {donation.status === "pending" && (
-              <div className="flex gap-2">
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() =>
-                    handleAcceptDonation(donation._id)
-                  }
-                >
-                  Accept
-                </Button>
+              {donation.status === "pending" && (
+                <p className="text-yellow-600 mt-2">
+                  ⏳ Waiting for donor confirmation...
+                </p>
+              )}
 
-                <Button
-                  variant="destructive"
-                  onClick={() =>
-                    handleRejectDonation(donation._id)
-                  }
-                >
-                  Reject
-                </Button>
-              </div>
-            )}
+              {donation.status === "accepted" && (
+                <p className="text-green-600 mt-2">
+                  {donation.deliveryStatus === "shipping"
+                    ? "🚚 Shipping"
+                    : "✅ Delivered"}
+                </p>
+              )}
 
-          </div>
-        </CardContent>
-      </Card>
-    ))
-  )}
+              {donation.status === "rejected" && (
+                <p className="text-red-500 mt-2">
+                  Reason:
+                  <span className="font-semibold ml-2">
+                    {donation.rejectReason}
+                  </span>
+                </p>
+              )}
+
+            </CardContent>
+          </Card>
+
+        ))
+
+      )}
+
+    </TabsContent>
+
+  </Tabs>
+
 </TabsContent>
 
           </Tabs>
