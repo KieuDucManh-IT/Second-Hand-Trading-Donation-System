@@ -172,7 +172,7 @@ async function payOrderByWallet(orderId, buyerId) {
       throw new Error("Đơn hàng đã được thanh toán");
     }
 
-    if (order.paymentMethod && order.paymentMethod !== "wallet") {
+    if (order.paymentMethod !== "wallet") {
       throw new Error("Đơn hàng không dùng phương thức ví");
     }
 
@@ -199,7 +199,6 @@ async function payOrderByWallet(orderId, buyerId) {
     buyerWallet.balance -= totalPrice;
     await buyerWallet.save({ session });
 
-    order.paymentMethod = "wallet";
     order.paymentStatus = "paid";
     order.escrowStatus = "holding";
     order.escrowAmount = totalPrice;
@@ -646,6 +645,7 @@ async function autoCancelExpiredPendingOrders() {
   const expired = await Order.find({
     $or: [{ status: "pending" }, { orderStatus: "pending" }, { orderStatus: "pending_seller_confirm" }],
     paymentStatus: { $ne: "paid" },
+    paymentMethod: "wallet",           // chỉ huỷ wallet, COD không có deadline
     paymentDeadline: { $lt: now },
   });
 

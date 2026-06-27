@@ -70,11 +70,15 @@ function useCountdown(deadline: string | null | undefined) {
 }
 
 // ── Status Badge ────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, paymentMethod }: { status: string; paymentMethod?: string }) {
+  const isCOD = paymentMethod === "cod";
   const map: Record<string, { label: string; className: string }> = {
-    pending: { label: "Chờ thanh toán", className: "bg-yellow-500 text-white" },
+    pending: {
+      label: isCOD ? "Chờ người bán xác nhận" : "Chờ thanh toán",
+      className: "bg-yellow-500 text-white"
+    },
     pending_seller_confirm: {
-      label: "Chờ người bán xác nhận",
+      label: isCOD ? "Chờ người bán xác nhận" : "Chờ thanh toán",
       className: "bg-yellow-500 text-white",
     },
     paid: {
@@ -138,14 +142,16 @@ function OrderDetailModal({
   onClose,
   onAction,
   onChat,
+  openRating = false,
 }: {
   order: any;
   role: "buyer" | "seller";
   onClose: () => void;
   onAction: (orderId: string, action: string, data?: any) => Promise<void>;
   onChat: (partnerId: string, productId: string) => void;
+  openRating?: boolean;
 }) {
-  const [rateOpen, setRateOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(openRating);
   const [rating, setRating] = useState(0);
   const [rateComment, setRateComment] = useState("");
   const [submittingRate, setSubmittingRate] = useState(false);
@@ -154,17 +160,24 @@ function OrderDetailModal({
   const [showDispute, setShowDispute] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
 
-  const { timeLeft, expired } = useCountdown(order.paymentDeadline);
-
   const product = order.productId || {};
   const partner = role === "buyer" ? order.sellerId : order.buyerId;
   const isBuyer = role === "buyer";
   const status = order.status || order.orderStatus;
+  const isWalletPayment = order.paymentMethod === "wallet";
+  const isCOD = order.paymentMethod === "cod";
+  // isPending chỉ áp dụng cho wallet - COD không cần thanh toán trước
   const isPending =
     ["pending", "pending_seller_confirm"].includes(status) &&
-    order.paymentStatus !== "paid";
+    order.paymentStatus !== "paid" &&
+    isWalletPayment;
   const isCompleted = status === "completed";
   const hasRated = !!order.sellerRating?.rating;
+
+  // Chỉ đếm ngược khi thanh toán bằng ví (wallet), COD không cần
+  const { timeLeft, expired } = useCountdown(
+    isWalletPayment && isPending ? order.paymentDeadline : null
+  );
 
   const handleRate = async () => {
     if (!rating) {
@@ -216,7 +229,7 @@ function OrderDetailModal({
                 {Number(order.totalPrice || 0).toLocaleString("vi-VN")} đ
               </p>
               <div className="mt-1">
-                <StatusBadge status={status} />
+                <StatusBadge status={status} paymentMethod={order.paymentMethod} />
               </div>
             </div>
           </div>
@@ -298,6 +311,25 @@ function OrderDetailModal({
                 </p>
               </div>
             )}
+            {/* Phương thức thanh toán - luôn hiển thị rõ */}
+            <div className="col-span-2">
+              <p className="text-xs text-gray-400">Phương thức thanh toán</p>
+              <p className="font-medium flex items-center gap-1.5 mt-0.5">
+                {order.paymentMethod === "cod" ? (
+                  <span className="inline-flex items-center gap-1 text-green-700 dark:text-green-400">
+                     Tiền mặt khi nhận hàng (COD)
+                  </span>
+                ) : order.paymentMethod === "wallet" ? (
+                  <span className="inline-flex items-center gap-1 text-purple-700 dark:text-purple-400">
+                    Thanh toán qua ví điện tử
+                  </span>
+                ) : (
+                  <span className="text-gray-600 dark:text-gray-400 capitalize">
+                    {order.paymentMethod || "—"}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
 
           {/* Seller rating display */}
@@ -385,7 +417,7 @@ function OrderDetailModal({
               )}
 
             {/* BUYER: Go to wallet if needed */}
-            {isBuyer && isPending && !expired && (
+            {isBuyer && isPending && isWalletPayment && !expired && (
               <p className="text-xs text-center text-gray-500">
                 Không đủ số dư?{" "}
                 <a
@@ -610,17 +642,22 @@ function OrderCard({
   onChat: (partnerId: string, productId: string) => void;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [openRating, setOpenRating] = useState(false);
   const product = order.productId || {};
   const partner = role === "buyer" ? order.sellerId : order.buyerId;
   const isBuyer = role === "buyer";
   const status = order.status || order.orderStatus;
+  const isWalletPayment = order.paymentMethod === "wallet";
+  const isCOD = order.paymentMethod === "cod";
+  // isPending chỉ áp dụng cho wallet - COD không cần thanh toán trước
   const isPending =
     ["pending", "pending_seller_confirm"].includes(status) &&
-    order.paymentStatus !== "paid";
+    order.paymentStatus !== "paid" &&
+    isWalletPayment;
   const isCompleted = status === "completed";
   const hasRated = !!order.sellerRating?.rating;
 
-  const isWalletPending = isPending && order.paymentMethod === "wallet";
+  const isWalletPending = isPending && isWalletPayment;
   const { timeLeft, expired } = useCountdown(
     isWalletPending ? order.paymentDeadline : null,
   );
@@ -657,7 +694,7 @@ function OrderCard({
                   <span className="text-base font-bold text-gray-900 dark:text-white">
                     — {Number(order.totalPrice || 0).toLocaleString("vi-VN")} đ
                   </span>
-                  <StatusBadge status={status} />
+                  <StatusBadge status={status} paymentMethod={order.paymentMethod} />
                 </div>
               </div>
 
@@ -729,7 +766,7 @@ function OrderCard({
                   <Button
                     size="sm"
                     className="h-8 text-xs gap-1.5 bg-yellow-500 hover:bg-yellow-600 text-white"
-                    onClick={() => setDetailOpen(true)}
+                    onClick={() => { setOpenRating(true); setDetailOpen(true); }}
                   >
                     <Star className="w-3.5 h-3.5" /> Đánh giá
                   </Button>
@@ -752,9 +789,10 @@ function OrderCard({
         <OrderDetailModal
           order={order}
           role={role}
-          onClose={() => setDetailOpen(false)}
+          onClose={() => { setDetailOpen(false); setOpenRating(false); }}
           onAction={onAction}
           onChat={onChat}
+          openRating={openRating}
         />
       )}
     </>
@@ -860,7 +898,8 @@ export function OrderHistoryPage() {
     const s = o.status || o.orderStatus;
     return (
       ["pending", "pending_seller_confirm"].includes(s) &&
-      o.paymentStatus !== "paid"
+      o.paymentStatus !== "paid" &&
+      o.paymentMethod === "wallet"  // COD không tính là chờ thanh toán
     );
   }).length;
 
@@ -961,3 +1000,4 @@ export function OrderHistoryPage() {
     </div>
   );
 }
+ 

@@ -123,7 +123,8 @@ orderSchema.pre("validate", function () {
     this.sellerReceives = this.totalPrice - this.platformFee;
 
     
-    if (!this.paymentDeadline) {
+    // Chỉ set paymentDeadline cho wallet, COD không cần deadline thanh toán
+    if (!this.paymentDeadline && this.paymentMethod === "wallet") {
       const deadline = new Date();
       deadline.setHours(deadline.getHours() + 24);
       this.paymentDeadline = deadline;

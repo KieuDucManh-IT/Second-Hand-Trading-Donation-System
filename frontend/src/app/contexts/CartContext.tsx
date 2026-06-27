@@ -79,7 +79,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refetch(); }, [refetch]);
  
   // ── Thêm vào giỏ ─────────────────────────────────────────────────────────
+  const addingRef = React.useRef(false);
   const addToCart = async (productId: string, productTitle?: string) => {
+    // Chống spam: nếu đang xử lý request trước thì bỏ qua
+    if (addingRef.current || loading) return;
+    addingRef.current = true;
     setLoading(true);
     try {
       const res  = await fetch(`${API_BASE}/api/cart/add`, {
@@ -91,10 +95,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error(body.message);
       setItems(body.data.items);
       setSummary(body.data.summary);
+      // Toast duy nhất từ CartContext, không toast thêm ở nơi gọi
       toast.success(body.message ?? `Đã thêm${productTitle ? ` "${productTitle}"` : ''} vào giỏ hàng`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không thể thêm vào giỏ hàng');
     } finally {
+      addingRef.current = false;
       setLoading(false);
     }
   };
@@ -175,4 +181,3 @@ export function useCart() {
   if (!ctx) throw new Error('useCart must be used within CartProvider');
   return ctx;
 }
- 

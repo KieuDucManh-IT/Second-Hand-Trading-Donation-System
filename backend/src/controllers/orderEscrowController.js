@@ -129,10 +129,15 @@ const Product = require("../models/modelProduct");
 exports.createOrder = async (req, res) => {
   try {
     const userId = getUserId(req);
-    const { productId } = req.body;
+    const { productId, paymentMethod = "wallet", shippingInfo } = req.body;
 
     if (!productId) {
       return res.status(400).json({ success: false, message: "Thiếu productId" });
+    }
+
+    const validPaymentMethods = ["wallet", "cod"];
+    if (!validPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({ success: false, message: "Phương thức thanh toán không hợp lệ" });
     }
 
     const product = await Product.findById(productId);
@@ -153,17 +158,36 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bạn không thể tự mua sản phẩm của chính mình" });
     }
 
+    // Kiểm tra buyer đã có đơn hàng đang active cho sản phẩm này chưa
+    const existingOrder = await Order.findOne({
+      buyerId: userId,
+      productId: productId,
+      orderStatus: { $nin: ["cancelled", "completed"] },
+    });
+    if (existingOrder) {
+      return res.status(400).json({ success: false, message: "Bạn đã đặt đơn hàng cho sản phẩm này rồi" });
+    }
+
     const order = await Order.create({
       buyerId: userId,
       sellerId: sellerId,
       productId: productId,
       totalPrice: product.price || 0,
-      status: "pending",
+      paymentMethod,
+      shippingInfo: shippingInfo || undefined,
     });
+
+    // Đặt sản phẩm sang reserved
+    product.status = "reserved";
+    product.isAvailable = false;
+    await product.save();
 
     res.status(201).json({
       success: true,
-      message: "Đã tạo đơn hàng thành công",
+      message: paymentMethod === "cod"
+        ? "Đặt hàng thành công. Bạn sẽ thanh toán tiền mặt khi nhận hàng."
+        : "Đặt hàng thành công. Vui lòng thanh toán qua ví để hoàn tất.",
+      data: order,
       order,
     });
   } catch (error) {

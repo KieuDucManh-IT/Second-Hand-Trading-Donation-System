@@ -406,8 +406,7 @@ export function ProductDetailPage() {
                         navigate("/login");
                         return;
                       }
-                      await addToCart(product._id);
-                      toast.success("Đã thêm vào giỏ hàng!");
+                      await addToCart(product._id, product.title);
                     }}
                     disabled={cartLoading}
                     variant="outline"
