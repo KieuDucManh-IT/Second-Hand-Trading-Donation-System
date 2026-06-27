@@ -1,15 +1,36 @@
-import { useEffect, useState } from 'react';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-import { Package, ShieldAlert, CheckCircle, Truck, RefreshCw, XCircle, Upload, X } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { openDispute } from '../api/orderApi';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import {
+  Package,
+  ShieldAlert,
+  CheckCircle,
+  Truck,
+  RefreshCw,
+  XCircle,
+  Upload,
+  X,
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { openDispute } from "../api/orderApi";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
 
 export function OrderHistoryPage() {
   const { isAuthenticated, user } = useAuth();
@@ -22,9 +43,10 @@ export function OrderHistoryPage() {
 
   const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
   const [disputeOrderId, setDisputeOrderId] = useState<string | null>(null);
-  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeReason, setDisputeReason] = useState("");
   const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
   const [isDisputeSubmitting, setIsDisputeSubmitting] = useState(false);
+  const [donations, setDonations] = useState<any[]>([]);
 
   const fetchOrders = async () => {
     try {
@@ -59,13 +81,40 @@ export function OrderHistoryPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
     fetchOrders();
   }, [isAuthenticated, navigate]);
+  const fetchDonations = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/donations");
 
-  const handleAction = async (orderId: string, action: string, reason?: string) => {
+      const data = await res.json();
+
+      console.log("DONATIONS =", data);
+
+      setDonations(data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    fetchOrders();
+    fetchDonations();
+  }, [isAuthenticated, navigate, user]);
+
+  const handleAction = async (
+    orderId: string,
+    action: string,
+    reason?: string,
+  ) => {
     try {
       const token = sessionStorage.getItem("token");
       const url = `http://localhost:5000/api/orders/${orderId}/${action}`;
@@ -104,7 +153,7 @@ export function OrderHistoryPage() {
       toast.success("Gửi khiếu nại thành công! Quản lý sẽ xem xét sớm.");
       setIsDisputeDialogOpen(false);
       setDisputeOrderId(null);
-      setDisputeReason('');
+      setDisputeReason("");
       setDisputeFiles([]);
       fetchOrders();
     } catch (err: any) {
@@ -114,11 +163,58 @@ export function OrderHistoryPage() {
       setIsDisputeSubmitting(false);
     }
   };
+  const handleAcceptDonation = async (id: string) => {
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/donations/accept/${id}`,
+        {
+          method: "PUT",
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error("Accept failed");
+      }
+
+      toast.success("Accepted donation request");
+
+      fetchDonations();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleRejectDonation = async (id: string) => {
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/donations/reject/${id}`,
+        {
+          method: "PUT",
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error("Reject failed");
+      }
+
+      toast.success("Rejected donation request");
+
+      fetchDonations();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; className: string }> = {
-      pending: { label: "Pending Payment", className: "bg-yellow-500 text-white" },
-      paid: { label: "Paid (Escrow Held)", className: "bg-purple-500 text-white" },
+      pending: {
+        label: "Pending Payment",
+        className: "bg-yellow-500 text-white",
+      },
+      paid: {
+        label: "Paid (Escrow Held)",
+        className: "bg-purple-500 text-white",
+      },
       confirmed: { label: "Confirmed", className: "bg-orange-500 text-white" },
       shipping: { label: "Shipping", className: "bg-blue-500 text-white" },
       delivered: { label: "Delivered", className: "bg-indigo-500 text-white" },
@@ -127,33 +223,51 @@ export function OrderHistoryPage() {
       disputed: { label: "Disputed", className: "bg-pink-500 text-white" },
     };
 
-    const config = map[status] || { label: status, className: "bg-gray-500 text-white" };
+    const config = map[status] || {
+      label: status,
+      className: "bg-gray-500 text-white",
+    };
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
-  const renderOrderCard = (order: any, role: 'buyer' | 'seller') => {
+  const renderOrderCard = (order: any, role: "buyer" | "seller") => {
     const product = order.productId || {};
-    const partner = role === 'buyer' ? order.sellerId : order.buyerId;
-    const isBuyer = role === 'buyer';
+    const partner = role === "buyer" ? order.sellerId : order.buyerId;
+    const isBuyer = role === "buyer";
 
     return (
-      <Card key={order._id} className="overflow-hidden hover:shadow-md transition-all duration-200 border-gray-200 dark:border-gray-800">
+      <Card
+        key={order._id}
+        className="overflow-hidden hover:shadow-md transition-all duration-200 border-gray-200 dark:border-gray-800"
+      >
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex gap-4 items-center">
               <ImageWithFallback
-                src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
-                alt={product.title || 'Product'}
+                src={
+                  product.thumbnail ||
+                  (product.images && product.images[0]?.imageUrl) ||
+                  ""
+                }
+                alt={product.title || "Product"}
                 className="w-20 h-20 object-cover rounded-lg border dark:border-gray-700"
               />
               <div>
-                <h3 className="font-semibold text-lg line-clamp-1">{product.title || 'Unknown Product'}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Order ID: #{order._id}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {role === 'buyer' ? 'Seller: ' : 'Buyer: '}
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{partner?.fullName || 'Unknown'}</span>
+                <h3 className="font-semibold text-lg line-clamp-1">
+                  {product.title || "Unknown Product"}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Order ID: #{order._id}
                 </p>
-                <p className="text-xs text-gray-400">Date: {new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {role === "buyer" ? "Seller: " : "Buyer: "}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {partner?.fullName || "Unknown"}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-400">
+                  Date: {new Date(order.createdAt).toLocaleDateString("vi-VN")}
+                </p>
               </div>
             </div>
 
@@ -161,92 +275,147 @@ export function OrderHistoryPage() {
               <div className="flex items-center gap-2">
                 {getStatusBadge(order.status)}
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
-                  {Number(order.totalPrice || 0).toLocaleString('vi-VN')} đ
+                  {Number(order.totalPrice || 0).toLocaleString("vi-VN")} đ
                 </span>
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-2 mt-2 flex-wrap">
-                {isBuyer && order.status === 'pending' && (
+                {isBuyer && order.status === "pending" && (
                   <>
-                    <Button size="sm" onClick={() => handleAction(order._id, 'pay')} className="bg-purple-600 hover:bg-purple-700 text-white">
+                    <Button
+                      size="sm"
+                      onClick={() => handleAction(order._id, "pay")}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
                       Pay Now
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const reason = prompt("Enter cancel reason:");
-                      if (reason !== null) handleAction(order._id, 'cancel', reason);
-                    }} className="text-red-500 hover:text-red-600">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const reason = prompt("Enter cancel reason:");
+                        if (reason !== null)
+                          handleAction(order._id, "cancel", reason);
+                      }}
+                      className="text-red-500 hover:text-red-600"
+                    >
                       Cancel
                     </Button>
                   </>
                 )}
 
-                {isBuyer && ['paid', 'confirmed'].includes(order.status) && (
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const reason = prompt("Enter cancel reason:");
-                    if (reason !== null) handleAction(order._id, 'cancel', reason);
-                  }} className="text-red-500 hover:text-red-600">
+                {isBuyer && ["paid", "confirmed"].includes(order.status) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const reason = prompt("Enter cancel reason:");
+                      if (reason !== null)
+                        handleAction(order._id, "cancel", reason);
+                    }}
+                    className="text-red-500 hover:text-red-600"
+                  >
                     Request Cancel
                   </Button>
                 )}
 
-                {isBuyer && ['shipping', 'delivered'].includes(order.status) && (
-                  <>
-                    <Button size="sm" onClick={() => handleAction(order._id, 'receive')} className="bg-green-600 hover:bg-green-700 text-white">
-                      Confirm Received
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => {
-                      setDisputeOrderId(order._id);
-                      setDisputeReason('');
-                      setDisputeFiles([]);
-                      setIsDisputeDialogOpen(true);
-                    }}>
-                      Dispute
-                    </Button>
-                  </>
-                )}
+                {isBuyer &&
+                  ["shipping", "delivered"].includes(order.status) && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAction(order._id, "receive")}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Confirm Received
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setDisputeOrderId(order._id);
+                          setDisputeReason("");
+                          setDisputeFiles([]);
+                          setIsDisputeDialogOpen(true);
+                          const reason = prompt("Enter dispute reason:");
+                          if (reason !== null)
+                            handleAction(order._id, "dispute", reason);
+                        }}
+                      >
+                        Dispute
+                      </Button>
+                    </>
+                  )}
 
-                {!isBuyer && order.status === 'paid' && (
+                {!isBuyer && order.status === "paid" && (
                   <>
-                    <Button size="sm" onClick={() => handleAction(order._id, 'confirm')} className="bg-orange-600 hover:bg-orange-700 text-white">
+                    <Button
+                      size="sm"
+                      onClick={() => handleAction(order._id, "confirm")}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
                       Confirm Order
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const reason = prompt("Enter cancel reason:");
-                      if (reason !== null) handleAction(order._id, 'cancel', reason);
-                    }} className="text-red-500 hover:text-red-600">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const reason = prompt("Enter cancel reason:");
+                        if (reason !== null)
+                          handleAction(order._id, "cancel", reason);
+                      }}
+                      className="text-red-500 hover:text-red-600"
+                    >
                       Cancel Order
                     </Button>
                   </>
                 )}
 
-                {!isBuyer && order.status === 'confirmed' && (
+                {!isBuyer && order.status === "confirmed" && (
                   <>
-                    <Button size="sm" onClick={() => handleAction(order._id, 'ship')} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button
+                      size="sm"
+                      onClick={() => handleAction(order._id, "ship")}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
                       <Truck className="w-4 h-4 mr-1" /> Ship Order
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const reason = prompt("Enter cancel reason:");
-                      if (reason !== null) handleAction(order._id, 'cancel', reason);
-                    }} className="text-red-500 hover:text-red-600">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const reason = prompt("Enter cancel reason:");
+                        if (reason !== null)
+                          handleAction(order._id, "cancel", reason);
+                      }}
+                      className="text-red-500 hover:text-red-600"
+                    >
                       Cancel Order
                     </Button>
                   </>
                 )}
 
-                {!isBuyer && order.status === 'shipping' && (
-                  <Button size="sm" onClick={() => handleAction(order._id, 'deliver')} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                {!isBuyer && order.status === "shipping" && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleAction(order._id, "deliver")}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
                     Mark Delivered
                   </Button>
                 )}
 
-                {!isBuyer && order.status === 'delivered' && (
-                  <span className="text-xs text-gray-500 italic">Awaiting Buyer Confirmation</span>
+                {!isBuyer && order.status === "delivered" && (
+                  <span className="text-xs text-gray-500 italic">
+                    Awaiting Buyer Confirmation
+                  </span>
                 )}
 
-                {order.status === 'disputed' && (
+                {order.status === "disputed" && (
                   <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800 max-w-xs">
-                    <span className="font-semibold">Disputed: </span>{order.disputeReason || "No reason specified."}
+                    <span className="font-semibold">Disputed: </span>
+                    {order.disputeReason || "No reason specified."}
                   </div>
                 )}
               </div>
@@ -258,8 +427,12 @@ export function OrderHistoryPage() {
   };
 
   // Combine buying & selling orders for the "All Orders" view
-  const allOrders = [...buyingOrders.map(o => ({ ...o, role: 'buyer' })), ...sellingOrders.map(o => ({ ...o, role: 'seller' }))]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const allOrders = [
+    ...buyingOrders.map((o) => ({ ...o, role: "buyer" })),
+    ...sellingOrders.map((o) => ({ ...o, role: "seller" })),
+  ].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
@@ -271,7 +444,12 @@ export function OrderHistoryPage() {
               Manage your purchases, sales, and escrow protection status.
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={fetchOrders} className="rounded-full">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchOrders}
+            className="rounded-full"
+          >
             <RefreshCw className="w-4 h-4 mr-2" /> Refresh
           </Button>
         </div>
@@ -289,9 +467,21 @@ export function OrderHistoryPage() {
         ) : (
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
-              <TabsTrigger value="all">All Orders ({allOrders.length})</TabsTrigger>
-              <TabsTrigger value="buying">Buying ({buyingOrders.length})</TabsTrigger>
-              <TabsTrigger value="selling">Selling ({sellingOrders.length})</TabsTrigger>
+              <TabsTrigger value="all">
+                All Orders ({allOrders.length})
+              </TabsTrigger>
+
+              <TabsTrigger value="buying">
+                Buying ({buyingOrders.length})
+              </TabsTrigger>
+
+              <TabsTrigger value="selling">
+                Selling ({sellingOrders.length})
+              </TabsTrigger>
+
+              <TabsTrigger value="donations">
+                Donations ({donations.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="space-y-4 mt-0">
@@ -303,7 +493,9 @@ export function OrderHistoryPage() {
                   </CardContent>
                 </Card>
               ) : (
-                allOrders.map((order: any) => renderOrderCard(order, order.role))
+                allOrders.map((order: any) =>
+                  renderOrderCard(order, order.role),
+                )
               )}
             </TabsContent>
 
@@ -316,7 +508,9 @@ export function OrderHistoryPage() {
                   </CardContent>
                 </Card>
               ) : (
-                buyingOrders.map((order: any) => renderOrderCard(order, 'buyer'))
+                buyingOrders.map((order: any) =>
+                  renderOrderCard(order, "buyer"),
+                )
               )}
             </TabsContent>
 
@@ -329,7 +523,61 @@ export function OrderHistoryPage() {
                   </CardContent>
                 </Card>
               ) : (
-                sellingOrders.map((order: any) => renderOrderCard(order, 'seller'))
+                sellingOrders.map((order: any) =>
+                  renderOrderCard(order, "seller"),
+                )
+              )}
+            </TabsContent>
+
+            <TabsContent value="donations" className="space-y-4 mt-0">
+              {donations.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12 text-center text-gray-500">
+                    No donation requests.
+                  </CardContent>
+                </Card>
+              ) : (
+                donations.map((donation: any) => (
+                  <Card key={donation._id}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="font-semibold text-lg">
+                            {donation.productId?.title}
+                          </h3>
+
+                          <p className="text-sm text-gray-500">
+                            Requester:{" "}
+                            {donation.requesterId?.fullName ||
+                              donation.requesterId?.userName}
+                          </p>
+
+                          <p className="text-sm text-gray-500">
+                            Status: {donation.status}
+                          </p>
+                        </div>
+
+                        {donation.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleAcceptDonation(donation._id)}
+                            >
+                              Accept
+                            </Button>
+
+                            <Button
+                              variant="destructive"
+                              onClick={() => handleRejectDonation(donation._id)}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
               )}
             </TabsContent>
           </Tabs>
@@ -337,7 +585,12 @@ export function OrderHistoryPage() {
       </div>
 
       {/* Dispute Modal */}
-      <Dialog open={isDisputeDialogOpen} onOpenChange={(open) => !open && !isDisputeSubmitting && setIsDisputeDialogOpen(false)}>
+      <Dialog
+        open={isDisputeDialogOpen}
+        onOpenChange={(open) =>
+          !open && !isDisputeSubmitting && setIsDisputeDialogOpen(false)
+        }
+      >
         <DialogContent className="max-w-md rounded-3xl border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95">
           <DialogHeader className="text-left">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -345,7 +598,8 @@ export function OrderHistoryPage() {
               Mở khiếu nại đơn hàng
             </DialogTitle>
             <DialogDescription className="text-slate-500 dark:text-slate-400 text-xs">
-              Vui lòng cung cấp lý do chi tiết và hình ảnh hoặc video bằng chứng để quản lý kiểm tra và giải quyết hoàn tiền bảo vệ bạn.
+              Vui lòng cung cấp lý do chi tiết và hình ảnh hoặc video bằng chứng
+              để quản lý kiểm tra và giải quyết hoàn tiền bảo vệ bạn.
             </DialogDescription>
           </DialogHeader>
 
@@ -392,13 +646,24 @@ export function OrderHistoryPage() {
 
               {disputeFiles.length > 0 && (
                 <div className="mt-3 space-y-1.5 max-h-36 overflow-y-auto">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tệp đã chọn ({disputeFiles.length}):</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Tệp đã chọn ({disputeFiles.length}):
+                  </p>
                   {disputeFiles.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-xs border border-slate-100 dark:border-slate-800">
-                      <span className="truncate max-w-[80%] font-medium">{file.name}</span>
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-xs border border-slate-100 dark:border-slate-800"
+                    >
+                      <span className="truncate max-w-[80%] font-medium">
+                        {file.name}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => setDisputeFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        onClick={() =>
+                          setDisputeFiles((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
                         className="text-slate-400 hover:text-rose-500 transition-colors"
                         disabled={isDisputeSubmitting}
                       >
@@ -417,7 +682,7 @@ export function OrderHistoryPage() {
               onClick={() => {
                 setIsDisputeDialogOpen(false);
                 setDisputeOrderId(null);
-                setDisputeReason('');
+                setDisputeReason("");
                 setDisputeFiles([]);
               }}
               disabled={isDisputeSubmitting}
