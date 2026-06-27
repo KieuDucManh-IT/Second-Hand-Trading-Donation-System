@@ -100,6 +100,15 @@ const orderSchema = new mongoose.Schema(
     cancelReason: String,
     releaseReason: String,
 
+    // Ảnh gửi hàng (người bán upload khi bắt đầu giao)
+    shippingProofImages: [
+      {
+        imageUrl: { type: String, required: true },
+        publicId: { type: String },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
    
     paymentDeadline: Date,
 

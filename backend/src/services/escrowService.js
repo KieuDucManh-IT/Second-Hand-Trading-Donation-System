@@ -288,7 +288,7 @@ async function sellerConfirmOrder(orderId, sellerId) {
 /**
  * Seller đánh dấu đang vận chuyển.
  */
-async function markOrderShipping(orderId, sellerId) {
+async function markOrderShipping(orderId, sellerId, shippingProofImages = []) {
   const order = await Order.findById(orderId);
 
   if (!order) {
@@ -307,6 +307,11 @@ async function markOrderShipping(orderId, sellerId) {
 
   setOrderStatus(order, "shipping");
   order.shippedAt = new Date();
+
+  // Lưu ảnh gửi hàng nếu có
+  if (shippingProofImages && shippingProofImages.length > 0) {
+    order.shippingProofImages = shippingProofImages;
+  }
 
   await order.save();
 

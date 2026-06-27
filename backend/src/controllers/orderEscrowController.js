@@ -33,7 +33,18 @@ exports.markOrderShipping = async (req, res) => {
   try {
     const userId  = getUserId(req);
     const { orderId } = req.params;
-    const order = await escrowService.markOrderShipping(orderId, userId);
+
+    // Upload ảnh nếu có
+    let shippingProofImages = [];
+    if (req.files && req.files.length > 0) {
+      const uploadToCloudinary = require("../utils/uploadToCloudinary");
+      for (const file of req.files) {
+        const result = await uploadToCloudinary(file.buffer, { folder: "order-shipping-proofs" });
+        shippingProofImages.push({ imageUrl: result.secure_url, publicId: result.public_id });
+      }
+    }
+
+    const order = await escrowService.markOrderShipping(orderId, userId, shippingProofImages);
     res.json({ success: true, message: "Đã cập nhật trạng thái đang giao", order });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message || "Không thể cập nhật trạng thái" });
@@ -201,15 +212,28 @@ exports.createOrder = async (req, res) => {
 exports.getMyBuyingOrders = async (req, res) => {
   try {
     const userId = getUserId(req);
+    const ProductImage = require("../models/modelProductImage");
     const orders = await Order.find({ buyerId: userId })
       .populate("productId")
       .populate("sellerId", "fullName email avatar userName phone")
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      orders,
+    // Gắn ảnh sản phẩm vào mỗi đơn hàng
+    const productIds = orders.map(o => o.productId?._id).filter(Boolean);
+    const images = await ProductImage.find({ productId: { $in: productIds } }).sort({ order: 1 });
+    const imageMap = {};
+    for (const img of images) {
+      const pid = String(img.productId);
+      if (!imageMap[pid]) imageMap[pid] = [];
+      imageMap[pid].push(img);
+    }
+    const ordersWithImages = orders.map(o => {
+      const obj = o.toObject();
+      if (obj.productId) obj.productId.images = imageMap[String(obj.productId._id)] || [];
+      return obj;
     });
+
+    res.json({ success: true, orders: ordersWithImages });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -221,15 +245,27 @@ exports.getMyBuyingOrders = async (req, res) => {
 exports.getMySellingOrders = async (req, res) => {
   try {
     const userId = getUserId(req);
+    const ProductImage = require("../models/modelProductImage");
     const orders = await Order.find({ sellerId: userId })
       .populate("productId")
       .populate("buyerId", "fullName email avatar userName phone")
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      orders,
+    const productIds = orders.map(o => o.productId?._id).filter(Boolean);
+    const images = await ProductImage.find({ productId: { $in: productIds } }).sort({ order: 1 });
+    const imageMap = {};
+    for (const img of images) {
+      const pid = String(img.productId);
+      if (!imageMap[pid]) imageMap[pid] = [];
+      imageMap[pid].push(img);
+    }
+    const ordersWithImages = orders.map(o => {
+      const obj = o.toObject();
+      if (obj.productId) obj.productId.images = imageMap[String(obj.productId._id)] || [];
+      return obj;
     });
+
+    res.json({ success: true, orders: ordersWithImages });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -242,6 +278,7 @@ exports.getOrderById = async (req, res) => {
   try {
     const userId = getUserId(req);
     const { orderId } = req.params;
+    const ProductImage = require("../models/modelProductImage");
 
     const order = await Order.findById(orderId)
       .populate("productId")
@@ -256,9 +293,15 @@ exports.getOrderById = async (req, res) => {
       return res.status(403).json({ success: false, message: "Bạn không có quyền xem đơn hàng này" });
     }
 
+    const obj = order.toObject();
+    if (obj.productId) {
+      const images = await ProductImage.find({ productId: obj.productId._id }).sort({ order: 1 });
+      obj.productId.images = images;
+    }
+
     res.json({
       success: true,
-      order,
+      order: obj,
     });
   } catch (error) {
     res.status(500).json({

@@ -29,9 +29,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getOrCreateConversation } from "../api/chatApi";
-
+ 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
+ 
 function authHeaders() {
   const token = sessionStorage.getItem("token");
   return {
@@ -39,12 +39,12 @@ function authHeaders() {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
-
+ 
 // ── Countdown Hook ──────────────────────────────────────────────────────────
 function useCountdown(deadline: string | null | undefined) {
   const [timeLeft, setTimeLeft] = useState("");
   const [expired, setExpired] = useState(false);
-
+ 
   useEffect(() => {
     if (!deadline) return;
     const tick = () => {
@@ -65,10 +65,10 @@ function useCountdown(deadline: string | null | undefined) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [deadline]);
-
+ 
   return { timeLeft, expired };
 }
-
+ 
 // ── Status Badge ────────────────────────────────────────────────────────────
 function StatusBadge({ status, paymentMethod }: { status: string; paymentMethod?: string }) {
   const isCOD = paymentMethod === "cod";
@@ -105,7 +105,7 @@ function StatusBadge({ status, paymentMethod }: { status: string; paymentMethod?
     </Badge>
   );
 }
-
+ 
 // ── Star Rating Component ────────────────────────────────────────────────────
 function StarRating({
   value,
@@ -134,13 +134,14 @@ function StarRating({
     </div>
   );
 }
-
+ 
 // ── Order Detail Modal ──────────────────────────────────────────────────────
 function OrderDetailModal({
   order,
   role,
   onClose,
   onAction,
+  onActionWithFiles,
   onChat,
   openRating = false,
 }: {
@@ -148,6 +149,7 @@ function OrderDetailModal({
   role: "buyer" | "seller";
   onClose: () => void;
   onAction: (orderId: string, action: string, data?: any) => Promise<void>;
+  onActionWithFiles: (orderId: string, action: string, files: File[]) => Promise<void>;
   onChat: (partnerId: string, productId: string) => void;
   openRating?: boolean;
 }) {
@@ -159,26 +161,29 @@ function OrderDetailModal({
   const [cancelReason, setCancelReason] = useState("");
   const [showDispute, setShowDispute] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
-
+  const [showShipUpload, setShowShipUpload] = useState(false);
+  const [shipFiles, setShipFiles] = useState<File[]>([]);
+  const [shipPreviews, setShipPreviews] = useState<string[]>([]);
+  const [shipping, setShipping] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+ 
   const product = order.productId || {};
   const partner = role === "buyer" ? order.sellerId : order.buyerId;
   const isBuyer = role === "buyer";
   const status = order.status || order.orderStatus;
   const isWalletPayment = order.paymentMethod === "wallet";
   const isCOD = order.paymentMethod === "cod";
-  // isPending chỉ áp dụng cho wallet - COD không cần thanh toán trước
   const isPending =
     ["pending", "pending_seller_confirm"].includes(status) &&
     order.paymentStatus !== "paid" &&
     isWalletPayment;
   const isCompleted = status === "completed";
   const hasRated = !!order.sellerRating?.rating;
-
-  // Chỉ đếm ngược khi thanh toán bằng ví (wallet), COD không cần
+ 
   const { timeLeft, expired } = useCountdown(
     isWalletPayment && isPending ? order.paymentDeadline : null
   );
-
+ 
   const handleRate = async () => {
     if (!rating) {
       toast.error("Vui lòng chọn số sao");
@@ -189,7 +194,20 @@ function OrderDetailModal({
     setSubmittingRate(false);
     setRateOpen(false);
   };
-
+ 
+  const handleShipFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setShipFiles(files);
+    setShipPreviews(files.map((f) => URL.createObjectURL(f)));
+  };
+ 
+  const handleShipSubmit = async () => {
+    setShipping(true);
+    await onActionWithFiles(order._id, "ship", shipFiles);
+    setShipping(false);
+    onClose();
+  };
+ 
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
@@ -209,7 +227,7 @@ function OrderDetailModal({
             <XCircle className="w-6 h-6" />
           </button>
         </div>
-
+ 
         <div className="p-6 space-y-5">
           {/* Product Info */}
           <div className="flex gap-4 items-start">
@@ -233,7 +251,7 @@ function OrderDetailModal({
               </div>
             </div>
           </div>
-
+ 
           {/* Pending payment countdown */}
           {isBuyer &&
             isPending &&
@@ -264,7 +282,7 @@ function OrderDetailModal({
                 </p>
               </div>
             )}
-
+ 
           {/* Partner Info */}
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
             <p className="text-xs text-gray-500 mb-1">
@@ -278,7 +296,7 @@ function OrderDetailModal({
               <p className="text-sm text-gray-500">{partner.phone}</p>
             )}
           </div>
-
+ 
           {/* Timestamps */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -292,6 +310,14 @@ function OrderDetailModal({
                 <p className="text-xs text-gray-400">Ngày thanh toán</p>
                 <p className="font-medium">
                   {new Date(order.paidAt).toLocaleDateString("vi-VN")}
+                </p>
+              </div>
+            )}
+            {order.shippedAt && (
+              <div>
+                <p className="text-xs text-gray-400">Ngày gửi hàng</p>
+                <p className="font-medium">
+                  {new Date(order.shippedAt).toLocaleDateString("vi-VN")}
                 </p>
               </div>
             )}
@@ -311,7 +337,6 @@ function OrderDetailModal({
                 </p>
               </div>
             )}
-            {/* Phương thức thanh toán - luôn hiển thị rõ */}
             <div className="col-span-2">
               <p className="text-xs text-gray-400">Phương thức thanh toán</p>
               <p className="font-medium flex items-center gap-1.5 mt-0.5">
@@ -331,7 +356,30 @@ function OrderDetailModal({
               </p>
             </div>
           </div>
-
+ 
+          {/* Shipping proof images */}
+          {order.shippingProofImages && order.shippingProofImages.length > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 mb-3">
+                <Truck className="w-4 h-4 text-blue-500" />
+                <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
+                  Ảnh bằng chứng giao hàng
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {order.shippingProofImages.map((img: any, idx: number) => (
+                  <img
+                    key={idx}
+                    src={img.imageUrl}
+                    alt={`Bằng chứng ${idx + 1}`}
+                    className="w-full h-24 object-cover rounded-lg border border-blue-200 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setLightboxImg(img.imageUrl)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+ 
           {/* Seller rating display */}
           {isCompleted && hasRated && (
             <div className="bg-green-50 dark:bg-green-950/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
@@ -356,7 +404,7 @@ function OrderDetailModal({
               )}
             </div>
           )}
-
+ 
           {/* Dispute reason */}
           {status === "disputed" && (
             <div className="bg-red-50 dark:bg-red-950/20 rounded-xl p-4 border border-red-200 dark:border-red-800">
@@ -371,7 +419,7 @@ function OrderDetailModal({
               </p>
             </div>
           )}
-
+ 
           {/* Cancel reason */}
           {status === "cancelled" && order.cancelReason && (
             <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4">
@@ -381,7 +429,7 @@ function OrderDetailModal({
               </p>
             </div>
           )}
-
+ 
           {/* Action Buttons */}
           <div className="space-y-3 pt-2">
             {/* Chat with partner */}
@@ -398,7 +446,7 @@ function OrderDetailModal({
                 Chat với {isBuyer ? "người bán" : "người mua"}
               </Button>
             )}
-
+ 
             {/* BUYER: Pay pending order */}
             {isBuyer &&
               isPending &&
@@ -415,7 +463,7 @@ function OrderDetailModal({
                   Thanh toán ngay
                 </Button>
               )}
-
+ 
             {/* BUYER: Go to wallet if needed */}
             {isBuyer && isPending && isWalletPayment && !expired && (
               <p className="text-xs text-center text-gray-500">
@@ -428,7 +476,7 @@ function OrderDetailModal({
                 </a>
               </p>
             )}
-
+ 
             {/* BUYER: Confirm received */}
             {isBuyer && ["shipping", "delivered"].includes(status) && (
               <Button
@@ -442,7 +490,7 @@ function OrderDetailModal({
                 Xác nhận đã nhận hàng
               </Button>
             )}
-
+ 
             {/* BUYER: Rate seller after completed */}
             {isBuyer && isCompleted && !hasRated && (
               <Button
@@ -453,7 +501,7 @@ function OrderDetailModal({
                 Đánh giá người bán
               </Button>
             )}
-
+ 
             {/* BUYER: Dispute */}
             {isBuyer &&
               ["shipping", "delivered"].includes(status) &&
@@ -502,7 +550,7 @@ function OrderDetailModal({
                 </div>
               </div>
             )}
-
+ 
             {/* Cancel */}
             {(isBuyer &&
               [
@@ -558,9 +606,9 @@ function OrderDetailModal({
                 )}
               </>
             ) : null}
-
-            {/* SELLER actions */}
-            {!isBuyer && status === "paid" && (
+ 
+            {/* SELLER: Confirm order (pending_seller_confirm for COD, or paid for wallet) */}
+            {!isBuyer && ["pending_seller_confirm", "paid"].includes(status) && (
               <Button
                 className="w-full gap-2 bg-orange-600 hover:bg-orange-700 text-white"
                 onClick={() => {
@@ -571,17 +619,67 @@ function OrderDetailModal({
                 <CheckCircle2 className="w-4 h-4" /> Xác nhận đơn hàng
               </Button>
             )}
-            {!isBuyer && status === "confirmed" && (
+ 
+            {/* SELLER: Ship - with photo upload */}
+            {!isBuyer && status === "confirmed" && !showShipUpload && (
               <Button
                 className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => {
-                  onAction(order._id, "ship");
-                  onClose();
-                }}
+                onClick={() => setShowShipUpload(true)}
               >
                 <Truck className="w-4 h-4" /> Bắt đầu giao hàng
               </Button>
             )}
+ 
+            {!isBuyer && status === "confirmed" && showShipUpload && (
+              <div className="border dark:border-gray-700 rounded-xl p-4 space-y-3 bg-blue-50 dark:bg-blue-950/20">
+                <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                  <Truck className="w-4 h-4" /> Upload ảnh bằng chứng giao hàng
+                </p>
+                <p className="text-xs text-gray-500">
+                  Chụp ảnh bưu kiện / biên nhận để người mua theo dõi. Tối đa 5 ảnh.
+                </p>
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                  <Package className="w-6 h-6 text-blue-400 mb-1" />
+                  <span className="text-xs text-blue-500">Chọn ảnh (tối đa 5)</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    multiple
+                    onChange={handleShipFileChange}
+                  />
+                </label>
+                {shipPreviews.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {shipPreviews.map((src, i) => (
+                      <img
+                        key={i}
+                        src={src}
+                        alt={`Preview ${i + 1}`}
+                        className="w-full h-20 object-cover rounded-lg border border-blue-200"
+                      />
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                    onClick={handleShipSubmit}
+                    disabled={shipping}
+                  >
+                    <Truck className="w-4 h-4" />
+                    {shipping ? "Đang gửi..." : "Xác nhận giao hàng"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setShowShipUpload(false); setShipFiles([]); setShipPreviews([]); }}
+                  >
+                    Huỷ
+                  </Button>
+                </div>
+              </div>
+            )}
+ 
             {!isBuyer && status === "shipping" && (
               <Button
                 className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -594,7 +692,7 @@ function OrderDetailModal({
               </Button>
             )}
           </div>
-
+ 
           {/* Rate Modal inline */}
           {rateOpen && (
             <div className="border dark:border-gray-700 rounded-xl p-5 space-y-4 bg-gray-50 dark:bg-gray-800">
@@ -625,20 +723,35 @@ function OrderDetailModal({
           )}
         </div>
       </div>
+ 
+      {/* Lightbox */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxImg(null)}
+        >
+          <img
+            src={lightboxImg}
+            alt="Ảnh giao hàng"
+            className="max-w-full max-h-full rounded-lg object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }
-
 // ── Order Card ──────────────────────────────────────────────────────────────
 function OrderCard({
   order,
   role,
   onAction,
+  onActionWithFiles,
   onChat,
 }: {
   order: any;
   role: "buyer" | "seller";
   onAction: (orderId: string, action: string, data?: any) => Promise<void>;
+  onActionWithFiles: (orderId: string, action: string, files: File[]) => Promise<void>;
   onChat: (partnerId: string, productId: string) => void;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
@@ -656,7 +769,7 @@ function OrderCard({
     isWalletPayment;
   const isCompleted = status === "completed";
   const hasRated = !!order.sellerRating?.rating;
-
+ 
   const isWalletPending = isPending && isWalletPayment;
   const { timeLeft, expired } = useCountdown(
     isWalletPending ? order.paymentDeadline : null,
@@ -697,7 +810,7 @@ function OrderCard({
                   <StatusBadge status={status} paymentMethod={order.paymentMethod} />
                 </div>
               </div>
-
+ 
               {/* Countdown for pending payment */}
               {isBuyer &&
                 isWalletPending &&
@@ -716,7 +829,7 @@ function OrderCard({
                   Đã hết hạn thanh toán
                 </p>
               )}
-
+ 
               {/* Quick action bar */}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
@@ -727,7 +840,7 @@ function OrderCard({
                 >
                   <Eye className="w-3.5 h-3.5" /> Xem chi tiết
                 </Button>
-
+ 
                 {partner?._id && (
                   <Button
                     size="sm"
@@ -738,7 +851,7 @@ function OrderCard({
                     <MessageCircle className="w-3.5 h-3.5" /> Chat
                   </Button>
                 )}
-
+ 
                 {/* Pay Now shortcut */}
                 {isBuyer && isWalletPending && !expired && (
                   <Button
@@ -749,7 +862,7 @@ function OrderCard({
                     <Wallet className="w-3.5 h-3.5" /> Thanh toán
                   </Button>
                 )}
-
+ 
                 {/* Confirm Received shortcut */}
                 {isBuyer && ["shipping", "delivered"].includes(status) && (
                   <Button
@@ -760,7 +873,7 @@ function OrderCard({
                     <CheckCircle2 className="w-3.5 h-3.5" /> Đã nhận hàng
                   </Button>
                 )}
-
+ 
                 {/* Rate seller shortcut */}
                 {isBuyer && isCompleted && !hasRated && (
                   <Button
@@ -771,7 +884,7 @@ function OrderCard({
                     <Star className="w-3.5 h-3.5" /> Đánh giá
                   </Button>
                 )}
-
+ 
                 {/* Show rated */}
                 {isBuyer && isCompleted && hasRated && (
                   <div className="flex items-center gap-1 text-xs text-yellow-500">
@@ -784,13 +897,14 @@ function OrderCard({
           </div>
         </CardContent>
       </Card>
-
+ 
       {detailOpen && (
         <OrderDetailModal
           order={order}
           role={role}
           onClose={() => { setDetailOpen(false); setOpenRating(false); }}
           onAction={onAction}
+          onActionWithFiles={onActionWithFiles}
           onChat={onChat}
           openRating={openRating}
         />
@@ -798,17 +912,17 @@ function OrderCard({
     </>
   );
 }
-
+ 
 // ── Main Page ───────────────────────────────────────────────────────────────
 export function OrderHistoryPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-
+ 
   const [buyingOrders, setBuyingOrders] = useState<any[]>([]);
   const [sellingOrders, setSellingOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+ 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -831,7 +945,7 @@ export function OrderHistoryPage() {
       setLoading(false);
     }
   }, []);
-
+ 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/login");
@@ -839,7 +953,7 @@ export function OrderHistoryPage() {
     }
     fetchOrders();
   }, [isAuthenticated, navigate, fetchOrders]);
-
+ 
   const handleAction = async (orderId: string, action: string, data?: any) => {
     try {
       let url = `${API_BASE}/api/orders/${orderId}/${action}`;
@@ -851,7 +965,7 @@ export function OrderHistoryPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Thao tác thất bại");
-
+ 
       // Special case: not enough balance → navigate to wallet
       toast.success(json.message || "Thành công!");
       await fetchOrders();
@@ -873,7 +987,27 @@ export function OrderHistoryPage() {
       }
     }
   };
-
+ 
+  const handleActionWithFiles = async (orderId: string, action: string, files: File[]) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const url = `${API_BASE}/api/orders/${orderId}/${action}`;
+      const formData = new FormData();
+      files.forEach((file) => formData.append("shippingProofImages", file));
+      const res = await fetch(url, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Thao tác thất bại");
+      toast.success(json.message || "Đã cập nhật trạng thái giao hàng!");
+      await fetchOrders();
+    } catch (err: any) {
+      toast.error(err.message || "Thao tác thất bại");
+    }
+  };
+ 
   const handleChat = async (partnerId: string, productId: string) => {
     try {
       const res = await getOrCreateConversation(partnerId, productId);
@@ -886,23 +1020,44 @@ export function OrderHistoryPage() {
       navigate("/messages");
     }
   };
-
+ 
   const allOrders = [
     ...buyingOrders.map((o) => ({ ...o, _role: "buyer" })),
     ...sellingOrders.map((o) => ({ ...o, _role: "seller" })),
   ].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
-
+ 
   const pendingPaymentCount = buyingOrders.filter((o) => {
     const s = o.status || o.orderStatus;
     return (
       ["pending", "pending_seller_confirm"].includes(s) &&
       o.paymentStatus !== "paid" &&
-      o.paymentMethod === "wallet"  // COD không tính là chờ thanh toán
+      o.paymentMethod === "wallet"
     );
   }).length;
-
+ 
+  const PAGE_SIZE = 5;
+  const [currentPage, setCurrentPage] = useState<Record<string, number>>({
+    all: 1, buying: 1, selling: 1,
+  });
+ 
+  const getPagedOrders = (tab: "all" | "buying" | "selling", orders: any[]) => {
+    const page = currentPage[tab] || 1;
+    const start = (page - 1) * PAGE_SIZE;
+    return {
+      items: orders.slice(start, start + PAGE_SIZE),
+      total: orders.length,
+      totalPages: Math.ceil(orders.length / PAGE_SIZE),
+      page,
+    };
+  };
+ 
+  const goToPage = (tab: string, page: number) => {
+    setCurrentPage((prev) => ({ ...prev, [tab]: page }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+ 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -931,13 +1086,13 @@ export function OrderHistoryPage() {
             <RefreshCw className="w-4 h-4" /> Làm mới
           </Button>
         </div>
-
+ 
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg">
             {error}
           </div>
         )}
-
+ 
         {loading ? (
           <div className="flex justify-center items-center py-24">
             <div className="text-center space-y-3">
@@ -946,10 +1101,18 @@ export function OrderHistoryPage() {
             </div>
           </div>
         ) : (
-          <Tabs defaultValue="all">
-            <TabsList className="mb-6 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
-              <TabsTrigger value="all">Tất cả ({allOrders.length})</TabsTrigger>
-              <TabsTrigger value="buying">
+          <Tabs defaultValue="all" onValueChange={(tab) => goToPage(tab, 1)}>
+            <TabsList className="mb-6 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 p-1 rounded-xl gap-1">
+              <TabsTrigger
+                value="all"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              >
+                Tất cả ({allOrders.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="buying"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              >
                 Đang mua ({buyingOrders.length})
                 {pendingPaymentCount > 0 && (
                   <span className="ml-1.5 bg-yellow-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
@@ -957,11 +1120,14 @@ export function OrderHistoryPage() {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="selling">
+              <TabsTrigger
+                value="selling"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              >
                 Đang bán ({sellingOrders.length})
               </TabsTrigger>
             </TabsList>
-
+ 
             {(["all", "buying", "selling"] as const).map((tab) => {
               const orders =
                 tab === "all"
@@ -971,6 +1137,7 @@ export function OrderHistoryPage() {
                     : sellingOrders;
               const getRole = (o: any): "buyer" | "seller" =>
                 tab === "all" ? o._role : tab === "buying" ? "buyer" : "seller";
+              const { items, total, totalPages, page } = getPagedOrders(tab, orders);
               return (
                 <TabsContent key={tab} value={tab} className="space-y-3 mt-0">
                   {orders.length === 0 ? (
@@ -981,15 +1148,66 @@ export function OrderHistoryPage() {
                       </CardContent>
                     </Card>
                   ) : (
-                    orders.map((order: any) => (
-                      <OrderCard
-                        key={order._id}
-                        order={order}
-                        role={getRole(order)}
-                        onAction={handleAction}
-                        onChat={handleChat}
-                      />
-                    ))
+                    <>
+                      {items.map((order: any) => (
+                        <OrderCard
+                          key={order._id}
+                          order={order}
+                          role={getRole(order)}
+                          onAction={handleAction}
+                          onActionWithFiles={handleActionWithFiles}
+                          onChat={handleChat}
+                        />
+                      ))}
+ 
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-4 border-t dark:border-gray-800">
+                          <p className="text-sm text-gray-500">
+                            Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total} đơn hàng
+                          </p>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              disabled={page === 1}
+                              onClick={() => goToPage(tab, page - 1)}
+                            >
+                              ‹
+                            </Button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                              const isNear = p === 1 || p === totalPages || Math.abs(p - page) <= 1;
+                              const isDot = !isNear && (p === 2 || p === totalPages - 1);
+                              if (!isNear && !isDot) return null;
+                              if (isDot) return (
+                                <span key={p} className="text-gray-400 px-1">…</span>
+                              );
+                              return (
+                                <Button
+                                  key={p}
+                                  variant={p === page ? "default" : "outline"}
+                                  size="sm"
+                                  className={`h-8 w-8 p-0 ${p === page ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900" : ""}`}
+                                  onClick={() => goToPage(tab, p)}
+                                >
+                                  {p}
+                                </Button>
+                              );
+                            })}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              disabled={page === totalPages}
+                              onClick={() => goToPage(tab, page + 1)}
+                            >
+                              ›
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </TabsContent>
               );
@@ -1000,4 +1218,3 @@ export function OrderHistoryPage() {
     </div>
   );
 }
- 
