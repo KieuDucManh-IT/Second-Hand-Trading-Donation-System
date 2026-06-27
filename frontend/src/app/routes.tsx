@@ -35,7 +35,7 @@ import WalletPage from "./pages/WalletPage";
 
 import DonationRequestsPage from "./pages/DonationRequestsPage";
 import DonationRequest from "./pages/DonationRequest";
-
+import NotificationPage from "./pages/Notification";
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -76,6 +76,8 @@ export const router = createBrowserRouter([
       { path: "checkout", element: <CreateOrderPage /> },
 
       { path: "*", element: <NotFoundPage /> },
+
+      { path: "notifications", element: <NotificationPage /> },
     ],
   },
 ]);

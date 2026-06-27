@@ -1,12 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { Wallet, ShoppingCart } from "lucide-react";
- 
+import NotificationBell from "./NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-
+ 
 import {
   Search,
-  Bell,
   MessageSquare,
   Heart,
   Plus,
@@ -32,46 +31,30 @@ import {
   ArrowLeftRight,
   ShieldCheck,
 } from 'lucide-react';
-
+ 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { fetchConversations } from '../api/chatApi';
 import { connectSocket } from '../lib/socket';
-
+ 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-type HeaderNotification = {
-  id: string;
-  userId?: string;
-  type?: string;
-  title: string;
-  message: string;
-  isRead: boolean;
-  link?: string;
-  createdAt?: string;
-};
-
-
+ 
 export function Header() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, updateProfile } = useAuth();
   const { theme, toggleTheme } = useTheme();
-
+ 
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
  
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-
-  const unreadNotifications = notifications.filter((n) => !n.isRead).length;
-
+ 
   const loadUnreadMessages = () => {
     fetchConversations()
       .then((res) => {
-        const total = res.data.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        const total = res.data.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0);
         setUnreadMessages(total);
       })
       .catch(() => {});
@@ -87,8 +70,7 @@ export function Header() {
  
     const socket = connectSocket();
  
-    const onNewMessage = ({ conversationId }: { conversationId: string }) => {
-     
+    const onNewMessage = () => {
       loadUnreadMessages();
     };
  
@@ -107,7 +89,6 @@ export function Header() {
  
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
       setSearchQuery('');
@@ -118,46 +99,39 @@ export function Header() {
     logout();
     navigate('/');
   };
-
+ 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-
     if (!file) return;
-
+ 
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
-
+ 
     if (file.size > 2 * 1024 * 1024) {
       toast.error('Image must be smaller than 2MB');
       return;
     }
-
+ 
     try {
       setAvatarUploading(true);
-
+ 
       const token = sessionStorage.getItem('token');
-
-      if (!token) {
-        throw new Error('You are not logged in');
-      }
-
+      if (!token) throw new Error('You are not logged in');
+ 
       const formData = new FormData();
       formData.append('avatar', file);
-
+ 
       const res = await fetch(`${API_BASE_URL}/api/auth/update-avatar`, {
         method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-
+ 
       const contentType = res.headers.get('content-type');
-
       let data: any;
-
+ 
       if (contentType && contentType.includes('application/json')) {
         data = await res.json();
       } else {
@@ -165,19 +139,11 @@ export function Header() {
         console.error('SERVER RETURNED NON JSON:', text);
         throw new Error('Backend trả về HTML, kiểm tra lại route update-avatar hoặc lỗi server backend');
       }
-
-      console.log('UPDATE AVATAR RESPONSE:', data);
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Upload avatar failed');
-      }
-
+ 
+      if (!res.ok) throw new Error(data.message || 'Upload avatar failed');
+ 
       const newAvatarUrl = `${data.user.avatar}?t=${Date.now()}`;
-
-      updateProfile({
-        avatar: newAvatarUrl,
-      });
-
+      updateProfile({ avatar: newAvatarUrl });
       toast.success(data.message || 'Avatar updated successfully');
     } catch (err: any) {
       console.error('UPLOAD AVATAR ERROR:', err);
@@ -187,11 +153,13 @@ export function Header() {
       e.target.value = '';
     }
   };
-
+ 
   return (
     <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+ 
+          {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
               <Package className="w-6 h-6 text-white" />
@@ -200,6 +168,8 @@ export function Header() {
               SecondLife
             </span>
           </Link>
+ 
+          {/* Search - desktop */}
           <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-2xl mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -212,22 +182,18 @@ export function Header() {
               />
             </div>
           </form>
+ 
+          {/* Right actions */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="rounded-full"
-            >
-              {theme === 'light' ? (
-                <Moon className="w-5 h-5" />
-              ) : (
-                <Sun className="w-5 h-5" />
-              )}
+ 
+            {/* Theme toggle */}
+            <Button variant="ghost" size="sm" onClick={toggleTheme} className="rounded-full">
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </Button>
  
             {isAuthenticated ? (
               <>
+                {/* Post item button */}
                 <Button
                   onClick={() => navigate('/create-product')}
                   className="hidden sm:flex items-center space-x-2 rounded-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
@@ -235,6 +201,8 @@ export function Header() {
                   <Plus className="w-5 h-5" />
                   <span className="hidden lg:inline">Post Item</span>
                 </Button>
+ 
+                {/* Messages */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -248,51 +216,11 @@ export function Header() {
                     </Badge>
                   )}
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="relative rounded-full">
-                      <Bell className="w-5 h-5" />
-                      {unreadNotifications > 0 && (
-                        <Badge className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center bg-red-500 text-white text-xs">
-                          {unreadNotifications}
-                        </Badge>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent align="end" className="w-80">
-                    <div className="px-4 py-3 border-b">
-                      <h3 className="font-semibold">Notifications</h3>
-                    </div>
-
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-sm text-gray-500">
-                          No notifications yet
-                        </div>
-                      ) : (
-                        notifications.slice(0, 5).map((notification) => (
-                          <DropdownMenuItem
-                            key={notification.id}
-                            className="px-4 py-3 cursor-pointer"
-                            onClick={() => notification.link && navigate(notification.link)}
-                          >
-                            <div className="flex flex-col space-y-1">
-                              <p className="font-medium text-sm">{notification.title}</p>
-                              <p className="text-xs text-gray-500">{notification.message}</p>
-
-                              {notification.createdAt && (
-                                <p className="text-xs text-gray-400">
-                                  {new Date(notification.createdAt).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          </DropdownMenuItem>
-                        ))
-                      )}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+ 
+                {/* ✅ Notification Bell - thay thế DropdownMenu cũ */}
+                <NotificationBell />
+ 
+                {/* Avatar + user menu */}
                 <div className="relative">
                   <input
                     ref={avatarInputRef}
@@ -359,6 +287,11 @@ export function Header() {
                         Transactions
                       </DropdownMenuItem>
  
+                      <DropdownMenuItem onClick={() => navigate('/notifications')}>
+                        <Package className="w-4 h-4 mr-2" />
+                        Notifications
+                      </DropdownMenuItem>
+ 
                       <DropdownMenuItem>
                         <Heart className="w-4 h-4 mr-2" />
                         Favorites
@@ -390,14 +323,9 @@ export function Header() {
               </>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/login')}
-                  className="hidden sm:flex"
-                >
+                <Button variant="outline" onClick={() => navigate('/login')} className="hidden sm:flex">
                   Login
                 </Button>
-
                 <Button
                   onClick={() => navigate('/register')}
                   className="rounded-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
@@ -406,6 +334,8 @@ export function Header() {
                 </Button>
               </>
             )}
+ 
+            {/* Mobile menu toggle */}
             <Button
               variant="ghost"
               size="sm"
@@ -416,6 +346,8 @@ export function Header() {
             </Button>
           </div>
         </div>
+ 
+        {/* Search - mobile */}
         <form onSubmit={handleSearch} className="md:hidden pb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -429,6 +361,8 @@ export function Header() {
           </div>
         </form>
       </div>
+ 
+      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="px-4 py-4 space-y-2">
@@ -436,104 +370,88 @@ export function Header() {
               <>
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate(`/profile/${user?.id}`);
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate(`/profile/${user?.id}`); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <User className="w-5 h-5 mr-2" />
                   My Profile
                 </Button>
+ 
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate('/create-product');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/create-product'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   Post Item
                 </Button>
-
+ 
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate('/messages');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/messages'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <MessageSquare className="w-5 h-5 mr-2" />
                   Messages
                 </Button>
-
+ 
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate('/cart');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/cart'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
                   Cart
                 </Button>
+ 
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate('/orders');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/orders'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <Package className="w-5 h-5 mr-2" />
                   My Orders
                 </Button>
-
+ 
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate('/exchanges');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/exchanges'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <ArrowLeftRight className="w-5 h-5 mr-2" />
                   Exchanges
                 </Button>
-
+ 
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    navigate('/transactions');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/transactions'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <ShieldCheck className="w-5 h-5 mr-2" />
                   Transactions
+                </Button>
+ 
+                <Button
+                  variant="ghost"
+                  onClick={() => { navigate('/notifications'); setMobileMenuOpen(false); }}
+                  className="w-full justify-start"
+                >
+                  <Package className="w-5 h-5 mr-2" />
+                  Notifications
                 </Button>
               </>
             ) : (
               <>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    navigate('/login');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
                   className="w-full"
                 >
                   Login
                 </Button>
-
+ 
                 <Button
-                  onClick={() => {
-                    navigate('/register');
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { navigate('/register'); setMobileMenuOpen(false); }}
                   className="w-full bg-gradient-to-r from-green-500 to-blue-500"
                 >
                   Sign Up

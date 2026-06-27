@@ -8,7 +8,8 @@ const Product = require("../models/modelProduct");
 
 const PLATFORM_FEE_RATE = Number(process.env.PLATFORM_FEE_RATE || 0.1);
 const BUYER_CONFIRM_DAYS = Number(process.env.BUYER_CONFIRM_DAYS || 7);
-
+const { sendNotification } = require("../utils/notificationHelper");
+function getIO() { return global.__io || null; }
 function getId(value) {
   return String(value?._id || value || "");
 }
@@ -281,7 +282,13 @@ async function sellerConfirmOrder(orderId, sellerId) {
   order.confirmedAt = new Date();
 
   await order.save();
-
+sendNotification(getIO(), {
+  userId: String(order.buyerId),
+  type: "order_confirmed",
+  title: "Đơn hàng được xác nhận",
+  message: `Người bán đã xác nhận đơn hàng của bạn.`,
+  data: { orderId: order._id },
+});
   return order;
 }
 
@@ -314,7 +321,13 @@ async function markOrderShipping(orderId, sellerId, shippingProofImages = []) {
   }
 
   await order.save();
-
+sendNotification(getIO(), {
+  userId: String(order.buyerId),
+  type: "order_shipping",
+  title: "Đơn hàng đang được giao",
+  message: `Đơn hàng của bạn đang trên đường giao đến bạn.`,
+  data: { orderId: order._id },
+});
   return order;
 }
 
@@ -347,7 +360,13 @@ async function markOrderDelivered(orderId, sellerId) {
   order.autoReleaseAt = deadline;
 
   await order.save();
-
+sendNotification(getIO(), {
+  userId: String(order.buyerId),
+  type: "order_delivered",
+  title: "Đơn hàng đã được giao",
+  message: `Đơn hàng đã được giao. Bạn có 7 ngày để xác nhận nhận hàng.`,
+  data: { orderId: order._id },
+});
   return order;
 }
 
@@ -392,7 +411,21 @@ async function buyerConfirmReceived(orderId, buyerId) {
     await releaseEscrowToSeller(order, "buyer_confirmed", session);
 
     await session.commitTransaction();
-
+const sellerAmount = getSellerReceives(order);
+sendNotification(getIO(), {
+  userId: String(order.sellerId),
+  type: "wallet_received",
+  title: "Tiền đã vào ví",
+  message: `${sellerAmount.toLocaleString("vi-VN")}₫ đã được chuyển vào ví của bạn.`,
+  data: { orderId: order._id, amount: sellerAmount },
+});
+sendNotification(getIO(), {
+  userId: String(order.buyerId),
+  type: "order_completed",
+  title: "Đơn hàng hoàn thành",
+  message: `Cảm ơn bạn đã mua hàng! Đơn hàng đã hoàn thành.`,
+  data: { orderId: order._id },
+});
     return order;
   } catch (error) {
     await session.abortTransaction();
@@ -482,13 +515,22 @@ async function autoReleaseExpiredOrders() {
     try {
       await buyerConfirmReceived(order._id, order.buyerId);
       success += 1;
+
+       const sellerAmt = getSellerReceives(order);
+    sendNotification(getIO(), {
+      userId: String(order.sellerId),
+      type: "wallet_received",
+      title: "Tiền đã vào ví (tự động)",
+      message: `${sellerAmt.toLocaleString("vi-VN")}₫ đã tự động chuyển vào ví sau 7 ngày.`,
+      data: { orderId: order._id, amount: sellerAmt },
+    });
     } catch (error) {
       failed += 1;
       console.error(`AUTO RELEASE ORDER ERROR #${order._id}:`, error.message);
     }
   }
 
-  return {
+  return {  
     total: expiredOrders.length,
     success,
     failed,
@@ -583,6 +625,26 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
 
     await session.commitTransaction();
 
+    // Thông báo người còn lại và người bị hoàn tiền
+const isBuyerCancel = String(userId) === String(order.buyerId);
+const refundTarget = isBuyerCancel ? order.buyerId : order.buyerId;
+const notifyOther = isBuyerCancel ? order.sellerId : order.buyerId;
+
+sendNotification(getIO(), {
+  userId: String(notifyOther),
+  type: "order_cancelled",
+  title: "Đơn hàng bị huỷ",
+  message: `Đơn hàng đã bị huỷ.`,
+  data: { orderId: order._id },
+});
+sendNotification(getIO(), {
+  userId: String(order.buyerId),
+  type: "wallet_refunded",
+  title: "Hoàn tiền thành công",
+  message: `${getOrderAmount(order).toLocaleString("vi-VN")}₫ đã được hoàn về ví của bạn.`,
+  data: { orderId: order._id, amount: getOrderAmount(order) },
+});
+
     return order;
   } catch (error) {
     await session.abortTransaction();
@@ -627,7 +689,13 @@ async function openOrderDispute(orderId, userId, reason = "") {
   order.confirmDeadline = null;
 
   await order.save();
-
+sendNotification(getIO(), {
+  userId: String(order.sellerId),
+  type: "order_disputed",
+  title: "Đơn hàng bị khiếu nại",
+  message: `Người mua đã mở khiếu nại. Tiền sẽ bị giữ để xem xét.`,
+  data: { orderId: order._id },
+});
   return order;
 }
 

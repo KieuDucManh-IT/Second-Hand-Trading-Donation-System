@@ -135,7 +135,6 @@ exports.getMessages = async (req, res) => {
 };
  
 // POST /api/chat/conversations/:id/messages
-// body: { content }
 exports.sendMessage = async (req, res) => {
   try {
     const userId = req.user._id;

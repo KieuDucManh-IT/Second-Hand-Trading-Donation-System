@@ -192,7 +192,14 @@ exports.createOrder = async (req, res) => {
     product.status = "reserved";
     product.isAvailable = false;
     await product.save();
-
+const { sendNotification } = require("../utils/notificationHelper");
+sendNotification(req.app.get("io"), {
+  userId: String(order.sellerId),
+  type: "order_created",
+  title: "Đơn hàng mới",
+  message: `Bạn có đơn hàng mới từ người mua. Vui lòng xác nhận đơn hàng.`,
+  data: { orderId: order._id },
+});
     res.status(201).json({
       success: true,
       message: paymentMethod === "cod"
