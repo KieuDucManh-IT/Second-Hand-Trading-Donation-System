@@ -62,15 +62,21 @@ const myDonations = donations.filter(
 
 const fetchDonations = async () => {
   try {
-    const res = await fetch("http://localhost:5000/api/donations");
+    const token = sessionStorage.getItem("token");
 
-    const data = await res.json();
+    const response = await fetch(
+      "http://localhost:5000/api/donations",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-    console.log("DONATIONS =", data);
-
+    const data = await response.json();
     setDonations(data);
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 };
 

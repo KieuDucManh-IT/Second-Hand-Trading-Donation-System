@@ -73,15 +73,22 @@ exports.getDonations = async (req, res) => {
 };
 exports.getMyDonations = async (req, res) => {
   try {
-    const donations = await Donation.find()
+    const userId = req.user.id;
+
+    const donations = await Donation.find({
+      $or: [
+        { donorId: userId },
+        { requesterId: userId }
+      ]
+    })
       .populate("productId")
       .populate("donorId")
       .populate("requesterId");
 
-    res.status(200).json(donations);
-  } catch (error) {
+    res.json(donations);
+  } catch (err) {
     res.status(500).json({
-      message: error.message,
+      message: err.message,
     });
   }
 };

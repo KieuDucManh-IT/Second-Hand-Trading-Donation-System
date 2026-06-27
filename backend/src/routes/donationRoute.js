@@ -4,10 +4,11 @@ const router = express.Router();
 const donationController = require(
   "../controllers/donationController"
 );
-
+const { protect } = require("../middlewares/authMiddleware");
 // Lấy danh sách request
 router.get(
   "/",
+  protect,
   donationController.getMyDonations
 );
 
