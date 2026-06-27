@@ -28,6 +28,14 @@ exports.acceptDonation = async (req, res) => {
       { new: true }
     );
 
+    if (donation) {
+      const Product = require("../models/modelProduct");
+      await Product.findByIdAndUpdate(donation.productId, {
+        status: "sold",
+        isAvailable: false,
+      });
+    }
+
     res.json(donation);
   } catch (error) {
     res.status(500).json({

@@ -63,6 +63,7 @@ export function useManagerDashboard() {
 
   const [showAllProducts, setShowAllProducts] = useState(true);
   const [allProductsList, setAllProductsList] = useState<Array<any>>([]);
+  const [disputesData, setDisputesData] = useState<{ orders: Array<any>; exchanges: Array<any> }>({ orders: [], exchanges: [] });
 
   useEffect(() => {
     if (isAuthReady && (!user || user.role !== 'manager')) {
@@ -89,6 +90,23 @@ export function useManagerDashboard() {
     }
   };
 
+  const fetchDisputes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/disputes`, {
+        headers: authHeaders(),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setDisputesData({
+          orders: result.orders || [],
+          exchanges: result.exchanges || [],
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch disputes', err);
+    }
+  };
+
   const refreshDashboard = async () => {
     try {
       const response = await fetch(`${API_URL}/dashboard`, { headers: authHeaders() });
@@ -104,12 +122,63 @@ export function useManagerDashboard() {
         statistics: { ...emptyData.statistics, ...result.statistics },
       });
       await fetchAllProducts();
+      await fetchDisputes();
     } catch (err: any) {
       const message = err.message || 'Không thể tải dữ liệu bảng quản lý';
       setError(message);
       toast.error(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resolveDispute = async (
+    disputeId: string,
+    type: 'order' | 'exchange',
+    resolution: 'accept' | 'reject',
+    hasReturnedGoods: boolean,
+    resolutionNote: string
+  ) => {
+    try {
+      const response = await fetch(`${API_URL}/disputes/resolve`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          disputeId,
+          type,
+          resolution,
+          hasReturnedGoods,
+          resolutionNote,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Không thể giải quyết tranh chấp');
+      }
+
+      toast.success('Đã giải quyết tranh chấp thành công');
+      await refreshDashboard();
+    } catch (err: any) {
+      toast.error(err.message || 'Không thể giải quyết tranh chấp');
+      throw err;
+    }
+  };
+
+  const repairExchangeProducts = async () => {
+    try {
+      const response = await fetch(`${API_URL}/repair-exchange-products`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Lỗi khi sửa sản phẩm');
+      toast.success(result.message || 'Đã đồng bộ sản phẩm');
+      await refreshDashboard();
+      return result.results;
+    } catch (err: any) {
+      toast.error(err.message || 'Không thể đồng bộ');
+      throw err;
     }
   };
 
@@ -306,5 +375,8 @@ export function useManagerDashboard() {
     updateUserStatus,
     updateProductStatus,
     updateReportStatus,
+    disputesData,
+    resolveDispute,
+    repairExchangeProducts,
   };
 }

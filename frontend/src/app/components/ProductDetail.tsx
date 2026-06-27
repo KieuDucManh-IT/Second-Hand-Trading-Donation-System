@@ -206,7 +206,10 @@ export function ProductDetailPage() {
         `/products/my/exchange?excludeProductId=${encodeURIComponent(id)}`
       );
       const list = data.products || data.data || [];
-      setMyProducts(Array.isArray(list) ? list : []);
+      const filteredList = (Array.isArray(list) ? list : []).filter(
+        (p: any) => p.status === "available" && p.isAvailable !== false
+      );
+      setMyProducts(filteredList);
     } catch (error: any) {
       toast.error(error.message || "Không thể tải sản phẩm của bạn");
     } finally {
@@ -343,9 +346,16 @@ export function ProductDetailPage() {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                   {product.title}
                 </h1>
-                {product.categoryId?.name && (
-                  <Badge variant="outline">{product.categoryId.name}</Badge>
-                )}
+                <div className="flex flex-wrap gap-2 items-center">
+                  {product.categoryId?.name && (
+                    <Badge variant="outline">{product.categoryId.name}</Badge>
+                  )}
+                  {product.status === "sold" && (
+                    <Badge className="bg-red-500 hover:bg-red-600 text-white font-bold">
+                      Đã giao dịch
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="flex space-x-2">
                 <Button size="sm" variant="outline" className="rounded-full">
@@ -389,59 +399,64 @@ export function ProductDetailPage() {
             )}
  
             {/* Action Buttons */}
-            <div className="space-y-3 mb-6">
-              <Button
-                onClick={handleOrder}
-                className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
-              >
-                {product.type === "donate" ? "Yêu cầu nhận đồ" : "Mua ngay"}
-              </Button>
+            {product.status === "sold" ? (
+              <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 text-red-800 text-center font-bold text-lg">
+                Đã giao dịch
+              </div>
+            ) : (
+              <div className="space-y-3 mb-6">
+                <Button
+                  onClick={handleOrder}
+                  className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
+                >
+                  {product.type === "donate" ? "Yêu cầu nhận đồ" : "Mua ngay"}
+                </Button>
  
-              {product.type === "sell" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={async () => {
-                      if (!isAuthenticated) {
-                        toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
-                        navigate("/login");
-                        return;
-                      }
-                      await addToCart(product._id);
-                      toast.success("Đã thêm vào giỏ hàng!");
-                    }}
-                    disabled={cartLoading}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    {cartLoading ? "Đang thêm..." : "Thêm vào giỏ"}
-                  </Button>
+                {product.type === "sell" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={async () => {
+                        if (!isAuthenticated) {
+                          toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
+                          navigate("/login");
+                          return;
+                        }
+                        await addToCart(product._id);
+                        toast.success("Đã thêm vào giỏ hàng!");
+                      }}
+                      disabled={cartLoading}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      {cartLoading ? "Đang thêm..." : "Thêm vào giỏ"}
+                    </Button>
  
-                  <Button
-                    onClick={openExchangeDialog}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ArrowLeftRight className="w-4 h-4 mr-2" />
-                    Đề xuất trao đổi
-                  </Button>
-                </div>
-              )}
- 
-              <Button
-                onClick={handleContact}
-                disabled={contacting}
-                variant="outline"
-                className="w-full h-12"
-              >
-                {contacting ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                ) : (
-                  <MessageCircle className="w-5 h-5 mr-2" />
+                    <Button
+                      onClick={openExchangeDialog}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ArrowLeftRight className="w-4 h-4 mr-2" />
+                      Đề xuất trao đổi
+                    </Button>
+                  </div>
                 )}
-                Liên hệ người bán
-              </Button>
-            </div>
+                <Button
+                  onClick={handleContact}
+                  disabled={contacting}
+                  variant="outline"
+                  className="w-full h-12"
+                >
+                  {contacting ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                  )}
+                  Liên hệ người bán
+                </Button>
+              </div>
+            )}
  
             <Separator className="my-6" />
  
@@ -571,7 +586,7 @@ export function ProductDetailPage() {
                   <div>
                     <dt className="font-medium text-gray-900 dark:text-white">Trạng thái</dt>
                     <dd className="text-gray-600 dark:text-gray-400 capitalize">
-                      {product.status}
+                      {product.status === "sold" ? "Đã giao dịch" : product.status}
                     </dd>
                   </div>
                 </dl>

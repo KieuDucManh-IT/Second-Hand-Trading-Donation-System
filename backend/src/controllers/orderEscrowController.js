@@ -1,4 +1,5 @@
 const escrowService = require("../services/escrowService");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
  
 function getUserId(req) {
   return req.user?._id || req.user?.id || req.userId;
@@ -83,7 +84,35 @@ exports.openOrderDispute = async (req, res) => {
     const userId  = getUserId(req);
     const { orderId } = req.params;
     const { reason } = req.body;
-    const order = await escrowService.openOrderDispute(orderId, userId, reason);
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập lý do khiếu nại" });
+    }
+
+    const uploadedEvidences = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const isVideo = file.mimetype.startsWith("video");
+
+        const result = await uploadToCloudinary(file.buffer, {
+          folder: "order-complaints",
+          resourceType: isVideo ? "video" : "image",
+        });
+
+        uploadedEvidences.push({
+          url: result.secure_url,
+          publicId: result.public_id,
+          type: isVideo ? "video" : "image",
+          resourceType: result.resource_type,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+        });
+      }
+    }
+
+    const order = await escrowService.openOrderDispute(orderId, userId, reason, uploadedEvidences);
     res.json({ success: true, message: "Đã mở khiếu nại. Hệ thống sẽ tạm dừng chuyển tiền.", order });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message || "Không thể mở khiếu nại" });

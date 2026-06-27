@@ -1,5 +1,6 @@
 const Product      = require('../models/modelProduct');
 const ProductImage = require('../models/modelProductImage');
+const ExchangeInvoice = require('../models/modelExchangeInvoice');
 const { deleteFromCloudinary } = require('../config/cloudinary');
 const SystemConfig = require('../models/modelSystemConfig');
  
@@ -51,6 +52,23 @@ const attachImages = async (products) => {
     images:    map[p._id.toString()] || [],
     thumbnail: map[p._id.toString()]?.[0]?.imageUrl || null,
   }));
+};
+
+const getExchangeLockedProductIds = async () => {
+  const activeStatuses = [
+    'pending_receiver_accept',
+    'waiting_deposits',
+    'active',
+    'both_confirmed',
+    'disputed',
+  ];
+
+  const [requesterProductIds, receiverProductIds] = await Promise.all([
+    ExchangeInvoice.distinct('requesterProduct', { status: { $in: activeStatuses } }),
+    ExchangeInvoice.distinct('receiverProduct', { status: { $in: activeStatuses } }),
+  ]);
+
+  return [...new Set([...requesterProductIds, ...receiverProductIds].map(String))];
 };
  
  
@@ -179,8 +197,12 @@ exports.getProducts = async (req, res, next) => {
       lat, lng, radius,
       page = 1, limit = 20, sort = 'createdAt',
     } = req.query;
- 
+
     const filter = { isAvailable: true, status: 'available' };
+    const lockedProductIds = await getExchangeLockedProductIds();
+    if (lockedProductIds.length > 0) {
+      filter._id = { $nin: lockedProductIds };
+    }
     if (keyword)    filter.$text      = { $search: keyword };
     if (categoryId) filter.categoryId = categoryId;
     if (type)       filter.type       = type;
@@ -358,11 +380,16 @@ exports.getSellerProducts = async (req, res, next) => {
     const skip = (Number(page) - 1) * Number(limit);
     const lim  = Number(limit);
  
+    const query = {
+      ownerId: req.params.userId,
+      status: { $in: ['available', 'sold', 'reserved'] },
+    };
+
     const [raw, total] = await Promise.all([
-      Product.find({ ownerId: req.params.userId, isAvailable: true })
+      Product.find(query)
         .sort({ createdAt: -1 }).skip(skip).limit(lim)
         .populate('categoryId', 'name').lean(),
-      Product.countDocuments({ ownerId: req.params.userId, isAvailable: true }),
+      Product.countDocuments(query),
     ]);
     const products = await attachImages(raw);
  
@@ -485,6 +512,8 @@ exports.getMyProductsForExchange = async (req, res) => {
     }
 
     const query = {
+      status: "available",
+      isAvailable: true,
       $or: [
         { ownerId: userId },
         { userId: userId },
@@ -495,8 +524,14 @@ exports.getMyProductsForExchange = async (req, res) => {
       ],
     };
 
+    const lockedProductIds = await getExchangeLockedProductIds();
+    if (lockedProductIds.length > 0) {
+      query._id = { $nin: lockedProductIds };
+    }
+
     if (excludeProductId) {
-      query._id = { $ne: excludeProductId };
+      query._id = query._id || {};
+      query._id.$ne = excludeProductId;
     }
 
     const products = await Product.find(query)

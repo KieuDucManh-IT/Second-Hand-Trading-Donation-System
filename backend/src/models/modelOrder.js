@@ -99,6 +99,43 @@ const orderSchema = new mongoose.Schema(
  
     cancelReason: String,
     releaseReason: String,
+
+    // Tranh chấp / Khiếu nại
+    disputedAt: Date,
+    disputeReason: String,
+    disputeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    complaint: {
+      reason: {
+        type: String,
+        trim: true,
+      },
+      evidences: [
+        {
+          url: { type: String, required: true },
+          publicId: String,
+          type: { type: String, enum: ["image", "video"], required: true },
+          resourceType: { type: String, default: "image" },
+          originalName: String,
+          mimeType: String,
+          size: Number,
+          uploadedAt: { type: Date, default: Date.now }
+        }
+      ],
+      status: {
+        type: String,
+        enum: ["pending", "reviewing", "resolved", "rejected"],
+        default: "pending",
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+      resolvedAt: Date,
+      resolutionNote: String,
+    },
   },
   {
     timestamps: true,

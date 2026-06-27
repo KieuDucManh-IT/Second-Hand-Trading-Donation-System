@@ -21,7 +21,6 @@ const walletRoutes = require("./src/routes/walletRoutes");
 const webhookRoutes = require("./src/routes/webhookRoutes");
 const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
 const { startExchangeAutoReleaseJob } = require("./src/jobs/exchangeAutoReleaseJob");
-const orderRoutes = require("./src/routes/orderRoutes");
 const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
 const donationRoute = require("./src/routes/donationRoute");
 
@@ -46,7 +45,7 @@ app.use("/api/chat", chatRoute);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/exchange-escrow", exchangeEscrowRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/api/orders", orderRoute);
 app.use("/api/donations", donationRoute);
 app.use('/api/cart',   cartRoute);
 const PORT = process.env.PORT || 5000;

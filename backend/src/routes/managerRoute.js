@@ -20,6 +20,9 @@ const {
   getConfig,
   updateConfig,
   deleteProduct,
+  getDisputes,
+  resolveDispute,
+  repairExchangeProducts,
 } = require("../controllers/managerController");
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
@@ -51,6 +54,13 @@ router.delete("/products/:id", deleteProduct);
 router.get("/reports", getReports);
 router.patch("/reports/:id/accept", acceptReport);
 router.patch("/reports/:id/reject", rejectReport);
+
+// Disputes
+router.get("/disputes", getDisputes);
+router.post("/disputes/resolve", resolveDispute);
+
+// Repair / Sync product statuses from exchange invoices
+router.post("/repair-exchange-products", repairExchangeProducts);
 
 // System Config
 router.get("/config", getConfig);

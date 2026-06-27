@@ -198,6 +198,17 @@ const exchangeInvoiceSchema = new mongoose.Schema(
       type: complaintSchema,
       default: undefined,
     },
+
+    // Bên còn lại cũng có thể gửi khiếu nại phản hồi
+    counterDisputeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    counterComplaint: {
+      type: complaintSchema,
+      default: undefined,
+    },
   },
   { timestamps: true }
 );

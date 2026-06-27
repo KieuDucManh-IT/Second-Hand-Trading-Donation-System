@@ -84,7 +84,10 @@ export function ProductListingPage() {
         page,
         limit:      12,
       });
-      setProducts(res.data);
+      const filteredProducts = (res.data || []).filter(
+        (p: ApiProduct) => p.status === 'available' && p.isAvailable !== false
+      );
+      setProducts(filteredProducts);
       setTotalPages(res.pagination.totalPages || 1);
       setTotalCount(res.pagination.total || 0);
     } catch (err) {
@@ -351,6 +354,13 @@ export function ProductListingPage() {
                           <Badge className="absolute top-2 left-2 bg-green-500 text-white text-xs">
                             MIỄN PHÍ
                           </Badge>
+                        )}
+                        {product.status === 'sold' && (
+                          <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex items-center justify-center">
+                            <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-2.5 py-1">
+                              Đã giao dịch
+                            </Badge>
+                          </div>
                         )}
                       </div>
                       <CardContent className="p-4 flex flex-col justify-between flex-1">

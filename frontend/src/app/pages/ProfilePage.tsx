@@ -93,6 +93,16 @@ export function ProfilePage() {
 
   const isOwnProfile = currentUser?.id === profileUser.id;
 
+  const isActiveListing = (product: ApiProduct) =>
+    product.status === 'available' || product.status === 'reserved';
+
+  const isTradedListing = (product: ApiProduct) => product.status === 'sold';
+
+  const activeListings = products.filter(isActiveListing);
+  const transactedListings = products
+    .filter(isTradedListing)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -147,49 +157,116 @@ export function ProfilePage() {
 
         <Tabs defaultValue="listings">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="listings">Listings</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="listings">Tin đăng</TabsTrigger>
+            <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings" className="mt-6">
-            {products.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-gray-500">
-                  No listings found for this user.
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.map((product) => (
-                  <Card
-                    key={product._id}
-                    className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/products/${product._id}`)}
-                  >
-                    <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
-                      <ImageWithFallback
-                        src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                      {product.type === 'donate' && (
-                        <Badge className="absolute top-3 left-3 bg-green-500 text-white">
-                          FREE
-                        </Badge>
-                      )}
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold mb-2 line-clamp-1">{product.title}</h3>
-                      {product.type === 'donate' ? (
-                        <span className="text-xl font-bold text-green-600">FREE</span>
-                      ) : (
-                        <span className="text-xl font-bold">${product.price}</span>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            {/* Tin đăng đang hiển thị */}
+            <div className="mb-10">
+              <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+                Tin đăng đang bán & trao đổi ({activeListings.length})
+              </h2>
+              {activeListings.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-gray-500">
+                    Không có tin đăng nào đang hiển thị.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {activeListings.map((product) => (
+                    <Card
+                      key={product._id}
+                      className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer relative"
+                      onClick={() => navigate(`/products/${product._id}`)}
+                    >
+                      <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
+                        <ImageWithFallback
+                          src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
+                          alt={product.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {product.type === 'donate' && (
+                          <Badge className="absolute top-3 left-3 bg-green-500 text-white">
+                            Miễn phí
+                          </Badge>
+                        )}
+                        {product.status === 'reserved' && (
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-10">
+                            <Badge className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1">
+                              Đang giao dịch
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold mb-2 line-clamp-1">{product.title}</h3>
+                        {product.type === 'donate' ? (
+                          <span className="text-xl font-bold text-green-600">Miễn phí</span>
+                        ) : (
+                          <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                            {product.price.toLocaleString('vi-VN')} đ
+                          </span>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sản phẩm đã giao dịch */}
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
+              <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+                Sản phẩm đã giao dịch ({transactedListings.length})
+              </h2>
+              {transactedListings.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-gray-500">
+                    Chưa có sản phẩm nào đã giao dịch.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {transactedListings.map((product) => (
+                    <Card
+                      key={product._id}
+                      className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer opacity-75 hover:opacity-100 transition-opacity"
+                      onClick={() => navigate(`/products/${product._id}`)}
+                    >
+                      <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
+                        <ImageWithFallback
+                          src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
+                          alt={product.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {product.type === 'donate' && (
+                          <Badge className="absolute top-3 left-3 bg-green-500 text-white">
+                            Miễn phí
+                          </Badge>
+                        )}
+                        <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex items-center justify-center z-10">
+                          <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-1">
+                            Đã giao dịch
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold mb-2 line-clamp-1">{product.title}</h3>
+                        {product.type === 'donate' ? (
+                          <span className="text-xl font-bold text-green-600">Miễn phí</span>
+                        ) : (
+                          <span className="text-xl font-bold text-slate-500 dark:text-slate-400 line-through">
+                            {product.price.toLocaleString('vi-VN')} đ
+                          </span>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="reviews" className="mt-6">

@@ -155,12 +155,23 @@ export async function cancelOrder(
 /** Buyer mở khiếu nại */
 export async function openDispute(
   orderId: string,
-  reason: string
+  reason: string,
+  files?: File[]
 ): Promise<{ success: boolean; order: Order }> {
+  const formData = new FormData();
+  formData.append("reason", reason);
+  if (files && files.length > 0) {
+    files.forEach((file) => {
+      formData.append("evidences", file);
+    });
+  }
+
   const res = await fetch(`${API_BASE}/api/orders/${orderId}/dispute`, {
     method:  "PUT",
-    headers: authHeader(),
-    body: JSON.stringify({ reason }),
+    headers: {
+      Authorization: `Bearer ${sessionStorage.getItem("token") || ""}`,
+    },
+    body: formData,
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.message || "Không thể mở khiếu nại");

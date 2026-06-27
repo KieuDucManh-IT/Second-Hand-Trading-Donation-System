@@ -508,6 +508,86 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+const getDisputes = async (req, res) => {
+  try {
+    const ExchangeInvoice = require("../models/modelExchangeInvoice");
+    const Order = require("../models/modelOrder");
+
+    // Lấy TẤT CẢ orders có trường complaint (bao gồm cả đã resolved/rejected)
+    // Frontend tự phân loại theo complaint.status để hiển thị "Cần xử lý" vs "Lịch sử"
+    const orders = await Order.find({
+      complaint: { $exists: true, $ne: null },
+    })
+      .populate("buyerId", "fullName email phone avatar")
+      .populate("sellerId", "fullName email phone avatar")
+      .populate("productId", "title price thumbnail description")
+      .sort({ updatedAt: -1 });
+
+    // Lấy TẤT CẢ exchanges có trường complaint (bao gồm cả đã resolved/rejected)
+    const exchanges = await ExchangeInvoice.find({
+      complaint: { $exists: true, $ne: null },
+    })
+      .populate("requester", "fullName email phone avatar")
+      .populate("receiver", "fullName email phone avatar")
+      .populate("disputeBy", "fullName email phone avatar")
+      .populate("counterDisputeBy", "fullName email phone avatar")
+      .populate("requesterProduct", "title price thumbnail description")
+      .populate("receiverProduct", "title price thumbnail description")
+      .sort({ updatedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      orders,
+      exchanges,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Không thể lấy danh sách tranh chấp", error: error.message });
+  }
+};
+
+const repairExchangeProducts = async (req, res) => {
+  try {
+    const exchangeEscrowService = require("../services/exchangeEscrowService");
+    const results = await exchangeEscrowService.repairExchangeProductStatuses();
+    res.status(200).json({
+      success: true,
+      message: `Đã đồng bộ ${results.fixed} sản phẩm`,
+      results,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Không thể sửa sản phẩm", error: error.message });
+  }
+};
+
+const resolveDispute = async (req, res) => {
+  try {
+    const { disputeId, type, resolution, hasReturnedGoods, resolutionNote } = req.body;
+
+    if (!disputeId || !type || !resolution) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin yêu cầu giải quyết tranh chấp" });
+    }
+
+    if (type === "order") {
+      const escrowService = require("../services/escrowService");
+      const order = await escrowService.resolveOrderDispute(disputeId, resolution, resolutionNote);
+      return res.status(200).json({ success: true, message: "Giải quyết tranh chấp đơn hàng thành công", data: order });
+    } else if (type === "exchange") {
+      const exchangeEscrowService = require("../services/exchangeEscrowService");
+      const invoice = await exchangeEscrowService.resolveExchangeDispute(
+        disputeId,
+        resolution,
+        hasReturnedGoods === true,
+        resolutionNote
+      );
+      return res.status(200).json({ success: true, message: "Giải quyết tranh chấp trao đổi thành công", data: invoice });
+    } else {
+      return res.status(400).json({ success: false, message: "Loại giao dịch không hợp lệ" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || "Không thể giải quyết tranh chấp" });
+  }
+};
+
 module.exports = {
   getDashboard,
   updateUserStatus,
@@ -527,4 +607,7 @@ module.exports = {
   getConfig,
   updateConfig,
   deleteProduct,
+  getDisputes,
+  resolveDispute,
+  repairExchangeProducts,
 };

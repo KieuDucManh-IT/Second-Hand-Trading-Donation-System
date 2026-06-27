@@ -4,10 +4,12 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-import { Package, ShieldAlert, CheckCircle, Truck, RefreshCw, XCircle } from 'lucide-react';
+import { Package, ShieldAlert, CheckCircle, Truck, RefreshCw, XCircle, Upload, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { openDispute } from '../api/orderApi';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 
 export function OrderHistoryPage() {
   const { isAuthenticated, user } = useAuth();
@@ -17,6 +19,12 @@ export function OrderHistoryPage() {
   const [sellingOrders, setSellingOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [isDisputeDialogOpen, setIsDisputeDialogOpen] = useState(false);
+  const [disputeOrderId, setDisputeOrderId] = useState<string | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+  const [isDisputeSubmitting, setIsDisputeSubmitting] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -80,6 +88,30 @@ export function OrderHistoryPage() {
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to update order");
+    }
+  };
+
+  const handleDisputeSubmit = async () => {
+    if (!disputeOrderId) return;
+    if (!disputeReason.trim()) {
+      toast.error("Vui lòng nhập lý do khiếu nại.");
+      return;
+    }
+
+    try {
+      setIsDisputeSubmitting(true);
+      await openDispute(disputeOrderId, disputeReason.trim(), disputeFiles);
+      toast.success("Gửi khiếu nại thành công! Quản lý sẽ xem xét sớm.");
+      setIsDisputeDialogOpen(false);
+      setDisputeOrderId(null);
+      setDisputeReason('');
+      setDisputeFiles([]);
+      fetchOrders();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Không thể gửi khiếu nại");
+    } finally {
+      setIsDisputeSubmitting(false);
     }
   };
 
@@ -164,8 +196,10 @@ export function OrderHistoryPage() {
                       Confirm Received
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => {
-                      const reason = prompt("Enter dispute reason:");
-                      if (reason !== null) handleAction(order._id, 'dispute', reason);
+                      setDisputeOrderId(order._id);
+                      setDisputeReason('');
+                      setDisputeFiles([]);
+                      setIsDisputeDialogOpen(true);
                     }}>
                       Dispute
                     </Button>
@@ -301,6 +335,105 @@ export function OrderHistoryPage() {
           </Tabs>
         )}
       </div>
+
+      {/* Dispute Modal */}
+      <Dialog open={isDisputeDialogOpen} onOpenChange={(open) => !open && !isDisputeSubmitting && setIsDisputeDialogOpen(false)}>
+        <DialogContent className="max-w-md rounded-3xl border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-rose-500" />
+              Mở khiếu nại đơn hàng
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-slate-400 text-xs">
+              Vui lòng cung cấp lý do chi tiết và hình ảnh hoặc video bằng chứng để quản lý kiểm tra và giải quyết hoàn tiền bảo vệ bạn.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Lý do khiếu nại:
+              </label>
+              <textarea
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="Ví dụ: Sản phẩm không đúng mô tả, bị nứt vỡ hoặc không nhận được hàng..."
+                rows={4}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm focus:border-rose-500 focus:ring-1 focus:ring-rose-500 dark:border-slate-800 dark:bg-slate-900"
+                disabled={isDisputeSubmitting}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block">
+                Bằng chứng (Hình ảnh/Video):
+              </label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-900/50 border-slate-300 dark:border-slate-800">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-2 text-slate-400" />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Nhấp để tải lên ảnh hoặc video bằng chứng
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setDisputeFiles((prev) => [...prev, ...files]);
+                    }}
+                    disabled={isDisputeSubmitting}
+                  />
+                </label>
+              </div>
+
+              {disputeFiles.length > 0 && (
+                <div className="mt-3 space-y-1.5 max-h-36 overflow-y-auto">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tệp đã chọn ({disputeFiles.length}):</p>
+                  {disputeFiles.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-xs border border-slate-100 dark:border-slate-800">
+                      <span className="truncate max-w-[80%] font-medium">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDisputeFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-500 transition-colors"
+                        disabled={isDisputeSubmitting}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6 flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDisputeDialogOpen(false);
+                setDisputeOrderId(null);
+                setDisputeReason('');
+                setDisputeFiles([]);
+              }}
+              disabled={isDisputeSubmitting}
+            >
+              Hủy
+            </Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              onClick={handleDisputeSubmit}
+              disabled={isDisputeSubmitting}
+            >
+              {isDisputeSubmitting ? "Đang gửi..." : "Gửi khiếu nại"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -21,6 +21,8 @@ const {
   manualRunAutoRelease,
 } = require("../controllers/orderEscrowController");
  
+const uploadComplaintEvidence = require("../middlewares/uploadComplaintEvidenceMiddleware");
+
 // Tất cả route đều yêu cầu đăng nhập
 router.use(protect);
  
@@ -43,7 +45,7 @@ router.put("/:orderId/shipping",          markOrderShipping);     // seller: đa
 router.put("/:orderId/delivered",         markOrderDelivered);    // seller: đã giao
 router.put("/:orderId/confirm-received",  buyerConfirmReceived);  // buyer: đã nhận
 router.put("/:orderId/cancel",            cancelOrderAndRefund);  // buyer/seller huỷ
-router.put("/:orderId/dispute",           openOrderDispute);      // buyer khiếu nại
+router.put("/:orderId/dispute",           uploadComplaintEvidence.array("evidences", 5), openOrderDispute);      // buyer khiếu nại
  
 // ── Admin / cron ───────────────────────────────────────────────────────────────
 router.post("/admin/auto-release", manualRunAutoRelease);
