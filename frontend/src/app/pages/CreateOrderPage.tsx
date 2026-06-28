@@ -140,33 +140,43 @@ export function CreateOrderPage() {
     }
   }, [isAuthenticated, navigate]);
  
+  // Fetch profile mới nhất từ API, tự động điền thông tin giao hàng
   useEffect(() => {
-    if (user) {
-      setName(user.name || "");
-      setEmail(user.email || "");
- 
-      // Ưu tiên lấy từ user.locations (AuthContext)
-      if (user.locations && user.locations.length > 0) {
-        const firstLocation = user.locations[0];
-        setPhone(firstLocation.phoneNumber || "");
-        setAddress(firstLocation.address || "");
-      }
- 
-      // Fallback: đọc từ sessionStorage/localStorage cho các field còn thiếu
-      const stored = sessionStorage.getItem("user") || localStorage.getItem("user");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (!user.locations || user.locations.length === 0) {
-            setPhone(parsed.phoneNumber || parsed.phone || "");
-            setAddress(parsed.location || parsed.address || "");
-          }
-          setCity(parsed.city || "");
-        } catch {
-          // ignore invalid stored user json
-        }
+    if (!user) return;
+
+    // Điền ngay từ AuthContext trước
+    setName(user.name || "");
+    setEmail(user.email || "");
+    if (user.locations && user.locations.length > 0) {
+      setPhone(user.locations[0].phoneNumber || "");
+      setAddress(user.locations[0].address || "");
+    }
+
+    // Fetch profile mới nhất để lấy dữ liệu cập nhật nhất
+    async function fetchFreshProfile() {
+      try {
+        const token = getToken();
+        const res = await fetch(`${API_BASE}/auth/profile/${user!.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const profile = data.user || data.data || data;
+
+        const loc = profile.locations?.[0];
+        const freshName = profile.fullName || profile.name || user!.name || "";
+        const freshPhone = loc?.phoneNumber || profile.phone || "";
+        const freshAddress = loc?.address || "";
+
+        if (freshName) setName(freshName);
+        if (freshPhone) setPhone(freshPhone);
+        if (freshAddress) setAddress(freshAddress);
+      } catch {
+        // Giữ nguyên dữ liệu AuthContext đã điền ở trên
       }
     }
+
+    fetchFreshProfile();
   }, [user]);
  
   useEffect(() => {
@@ -386,7 +396,24 @@ export function CreateOrderPage() {
                     <User className="w-4 h-4" />
                     Thông tin nhận hàng
                   </h2>
- 
+
+                  {/* Banner: Đã tự động điền từ profile */}
+                  {(phone || address) ? (
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-4 py-2.5">
+                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                        <span>Thông tin được lấy từ hồ sơ của bạn. Bạn có thể chỉnh sựa nếu cần.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-2.5">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                      <span className="text-sm text-yellow-700 dark:text-yellow-400">
+                        Bạn chưa có đẻa chỉ trong hồ sơ. Vui lòng điền thông tin giao hàng bên dưới.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="name" className="text-sm">
