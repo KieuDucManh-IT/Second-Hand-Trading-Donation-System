@@ -18,7 +18,8 @@ router.post(
   donationController.requestDonation
 );
 
-// Chấp nhận
+// Chấp nhận......
+
 router.put(
   "/accept/:id",
   donationController.acceptDonation
