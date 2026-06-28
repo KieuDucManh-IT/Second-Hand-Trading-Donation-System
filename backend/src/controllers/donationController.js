@@ -23,6 +23,7 @@ exports.acceptDonation = async (req, res) => {
       req.params.id,
       {
         status: "accepted",
+        deliveryStatus: "shipping",
         acceptedAt: new Date(),
       },
       { new: true }
@@ -50,6 +51,7 @@ exports.rejectDonation = async (req, res) => {
       req.params.id,
       {
         status: "rejected",
+        rejectReason: req.body.reason,
         rejectedAt: new Date(),
       },
       { new: true }
@@ -79,12 +81,37 @@ exports.getDonations = async (req, res) => {
 };
 exports.getMyDonations = async (req, res) => {
   try {
-    const donations = await Donation.find()
+    const userId = req.user.id;
+
+    const donations = await Donation.find({
+      $or: [
+        { donorId: userId },
+        { requesterId: userId }
+      ]
+    })
       .populate("productId")
       .populate("donorId")
       .populate("requesterId");
 
-    res.status(200).json(donations);
+    res.json(donations);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+};
+
+exports.updateDeliveryStatus = async (req, res) => {
+  try {
+    const donation = await Donation.findByIdAndUpdate(
+      req.params.id,
+      {
+        deliveryStatus: req.body.deliveryStatus,
+      },
+      { new: true }
+    );
+
+    res.status(200).json(donation);
   } catch (error) {
     res.status(500).json({
       message: error.message,
