@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -24,9 +24,14 @@ import {
   RefreshCw,
   Loader2,
   Wallet,
+  ShieldCheck,
+  AlertTriangle,
+  Check,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { notifyProductCatalogChanged } from "../api/productApi";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
@@ -406,15 +411,39 @@ export function ExchangeHistoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Complaint / Dispute modal state
+  const [complaintInvoice, setComplaintInvoice] = useState<ExchangeInvoice | null>(null);
+  const [complaintReason, setComplaintReason] = useState("Sản phẩm không đúng mô tả");
+  const [complaintFiles, setComplaintFiles] = useState<File[]>([]);
+
+  const complaintPreviewItems = useMemo(() => {
+    return complaintFiles.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isVideo: file.type.startsWith("video"),
+    }));
+  }, [complaintFiles]);
+
+  useEffect(() => {
+    return () => {
+      complaintPreviewItems.forEach((item) => {
+        URL.revokeObjectURL(item.previewUrl);
+      });
+    };
+  }, [complaintPreviewItems]);
 
   async function api(path: string, options: RequestInit = {}) {
     const token = getToken();
     const url = `${API_BASE}${path}`;
 
+    const isFormData = options.body instanceof FormData;
+
     const res = await fetch(url, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         Authorization: token ? `Bearer ${token}` : "",
         ...(options.headers || {}),
       },
@@ -478,8 +507,144 @@ export function ExchangeHistoryPage() {
     return getId(invoice.requester) === currentUserId;
   }
 
+  function isReceiver(invoice: ExchangeInvoice) {
+    return getId(invoice.receiver) === currentUserId;
+  }
+
   function getMySide(invoice: ExchangeInvoice) {
     return isRequester(invoice) ? "requester" : "receiver";
+  }
+
+  async function runAction(
+    invoiceId: string,
+    action: string,
+    path: string,
+    body?: any
+  ) {
+    try {
+      setActionLoading(`${invoiceId}-${action}`);
+
+      await api(path, {
+        method: "POST",
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      notifyProductCatalogChanged();
+      toast.success("Thao tác thành công");
+      await fetchExchangeHistory();
+    } catch (error: any) {
+      const msg = error.message || "Thao tác thất bại";
+
+      if (msg.toLowerCase().includes("số dư ví không đủ")) {
+        const goWallet = window.confirm(
+          `${msg}\n\nBạn có muốn chuyển đến trang ví để nạp thêm không?`
+        );
+
+        if (goWallet) {
+          window.location.href = "/wallet";
+          return;
+        }
+      }
+
+      toast.error(msg);
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  function openComplaintModal(invoice: ExchangeInvoice) {
+    setComplaintInvoice(invoice);
+    setComplaintReason(
+      invoice.complaint?.reason ||
+        invoice.disputeReason ||
+        "Sản phẩm không đúng mô tả"
+    );
+    setComplaintFiles([]);
+  }
+
+  function closeComplaintModal() {
+    setComplaintInvoice(null);
+    setComplaintReason("Sản phẩm không đúng mô tả");
+    setComplaintFiles([]);
+  }
+
+  function handleComplaintFilesChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+
+    if (files.length > 5) {
+      toast.error("Chỉ được upload tối đa 5 file bằng chứng");
+      e.target.value = "";
+      setComplaintFiles([]);
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+    ];
+
+    const invalidFile = files.find((file) => !allowedTypes.includes(file.type));
+
+    if (invalidFile) {
+      toast.error(
+        `File không hợp lệ: ${invalidFile.name}. Chỉ cho phép ảnh hoặc video.`
+      );
+      e.target.value = "";
+      setComplaintFiles([]);
+      return;
+    }
+
+    const tooLargeFile = files.find((file) => file.size > 50 * 1024 * 1024);
+
+    if (tooLargeFile) {
+      toast.error(`File quá lớn: ${tooLargeFile.name}. Tối đa 50MB/file.`);
+      e.target.value = "";
+      setComplaintFiles([]);
+      return;
+    }
+
+    setComplaintFiles(files);
+  }
+
+  async function submitComplaint() {
+    if (!complaintInvoice) return;
+
+    const invoiceId = getInvoiceId(complaintInvoice);
+
+    if (!complaintReason.trim()) {
+      toast.error("Vui lòng nhập lý do khiếu nại");
+      return;
+    }
+
+    try {
+      setActionLoading(`${invoiceId}-dispute`);
+
+      const formData = new FormData();
+      formData.append("reason", complaintReason.trim());
+
+      complaintFiles.forEach((file) => {
+        formData.append("evidences", file);
+      });
+
+      await api(`/exchange-escrow/${invoiceId}/dispute`, {
+        method: "POST",
+        body: formData,
+      });
+
+      notifyProductCatalogChanged();
+      toast.success("Đã gửi khiếu nại thành công");
+      closeComplaintModal();
+      await fetchExchangeHistory();
+    } catch (error: any) {
+      toast.error(error.message || "Không thể gửi khiếu nại");
+    } finally {
+      setActionLoading(null);
+    }
   }
 
   function getPartner(invoice: ExchangeInvoice) {
@@ -669,6 +834,23 @@ export function ExchangeHistoryPage() {
     const myDepositStatus = getMyDepositStatus(exchange);
     const side = getMySide(exchange);
 
+    const receiverSide = isReceiver(exchange);
+    const myConfirmed = isRequester(exchange)
+      ? exchange.requesterConfirmed
+      : exchange.receiverConfirmed;
+
+    const canAccept = receiverSide && status === "pending_receiver_accept";
+    const canPayDeposit =
+      ["waiting_deposits", "active"].includes(status) &&
+      myDepositStatus !== "paid" &&
+      myDepositStatus !== "refunded";
+    const canConfirmCompleted =
+      status === "active" && myDepositStatus === "paid" && !myConfirmed;
+    const canDispute = status === "active" && myDepositStatus === "paid";
+
+    const isActionLoading = (action: string) =>
+      actionLoading === `${invoiceId}-${action}`;
+
     return (
       <Card className="hover:shadow-lg transition-shadow">
         <CardContent className="p-6">
@@ -833,7 +1015,7 @@ export function ExchangeHistoryPage() {
                 )}
               </div>
 
-              <div className="mt-5 flex justify-end">
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -844,6 +1026,89 @@ export function ExchangeHistoryPage() {
                   <Eye className="w-4 h-4 mr-2" />
                   View Details
                 </Button>
+
+                {canAccept && (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      runAction(
+                        invoiceId,
+                        "accept",
+                        `/exchange-escrow/${invoiceId}/accept`
+                      )
+                    }
+                    disabled={!!actionLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {isActionLoading("accept") ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4 mr-2" />
+                    )}
+                    Đồng ý trao đổi
+                  </Button>
+                )}
+
+                {canPayDeposit && (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      runAction(
+                        invoiceId,
+                        "pay-deposit",
+                        `/exchange-escrow/${invoiceId}/pay-deposit`
+                      )
+                    }
+                    disabled={!!actionLoading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isActionLoading("pay-deposit") ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Wallet className="w-4 h-4 mr-2" />
+                    )}
+                    Thanh toán bảo hiểm
+                  </Button>
+                )}
+
+                {canConfirmCompleted && (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      runAction(
+                        invoiceId,
+                        "confirm-completed",
+                        `/exchange-escrow/${invoiceId}/confirm-completed`
+                      )
+                    }
+                    disabled={!!actionLoading}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {isActionLoading("confirm-completed") ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                    )}
+                    Xác nhận hoàn tất
+                  </Button>
+                )}
+
+                {canDispute && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openComplaintModal(exchange)}
+                    disabled={!!actionLoading}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    {isActionLoading("dispute") ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                    )}
+                    Khiếu nại
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -969,6 +1234,112 @@ export function ExchangeHistoryPage() {
           </p>
         </div>
       </div>
+
+      {/* Complaint / Dispute Modal */}
+      {complaintInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Gửi khiếu nại
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Vui lòng nhập lý do và tải lên ảnh/video làm bằng chứng. Hệ thống sẽ tạm dừng hoàn tiền tự động.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Lý do khiếu nại
+                </label>
+
+                <textarea
+                  value={complaintReason}
+                  onChange={(e) => setComplaintReason(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-orange-400 dark:bg-gray-800"
+                  placeholder="Ví dụ: Sản phẩm không đúng mô tả, bị lỗi, thiếu phụ kiện..."
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Ảnh/video bằng chứng
+                </label>
+
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleComplaintFilesChange}
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                />
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Hỗ trợ ảnh JPG, PNG, WEBP và video MP4, MOV, WEBM. Tối đa 5
+                  file, 50MB/file.
+                </p>
+              </div>
+
+              {complaintPreviewItems.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">File đã chọn:</p>
+
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {complaintPreviewItems.map((item, index) => (
+                      <div
+                        key={`${item.file.name}-${index}`}
+                        className="rounded-lg border p-2"
+                      >
+                        {item.isVideo ? (
+                          <video
+                            src={item.previewUrl}
+                            controls
+                            className="h-24 w-full rounded object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={item.previewUrl}
+                            alt={item.file.name}
+                            className="h-24 w-full rounded object-cover"
+                          />
+                        )}
+
+                        <p className="mt-1 line-clamp-1 text-xs text-gray-500">
+                          {item.file.name}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={closeComplaintModal}
+                disabled={!!actionLoading}
+              >
+                Hủy
+              </Button>
+
+              <Button
+                onClick={submitComplaint}
+                disabled={!!actionLoading}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {actionLoading?.includes("-dispute") && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Gửi khiếu nại
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

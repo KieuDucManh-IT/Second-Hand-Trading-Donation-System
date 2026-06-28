@@ -11,6 +11,7 @@ import { UsersTab } from './UsersTab';
 import { CategoriesTab } from './CategoriesTab';
 import { Modals } from './Modals';
 import { ConfigTab } from './ConfigTab';
+import { DisputesTab } from './DisputesTab';
 
 type DashboardViewProps = {
   user: any;
@@ -36,6 +37,15 @@ type DashboardViewProps = {
   updateUserStatus: (userId: string, status: 'active' | 'banned') => Promise<void>;
   updateProductStatus: (productId: string, status: 'available' | 'hidden') => Promise<void>;
   updateReportStatus: (reportId: string, endpoint: 'accept' | 'reject') => Promise<void>;
+  disputesData: { orders: Array<any>; exchanges: Array<any> };
+  resolveDispute: (
+    disputeId: string,
+    type: 'order' | 'exchange',
+    resolution: 'accept' | 'reject',
+    hasReturnedGoods: boolean,
+    resolutionNote: string
+  ) => Promise<void>;
+  repairExchangeProducts: () => Promise<any>;
 };
 
 export function ManagerDashboardView(props: DashboardViewProps) {
@@ -63,6 +73,9 @@ export function ManagerDashboardView(props: DashboardViewProps) {
     updateUserStatus,
     updateProductStatus,
     updateReportStatus,
+    disputesData,
+    resolveDispute,
+    repairExchangeProducts,
   } = props;
 
 
@@ -79,7 +92,7 @@ export function ManagerDashboardView(props: DashboardViewProps) {
         />
         <main className="flex-1 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
           <div className="mx-auto max-w-7xl space-y-6">
-            <Header setActiveTab={setActiveTab} />
+            <Header setActiveTab={setActiveTab} repairExchangeProducts={repairExchangeProducts} />
 
             {error ? (
               <Card className="border-red-200 bg-red-50/80 shadow-sm dark:border-red-900/50 dark:bg-red-950/30">
@@ -100,8 +113,8 @@ export function ManagerDashboardView(props: DashboardViewProps) {
               <CardContent className="p-3 sm:p-4">
                 <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTab)}>
                   <div className="overflow-x-auto">
-                    <TabsList className="grid h-auto w-full min-w-[760px] grid-cols-5 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
-                      {(['products', 'reports', 'users', 'categories', 'config'] as DashboardTab[]).map(
+                    <TabsList className="grid h-auto w-full min-w-[900px] grid-cols-6 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                      {(['products', 'reports', 'users', 'categories', 'config', 'disputes'] as DashboardTab[]).map(
                         (tab) => (
                           <TabsTrigger
                             key={tab}
@@ -113,6 +126,7 @@ export function ManagerDashboardView(props: DashboardViewProps) {
                             {tab === 'users' && 'Người dùng'}
                             {tab === 'categories' && 'Danh mục'}
                             {tab === 'config' && 'Cấu hình'}
+                            {tab === 'disputes' && 'Tranh chấp'}
                           </TabsTrigger>
                         )
                       )}
@@ -149,6 +163,13 @@ export function ManagerDashboardView(props: DashboardViewProps) {
 
                   <TabsContent value="config" className="mt-6 space-y-6">
                     <ConfigTab />
+                  </TabsContent>
+
+                  <TabsContent value="disputes" className="mt-6 space-y-6">
+                    <DisputesTab
+                      disputesData={disputesData}
+                      resolveDispute={resolveDispute}
+                    />
                   </TabsContent>
                 </Tabs>
               </CardContent>

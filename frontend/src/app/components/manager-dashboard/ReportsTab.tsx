@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { StatusBadge } from './StatusBadge';
 import { Eye, Flag, AlertTriangle } from 'lucide-react';
 import type { ManagerDashboardData } from './managerDashboardTypes';
+import { Pagination } from './Pagination';
 
 type ReportsTabProps = {
   data: ManagerDashboardData;
@@ -43,6 +44,15 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
 
   const groupedReportsList = Object.values(groupedReportsMap);
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(groupedReportsList.length / itemsPerPage);
+  const paginatedGroupedReports = groupedReportsList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const selectedGroup = selectedTargetId ? groupedReportsMap[selectedTargetId] : null;
 
 
@@ -66,8 +76,8 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groupedReportsList.length ? (
-                groupedReportsList.map((group) => {
+              {paginatedGroupedReports.length ? (
+                paginatedGroupedReports.map((group) => {
                   const hasPending = group.reports.some(r => r.status === 'pending' || r.status === 'reviewing');
                   
                   return (
@@ -157,6 +167,13 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
             </TableBody>
           </Table>
         </CardContent>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={groupedReportsList.length}
+          itemsPerPage={itemsPerPage}
+        />
       </Card>
 
       {/* Grouped Report Details Modal */}

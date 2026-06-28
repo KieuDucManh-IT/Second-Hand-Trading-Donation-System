@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
+import { notifyProductCatalogChanged } from "../api/productApi";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
@@ -143,7 +144,9 @@ type ExchangeInvoice = {
 
   autoRefundPaused?: boolean;
   disputeBy?: string | UserMini;
+  counterDisputeBy?: string | UserMini;
   complaint?: Complaint;
+  counterComplaint?: Complaint;
 };
 
 function getToken() {
@@ -162,6 +165,10 @@ function getId(value: any) {
   if (!value) return "";
   if (typeof value === "string") return value;
   return String(value._id || value.id || "");
+}
+
+function sameIdStr(a: string, b: string) {
+  return !!a && !!b && a === b;
 }
 
 function getInvoiceIdFromUrl() {
@@ -335,21 +342,7 @@ function getStatusIcon(status?: ExchangeStatus) {
   }
 }
 
-function getComplaintReason(invoice: ExchangeInvoice) {
-  return invoice.complaint?.reason || invoice.disputeReason || "";
-}
 
-function getComplaintEvidences(invoice: ExchangeInvoice) {
-  return invoice.complaint?.evidences || [];
-}
-
-function isEvidenceVideo(file: ComplaintEvidence) {
-  return (
-    file.type === "video" ||
-    file.resourceType === "video" ||
-    file.mimeType?.startsWith("video/")
-  );
-}
 
 function getDisputer(invoice: ExchangeInvoice) {
   const disputeById = getId(invoice.disputeBy);
@@ -437,89 +430,66 @@ function ComplaintDetailBlock({
   invoice: ExchangeInvoice;
   currentUserId: string;
 }) {
-  const complaintReason = getComplaintReason(invoice);
-  const complaintEvidences = getComplaintEvidences(invoice);
-  const disputer = getDisputer(invoice);
-  const disputerLabel = getDisputerLabel(invoice, currentUserId);
-  const fallbackChar =
-    disputerLabel && disputerLabel.length > 0
-      ? disputerLabel.charAt(0).toUpperCase()
-      : "U";
+  const renderComplaintCard = (complaint: Complaint | undefined, disputeBy: any, label: string, isMine: boolean) => {
+    if (!complaint) return null;
+    const evidences = complaint.evidences || [];
+    const disputerName = disputeBy ? getName(disputeBy) : "Người dùng";
+    const fallbackChar = disputerName.charAt(0).toUpperCase();
+    const isVideo = (file: ComplaintEvidence) =>
+      file.type === "video" || file.resourceType === "video" || file.mimeType?.startsWith("video/");
+
+    return (
+      <div className={`rounded-lg p-4 text-sm ${isMine ? "bg-orange-50 text-orange-800" : "bg-red-50 text-red-800"}`}>
+        <p className="font-semibold">{label}</p>
+        <div className="mt-3 flex items-center gap-2">
+          <Avatar className="w-8 h-8">
+            <AvatarImage src={getAvatar(disputeBy)} />
+            <AvatarFallback>{fallbackChar}</AvatarFallback>
+          </Avatar>
+          <p>Người khiếu nại: <b>{disputerName}{getId(disputeBy) === currentUserId ? " (Bạn)" : ""}</b></p>
+        </div>
+        {complaint.reason && <p className="mt-2">Lý do: <b>{complaint.reason}</b></p>}
+        {complaint.createdAt && (
+          <p className="mt-1 text-xs opacity-70">Gửi lúc: {formatDate(complaint.createdAt)}</p>
+        )}
+        {evidences.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 font-semibold">Bằng chứng:</p>
+            <div className="flex flex-wrap gap-3">
+              {evidences.map((file, index) => {
+                const url = normalizeUrl(file.url);
+                if (!url) return null;
+                return (
+                  <a key={`${file.publicId || url}-${index}`} href={url} target="_blank" rel="noreferrer"
+                    className="block rounded-lg border bg-white p-2 hover:shadow">
+                    {isVideo(file) ? (
+                      <video src={url} controls className="h-32 w-48 rounded object-cover" />
+                    ) : (
+                      <img src={url} alt={`Bằng chứng ${index + 1}`} className="h-32 w-32 rounded object-cover" />
+                    )}
+                    <p className="mt-1 max-w-[192px] truncate text-xs opacity-70">
+                      {file.originalName || `Bằng chứng ${index + 1}`}
+                    </p>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="rounded-lg bg-orange-50 p-4 text-sm text-orange-800">
-      <p className="font-semibold">
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-orange-700">
         Giao dịch đang khiếu nại. Hệ thống tạm dừng hoàn tiền tự động.
       </p>
-
-      <div className="mt-3 flex items-center gap-2">
-        <Avatar className="w-8 h-8">
-          <AvatarImage src={getAvatar(disputer)} />
-          <AvatarFallback>{fallbackChar}</AvatarFallback>
-        </Avatar>
-
-        <p>
-          Người khiếu nại: <b>{disputerLabel}</b>
-        </p>
-      </div>
-
-      {complaintReason && (
-        <p className="mt-2">
-          Lý do: <b>{complaintReason}</b>
-        </p>
-      )}
-
-      {invoice.complaint?.createdAt && (
-        <p className="mt-1 text-xs text-orange-700">
-          Gửi lúc: {formatDate(invoice.complaint.createdAt)}
-        </p>
-      )}
-
-      {complaintEvidences.length > 0 ? (
-        <div className="mt-4">
-          <p className="mb-2 font-semibold">Bằng chứng khiếu nại:</p>
-
-          <div className="flex flex-wrap gap-3">
-            {complaintEvidences.map((file, index) => {
-              const evidenceUrl = normalizeUrl(file.url);
-
-              if (!evidenceUrl) return null;
-
-              return (
-                <a
-                  key={`${file.publicId || evidenceUrl}-${index}`}
-                  href={evidenceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-lg border bg-white p-2 hover:shadow"
-                >
-                  {isEvidenceVideo(file) ? (
-                    <video
-                      src={evidenceUrl}
-                      controls
-                      className="h-32 w-48 rounded object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={evidenceUrl}
-                      alt={`Bằng chứng ${index + 1}`}
-                      className="h-32 w-32 rounded object-cover"
-                    />
-                  )}
-
-                  <p className="mt-1 max-w-[192px] truncate text-xs text-gray-500">
-                    {file.originalName || `Bằng chứng ${index + 1}`}
-                  </p>
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <p className="mt-2 text-xs text-orange-700">
-          Chưa có file bằng chứng được lưu.
-        </p>
-      )}
+      {renderComplaintCard(invoice.complaint, invoice.disputeBy, "Khiếu nại chính", sameIdStr(getId(invoice.disputeBy), currentUserId))}
+      {invoice.counterComplaint
+        ? renderComplaintCard(invoice.counterComplaint, invoice.counterDisputeBy, "Khiếu nại phản hồi", sameIdStr(getId(invoice.counterDisputeBy), currentUserId))
+        : <p className="text-xs text-orange-600 italic">Bên còn lại chưa gửi khiếu nại phản hồi.</p>
+      }
     </div>
   );
 }
@@ -602,14 +572,15 @@ export function ExchangeDetailPage() {
     try {
       setActionLoading(action);
 
-      const data = await api(path, {
-        method: "POST",
-        body: body ? JSON.stringify(body) : undefined,
-      });
+        const data = await api(path, {
+          method: "POST",
+          body: body ? JSON.stringify(body) : undefined,
+        });
 
-      toast.success(data.message || "Thao tác thành công");
+        notifyProductCatalogChanged();
+        toast.success(data.message || "Thao tác thành công");
 
-      await fetchExchangeDetail();
+        await fetchExchangeDetail();
     } catch (error: any) {
       const msg = error.message || "Thao tác thất bại";
 
@@ -847,7 +818,18 @@ export function ExchangeDetailPage() {
   const canConfirmCompleted =
     status === "active" && myDepositStatus === "paid" && !myConfirmed;
 
-  const canDispute = status === "active" && myDepositStatus === "paid";
+  // Có thể dispute nếu:
+  // - Status "active" và đã đặt cọc (lần đầu dispute)
+  // - Status "disputed" và mình CHƯA dispute (gửi counterComplaint)
+  const myAlreadyDisputed =
+    sameIdStr(getId(invoice.disputeBy), currentUserId) ||
+    sameIdStr(getId(invoice.counterDisputeBy), currentUserId);
+
+  const canDispute =
+    (status === "active" && myDepositStatus === "paid") ||
+    (status === "disputed" && myDepositStatus === "paid" && !myAlreadyDisputed && !invoice.counterComplaint);
+
+  const isCounterDispute = status === "disputed" && canDispute;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -1151,17 +1133,19 @@ export function ExchangeDetailPage() {
                     <DialogTrigger asChild>
                       <Button variant="destructive" className="w-full" size="lg">
                         <AlertTriangle className="w-4 h-4 mr-2" />
-                        Tạo khiếu nại
+                        {isCounterDispute ? "Gửi phản hồi khiếu nại" : "Tạo khiếu nại"}
                       </Button>
                     </DialogTrigger>
 
                     <DialogContent className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Tạo khiếu nại</DialogTitle>
+                        <DialogTitle>
+                          {isCounterDispute ? "Gửi phản hồi khiếu nại" : "Tạo khiếu nại"}
+                        </DialogTitle>
                         <DialogDescription>
-                          Khi tạo khiếu nại, hệ thống sẽ tạm dừng hoàn tiền tự
-                          động cho giao dịch này. Bạn có thể gửi thêm ảnh/video
-                          làm bằng chứng.
+                          {isCounterDispute
+                            ? "Đối phương đã gửi khiếu nại. Bạn có thể gửi phản hồi kèm bằng chứng của mình để Manager xem xét cả hai phía."
+                            : "Khi tạo khiếu nại, hệ thống sẽ tạm dừng hoàn tiền tự động cho giao dịch này. Bạn có thể gửi thêm ảnh/video làm bằng chứng."}
                         </DialogDescription>
                       </DialogHeader>
 

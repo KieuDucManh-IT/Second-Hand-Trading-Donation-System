@@ -1,4 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const PRODUCT_CATALOG_UPDATED_KEY = 'products:last-updated';
+
+export function notifyProductCatalogChanged() {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PRODUCT_CATALOG_UPDATED_KEY, String(Date.now()));
+}
  
 export interface ApiProduct {
   _id: string;
@@ -72,13 +78,17 @@ export async function fetchProducts(params: GetProductsParams = {}): Promise<Pro
   if (params.limit)      query.set('limit', String(params.limit));
   if (params.sort)       query.set('sort',  params.sort);
  
-  const res = await fetch(`${API_BASE}/api/products?${query.toString()}`);
+  const res = await fetch(`${API_BASE}/api/products?${query.toString()}`, {
+    cache: 'no-store',
+  });
   if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
   return res.json();
 }
  
 export async function fetchProductById(id: string): Promise<{ success: boolean; data: ApiProduct; message?: string }> {
-  const res = await fetch(`${API_BASE}/api/products/${id}`);
+  const res = await fetch(`${API_BASE}/api/products/${id}`, {
+    cache: 'no-store',
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.message || 'Không tìm thấy sản phẩm');
@@ -87,7 +97,9 @@ export async function fetchProductById(id: string): Promise<{ success: boolean; 
 }
  
 export async function fetchCategories(): Promise<{ success: boolean; data: ApiCategory[] }> {
-  const res = await fetch(`${API_BASE}/api/categories`);
+  const res = await fetch(`${API_BASE}/api/categories`, {
+    cache: 'no-store',
+  });
   if (!res.ok) throw new Error('Không thể tải danh mục');
   return res.json();
 }

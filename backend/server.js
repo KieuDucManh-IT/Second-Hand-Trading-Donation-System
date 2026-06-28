@@ -18,13 +18,13 @@ const orderRoutes = require("./src/routes/orderRoutes");
 const walletRoutes = require("./src/routes/walletRoutes");
 const webhookRoutes = require("./src/routes/webhookRoutes");
 const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
+const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
 const donationRoute = require("./src/routes/donationRoute");
 // ✅ THÊM: notification route
 const notificationRoute = require("./src/routes/notificationRoute");
  
 const { initChatSocket } = require("./src/sockets/chatSocket");
 const { startExchangeAutoReleaseJob } = require("./src/jobs/exchangeAutoReleaseJob");
-const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
  
 const app = express();
  

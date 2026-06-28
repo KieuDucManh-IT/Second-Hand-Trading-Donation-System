@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { fetchProducts, fetchCategories, ApiProduct, ApiCategory, CONDITION_LABELS } from '../api/productApi';
+import { PRODUCT_CATALOG_UPDATED_KEY } from '../api/productApi';
  
 export function HomePage() {
   const navigate = useNavigate();
@@ -33,6 +34,8 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
  
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
       try {
         setLoading(true);
@@ -44,17 +47,47 @@ export function HomePage() {
           fetchCategories(),
         ]);
  
-        setFeaturedProducts(featuredRes.data);
-        setDonationProducts(donationRes.data);
+        const featuredList = (featuredRes.data || []).filter(
+          (p: ApiProduct) => p.status === 'available' && p.isAvailable !== false
+        );
+        const donationList = (donationRes.data || []).filter(
+          (p: ApiProduct) => p.status === 'available' && p.isAvailable !== false
+        );
+
+        if (cancelled) return;
+        setFeaturedProducts(featuredList);
+        setDonationProducts(donationList);
         setCategories(catRes.data);
       } catch (err) {
+        if (cancelled) return;
         setError('Không thể kết nối server. Vui lòng thử lại sau.');
         console.error(err);
       } finally {
+        if (cancelled) return;
         setLoading(false);
       }
     }
+
+    const handleCatalogChange = () => {
+      loadData();
+    };
+
+    const handleFocus = () => {
+      loadData();
+    };
+
+    window.addEventListener('storage', handleCatalogChange);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
     loadData();
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('storage', handleCatalogChange);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, []);
  
   const handleSearch = (e: React.FormEvent) => {
@@ -262,6 +295,13 @@ export function HomePage() {
                         MIỄN PHÍ
                       </Badge>
                     )}
+                    {product.status === 'sold' && (
+                      <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex items-center justify-center z-10">
+                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-2.5 py-1">
+                          Đã giao dịch
+                        </Badge>
+                      </div>
+                    )}
                     <Badge
                       variant="secondary"
                       className="absolute top-3 right-3 text-xs"
@@ -351,6 +391,13 @@ export function HomePage() {
                     <Badge className="absolute top-3 left-3 bg-green-500 text-white">
                       TẶNG MIỄN PHÍ
                     </Badge>
+                    {product.status === 'sold' && (
+                      <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex items-center justify-center z-10">
+                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-2.5 py-1">
+                          Đã giao dịch
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-lg mb-2 line-clamp-1">

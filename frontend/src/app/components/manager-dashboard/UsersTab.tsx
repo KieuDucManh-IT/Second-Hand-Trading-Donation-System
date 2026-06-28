@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Ban, UserCheck, Search } from 'lucide-react';
 import { Input } from '../ui/input';
 import type { ManagerDashboardData } from './managerDashboardTypes';
+import { Pagination } from './Pagination';
 
 type UsersTabProps = {
   data: ManagerDashboardData;
@@ -19,10 +20,22 @@ export function UsersTab({
   updateUserStatus,
 }: UsersTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
 
   const filteredUsers = data.users.filter((user) =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -55,8 +68,8 @@ export function UsersTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length ? (
-              filteredUsers.map((member) => (
+            {paginatedUsers.length ? (
+              paginatedUsers.map((member) => (
                 <TableRow key={member.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
                   <TableCell className="pl-6 align-top font-medium">{member.name}</TableCell>
                   <TableCell className="align-top">{member.email}</TableCell>
@@ -93,7 +106,7 @@ export function UsersTab({
                             variant="destructive"
                             onClick={() => {
                               if (window.confirm(`Khóa tài khoản "${member.name}"? Bạn có thể mở khóa lại sau.`)) {
-                                updateUserStatus(member.id, 'banned');
+                                  updateUserStatus(member.id, 'banned');
                               }
                             }}
                           >
@@ -128,6 +141,13 @@ export function UsersTab({
           </TableBody>
         </Table>
       </CardContent>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={filteredUsers.length}
+        itemsPerPage={itemsPerPage}
+      />
     </Card>
   );
 }

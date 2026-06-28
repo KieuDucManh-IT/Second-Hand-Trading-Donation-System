@@ -658,7 +658,7 @@ sendNotification(getIO(), {
  * Buyer hoặc seller mở khiếu nại.
  * Khi có dispute thì dừng auto release.
  */
-async function openOrderDispute(orderId, userId, reason = "") {
+async function openOrderDispute(orderId, userId, reason = "", evidences = []) {
   const order = await Order.findById(orderId);
 
   if (!order) {
@@ -687,6 +687,12 @@ async function openOrderDispute(orderId, userId, reason = "") {
   order.cancelReason = reason || "Người dùng mở khiếu nại";
   order.autoReleaseAt = null;
   order.confirmDeadline = null;
+  order.complaint = {
+    reason: reason || "Người dùng mở khiếu nại",
+    evidences: evidences || [],
+    status: "pending",
+    createdAt: new Date()
+  };
 
   await order.save();
 sendNotification(getIO(), {
@@ -697,6 +703,92 @@ sendNotification(getIO(), {
   data: { orderId: order._id },
 });
   return order;
+}
+
+/**
+ * Manager giải quyết tranh chấp đơn hàng (Order)
+ */
+async function resolveOrderDispute(orderId, resolution, note = "") {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const order = await Order.findById(orderId).session(session);
+    if (!order) {
+      throw new Error("Không tìm thấy đơn hàng");
+    }
+
+    if (order.escrowStatus !== "disputed") {
+      throw new Error("Đơn hàng không ở trạng thái tranh chấp");
+    }
+
+    if (resolution === "accept") {
+      // Hoàn tiền cho buyer (Chấp thuận khiếu nại)
+      const refundAmount = Number(order.escrowAmount || getOrderAmount(order) || 0);
+      if (refundAmount > 0) {
+        const buyerWallet = await ensureWallet(order.buyerId, session);
+        buyerWallet.balance += refundAmount;
+        await buyerWallet.save({ session });
+
+        await createWalletTransaction({
+          wallet: buyerWallet._id,
+          user: order.buyerId,
+          type: "refund",
+          amount: refundAmount,
+          order: order._id,
+          note: `Hoàn tiền tranh chấp đơn hàng: ${note}`,
+          metadata: {
+            direction: "credit",
+            reason: note,
+          },
+          session,
+        });
+      }
+
+      setOrderStatus(order, "cancelled");
+      order.paymentStatus = "refunded";
+      order.escrowStatus = "refunded";
+      order.refundedAt = new Date();
+      order.cancelledAt = new Date();
+      order.cancelReason = note || "Manager chấp thuận khiếu nại";
+      
+      if (order.complaint) {
+        order.complaint.status = "resolved";
+        order.complaint.resolvedAt = new Date();
+        order.complaint.resolutionNote = note;
+      }
+
+      await order.save({ session });
+
+      // Trả sản phẩm về trạng thái available
+      await Product.findByIdAndUpdate(
+        order.productId,
+        { status: "available", isAvailable: true },
+        { session }
+      );
+
+    } else if (resolution === "reject") {
+      // Giải ngân cho seller (Từ chối khiếu nại)
+      await releaseEscrowToSeller(order, `dispute_rejected: ${note}`, session);
+
+      if (order.complaint) {
+        order.complaint.status = "rejected";
+        order.complaint.resolvedAt = new Date();
+        order.complaint.resolutionNote = note;
+      }
+      await order.save({ session });
+    } else {
+      throw new Error("Loại giải quyết tranh chấp không hợp lệ");
+    }
+
+    await session.commitTransaction();
+    return order;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 }
 
 module.exports = {
@@ -710,6 +802,7 @@ module.exports = {
   autoReleaseExpiredOrders,
   autoCancelExpiredPendingOrders,
   rateSeller,
+  resolveOrderDispute,
 };
 
 // ── Auto cancel pending orders past 24h payment deadline ──────────────────
@@ -770,4 +863,4 @@ async function rateSeller(orderId, buyerId, rating, comment) {
   }
 
   return order;
-}
+};

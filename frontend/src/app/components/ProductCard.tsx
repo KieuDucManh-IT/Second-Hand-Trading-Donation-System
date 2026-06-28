@@ -33,6 +33,15 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
               {product.category}
             </span>
           </div>
+
+          {/* Traded/Sold Overlay */}
+          {product.status === 'sold' && (
+            <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex items-center justify-center">
+              <span className="px-4 py-2 rounded-xl bg-red-600/90 text-white font-bold text-sm tracking-wider uppercase shadow-lg">
+                Đã giao dịch
+              </span>
+            </div>
+          )}
         </div>
       </Link>
 
@@ -53,14 +62,20 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
         <div className="flex items-center justify-between">
           <span className="text-2xl text-primary">${product.price}</span>
-          <Button
-            onClick={handleAddToCart}
-            className="rounded-full shadow-md hover:shadow-lg"
-            size="sm"
-          >
-            <ShoppingBag className="w-4 h-4 mr-2" />
-            Add to Cart
-          </Button>
+          {product.status === 'sold' ? (
+            <span className="px-3 py-1 text-xs font-bold text-red-600 bg-red-50 rounded-full border border-red-100 uppercase tracking-wide">
+              Đã giao dịch
+            </span>
+          ) : (
+            <Button
+              onClick={handleAddToCart}
+              className="rounded-full shadow-md hover:shadow-lg"
+              size="sm"
+            >
+              <ShoppingBag className="w-4 h-4 mr-2" />
+              Add to Cart
+            </Button>
+          )}
         </div>
       </div>
     </div>

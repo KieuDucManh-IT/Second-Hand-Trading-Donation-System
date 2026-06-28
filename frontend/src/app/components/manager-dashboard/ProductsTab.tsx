@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Input } from '../ui/input';
 import { Check, Eye, EyeOff, X, Search } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import { Pagination } from './Pagination';
 
 type ProductsTabProps = {
   productViewList: Array<any>;
@@ -21,6 +22,8 @@ export function ProductsTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
 
   // Extract unique categories from the list
   const categoriesList = Array.from(
@@ -33,6 +36,11 @@ export function ProductsTab({
 
   // Filter products locally
   const filteredProducts = productViewList.filter((product) => {
+    // If not looking specifically for sold products, hide them automatically in general views
+    if (selectedStatus !== 'sold' && product.status === 'sold') {
+      return false;
+    }
+
     const matchesSearch =
       product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sellerName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -45,6 +53,16 @@ export function ProductsTab({
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedStatus]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <Card className="border-slate-200/80 bg-white/85 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/40">
@@ -87,6 +105,7 @@ export function ProductsTab({
             <option value="all">Tất cả trạng thái</option>
             <option value="available">Đang hiển thị</option>
             <option value="hidden">Đã ẩn</option>
+            <option value="sold">Đã giao dịch</option>
           </select>
         </div>
       </CardHeader>
@@ -104,8 +123,8 @@ export function ProductsTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.length ? (
-              filteredProducts.map((product) => (
+            {paginatedProducts.length ? (
+              paginatedProducts.map((product) => (
                 <TableRow key={product.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
                   <TableCell className="pl-6 align-top">
                     <div className="max-w-[320px]">
@@ -144,25 +163,27 @@ export function ProductsTab({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {product.status === 'hidden' ? (
-                        <Button
-                          size="icon"
-                          className="bg-emerald-600 text-white hover:bg-emerald-700"
-                          onClick={() => updateProductStatus(product.id, 'available')}
-                          title="Hiển thị/Duyệt sản phẩm"
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="border-amber-300 text-amber-600 hover:bg-amber-50"
-                          onClick={() => updateProductStatus(product.id, 'hidden')}
-                          title="Ẩn sản phẩm"
-                        >
-                          <EyeOff className="h-4 w-4" />
-                        </Button>
+                      {product.status !== 'sold' && (
+                        product.status === 'hidden' ? (
+                          <Button
+                            size="icon"
+                            className="bg-emerald-600 text-white hover:bg-emerald-700"
+                            onClick={() => updateProductStatus(product.id, 'available')}
+                            title="Hiển thị/Duyệt sản phẩm"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="border-amber-300 text-amber-600 hover:bg-amber-50"
+                            onClick={() => updateProductStatus(product.id, 'hidden')}
+                            title="Ẩn sản phẩm"
+                          >
+                            <EyeOff className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </div>
                   </TableCell>
@@ -178,6 +199,13 @@ export function ProductsTab({
           </TableBody>
         </Table>
       </CardContent>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={filteredProducts.length}
+        itemsPerPage={itemsPerPage}
+      />
     </Card>
   );
 }

@@ -43,7 +43,7 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
         </div>
       </div>
       <nav className="mt-6 space-y-2">
-        {(['products', 'reports', 'users', 'categories', 'config'] as DashboardTab[]).map((tab) => (
+        {(['products', 'reports', 'users', 'categories', 'config', 'disputes'] as DashboardTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -65,6 +65,7 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
                 {tab === 'users' && <Users className="h-4 w-4" />}
                 {tab === 'categories' && <FolderPlus className="h-4 w-4" />}
                 {tab === 'config' && <Settings className="h-4 w-4" />}
+                {tab === 'disputes' && <CircleAlert className="h-4 w-4" />}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3">
@@ -74,6 +75,7 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
                     {tab === 'users' && 'Người dùng'}
                     {tab === 'categories' && 'Danh mục'}
                     {tab === 'config' && 'Cấu hình'}
+                    {tab === 'disputes' && 'Tranh chấp'}
                   </span>
                   {activeTab === tab ? <ArrowRight className="h-4 w-4 shrink-0" /> : null}
                 </div>
@@ -83,6 +85,7 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
                   {tab === 'users' && 'Quản lý tài khoản'}
                   {tab === 'categories' && 'Quản lý danh mục'}
                   {tab === 'config' && 'Cấu hình hệ thống'}
+                  {tab === 'disputes' && 'Xử lý tranh chấp ví'}
                 </p>
               </div>
             </div>

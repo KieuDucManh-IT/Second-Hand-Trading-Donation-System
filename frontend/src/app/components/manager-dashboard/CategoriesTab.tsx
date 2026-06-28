@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { FolderPlus, Search } from 'lucide-react';
 import { Input } from '../ui/input';
 import type { ManagerDashboardData } from './managerDashboardTypes';
+import { Pagination } from './Pagination';
 
 type CategoriesTabProps = {
   data: ManagerDashboardData;
@@ -20,9 +21,21 @@ export function CategoriesTab({
   handleDeleteCategory,
 }: CategoriesTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
 
   const filteredCategories = data.categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
+  const paginatedCategories = filteredCategories.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -61,8 +74,8 @@ export function CategoriesTab({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCategories.length ? (
-              filteredCategories.map((category) => (
+            {paginatedCategories.length ? (
+              paginatedCategories.map((category) => (
                 <TableRow key={category._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
                   <TableCell className="pl-6 align-top font-medium">{category.name}</TableCell>
                   <TableCell className="align-top">{category.description || '-'}</TableCell>
@@ -88,6 +101,13 @@ export function CategoriesTab({
           </TableBody>
         </Table>
       </CardContent>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={filteredCategories.length}
+        itemsPerPage={itemsPerPage}
+      />
     </Card>
   );
 }

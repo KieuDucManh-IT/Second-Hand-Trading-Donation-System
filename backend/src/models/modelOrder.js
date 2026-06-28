@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
- 
+
 const PLATFORM_FEE_RATE = Number(process.env.PLATFORM_FEE_RATE || 0.1);
- 
+
 const orderSchema = new mongoose.Schema(
   {
     buyerId: {
@@ -19,7 +19,7 @@ const orderSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
- 
+
     // Giá & phí
     totalPrice: {
       type: Number,
@@ -38,7 +38,7 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
- 
+
     // Phương thức & trạng thái thanh toán
     paymentMethod: {
       type: String,
@@ -50,7 +50,7 @@ const orderSchema = new mongoose.Schema(
       enum: ["unpaid", "paid", "released", "refunded"],
       default: "unpaid",
     },
- 
+
     // Escrow
     escrowStatus: {
       type: String,
@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
- 
+
     // Trạng thái đơn hàng
     orderStatus: {
       type: String,
@@ -77,7 +77,7 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "pending_seller_confirm",
     },
- 
+
     // Thông tin giao hàng (tuỳ chọn)
     shippingInfo: {
       name: String,
@@ -86,7 +86,7 @@ const orderSchema = new mongoose.Schema(
       address: String,
       city: String,
     },
- 
+
     // Timestamps nghiệp vụ
     paidAt: Date,
     sellerConfirmedAt: Date,
@@ -96,7 +96,7 @@ const orderSchema = new mongoose.Schema(
     releasedAt: Date,
     refundedAt: Date,
     cancelledAt: Date,
- 
+
     cancelReason: String,
     releaseReason: String,
 
@@ -109,29 +109,65 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-   
+
     paymentDeadline: Date,
 
-    
+
     sellerRating: {
       rating: { type: Number, min: 1, max: 5 },
       comment: { type: String },
       ratedAt: { type: Date },
-    },
+      // Tranh chấp / Khiếu nại
+      disputedAt: Date,
+      disputeReason: String,
+      disputeBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      complaint: {
+        reason: {
+          type: String,
+          trim: true,
+        },
+        evidences: [
+          {
+            url: { type: String, required: true },
+            publicId: String,
+            type: { type: String, enum: ["image", "video"], required: true },
+            resourceType: { type: String, default: "image" },
+            originalName: String,
+            mimeType: String,
+            size: Number,
+            uploadedAt: { type: Date, default: Date.now }
+          }
+        ],
+        status: {
+          type: String,
+          enum: ["pending", "reviewing", "resolved", "rejected"],
+          default: "pending",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        resolvedAt: Date,
+        resolutionNote: String,
+      },
+    }
   },
   {
     timestamps: true,
   }
 );
- 
+
 
 orderSchema.pre("validate", function () {
   if (this.isNew && this.totalPrice != null) {
     const rate = this.platformFeeRate ?? PLATFORM_FEE_RATE;
-    this.platformFee    = Math.round(this.totalPrice * rate);
+    this.platformFee = Math.round(this.totalPrice * rate);
     this.sellerReceives = this.totalPrice - this.platformFee;
 
-    
+
     // Chỉ set paymentDeadline cho wallet, COD không cần deadline thanh toán
     if (!this.paymentDeadline && this.paymentMethod === "wallet") {
       const deadline = new Date();
@@ -140,11 +176,11 @@ orderSchema.pre("validate", function () {
     }
   }
 });
- 
+
 orderSchema.index({ buyerId: 1, createdAt: -1 });
 orderSchema.index({ sellerId: 1, createdAt: -1 });
 orderSchema.index({ productId: 1 });
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ confirmDeadline: 1, orderStatus: 1 }); // cho auto-release job
- 
+
 module.exports = mongoose.model("Order", orderSchema);

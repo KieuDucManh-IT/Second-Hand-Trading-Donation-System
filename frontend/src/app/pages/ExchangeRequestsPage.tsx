@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { Card, CardContent } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { useNavigate } from "react-router-dom";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import {
   ArrowLeftRight,
   Clock,
@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { notifyProductCatalogChanged } from "../api/productApi";
 
 const API_BASE = "http://localhost:5000/api";
 const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
@@ -415,6 +416,7 @@ export function ExchangeRequestsPage() {
         body: body ? JSON.stringify(body) : undefined,
       });
 
+      notifyProductCatalogChanged();
       await fetchExchangeInvoices();
     } catch (error: any) {
       const msg = error.message || "Thao tác thất bại";
@@ -520,6 +522,7 @@ export function ExchangeRequestsPage() {
         body: formData,
       });
 
+      notifyProductCatalogChanged();
       closeComplaintModal();
       await fetchExchangeInvoices();
     } catch (error: any) {
@@ -1011,9 +1014,6 @@ export function ExchangeRequestsPage() {
               Received ({receivedInvoices.length})
             </TabsTrigger>
             <TabsTrigger value="sent">Sent ({sentInvoices.length})</TabsTrigger>
-            <TabsTrigger value="active">
-              Active ({activeInvoices.length})
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="received">
@@ -1029,14 +1029,6 @@ export function ExchangeRequestsPage() {
               list={sentInvoices}
               emptyTitle="No exchange requests sent"
               emptyDescription="Bạn chưa gửi yêu cầu trao đổi nào."
-            />
-          </TabsContent>
-
-          <TabsContent value="active">
-            <InvoiceList
-              list={activeInvoices}
-              emptyTitle="No active exchanges"
-              emptyDescription="Các giao dịch đang đặt cọc, đang trao đổi hoặc đang khiếu nại sẽ xuất hiện tại đây."
             />
           </TabsContent>
         </Tabs>

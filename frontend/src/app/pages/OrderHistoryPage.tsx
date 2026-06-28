@@ -20,15 +20,16 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   ShieldAlert,
+  Upload,
+  X,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getOrCreateConversation } from "../api/chatApi";
+import { openDispute } from "../api/orderApi";
  
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
  
@@ -158,6 +159,7 @@ function OrderDetailModal({
   const [rateComment, setRateComment] = useState("");
   const [submittingRate, setSubmittingRate] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
   const [cancelReason, setCancelReason] = useState("");
   const [showDispute, setShowDispute] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
@@ -516,7 +518,7 @@ function OrderDetailModal({
                 </Button>
               )}
             {showDispute && (
-              <div className="space-y-2">
+              <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/20">
                 <textarea
                   className="w-full border rounded-lg p-3 text-sm dark:bg-gray-800 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-400"
                   rows={3}
@@ -524,6 +526,48 @@ function OrderDetailModal({
                   value={disputeReason}
                   onChange={(e) => setDisputeReason(e.target.value)}
                 />
+
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-red-300 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/30 transition-colors">
+                  <Upload className="w-6 h-6 text-red-400 mb-1" />
+                  <span className="text-xs text-red-500">
+                    Chọn ảnh/video bằng chứng nếu có
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setDisputeFiles((prev) => [...prev, ...files]);
+                    }}
+                  />
+                </label>
+
+                {disputeFiles.length > 0 && (
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {disputeFiles.map((file, idx) => (
+                      <div
+                        key={`${file.name}-${idx}`}
+                        className="flex items-center justify-between rounded-lg border border-red-100 bg-white px-3 py-2 text-xs dark:border-red-900 dark:bg-gray-900"
+                      >
+                        <span className="truncate max-w-[85%]">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDisputeFiles((prev) =>
+                              prev.filter((_, i) => i !== idx),
+                            )
+                          }
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -533,6 +577,7 @@ function OrderDetailModal({
                       if (disputeReason.trim()) {
                         onAction(order._id, "dispute", {
                           reason: disputeReason,
+                          files: disputeFiles,
                         });
                         onClose();
                       } else toast.error("Nhập lý do khiếu nại");
@@ -543,7 +588,11 @@ function OrderDetailModal({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => setShowDispute(false)}
+                    onClick={() => {
+                      setShowDispute(false);
+                      setDisputeReason("");
+                      setDisputeFiles([]);
+                    }}
                   >
                     Huỷ
                   </Button>
@@ -920,6 +969,7 @@ export function OrderHistoryPage() {
  
   const [buyingOrders, setBuyingOrders] = useState<any[]>([]);
   const [sellingOrders, setSellingOrders] = useState<any[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
  
@@ -946,17 +996,41 @@ export function OrderHistoryPage() {
     }
   }, []);
  
+  const fetchDonations = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/donations`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể tải donation");
+      setDonations(Array.isArray(data) ? data : data.donations || []);
+    } catch (err) {
+      console.error(err);
+      setDonations([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/login");
       return;
     }
     fetchOrders();
-  }, [isAuthenticated, navigate, fetchOrders]);
+    fetchDonations();
+  }, [isAuthenticated, navigate, fetchOrders, fetchDonations]);
  
   const handleAction = async (orderId: string, action: string, data?: any) => {
     try {
-      let url = `${API_BASE}/api/orders/${orderId}/${action}`;
+      if (action === "dispute") {
+        const reason = String(data?.reason || "").trim();
+        if (!reason) throw new Error("Vui lòng nhập lý do khiếu nại");
+        await openDispute(orderId, reason, data?.files || []);
+        toast.success("Gửi khiếu nại thành công! Quản lý sẽ xem xét sớm.");
+        await fetchOrders();
+        return;
+      }
+
+      const url = `${API_BASE}/api/orders/${orderId}/${action}`;
       const body = data ? JSON.stringify(data) : undefined;
       const res = await fetch(url, {
         method: "POST",
@@ -965,8 +1039,7 @@ export function OrderHistoryPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Thao tác thất bại");
- 
-      // Special case: not enough balance → navigate to wallet
+
       toast.success(json.message || "Thành công!");
       await fetchOrders();
     } catch (err: any) {
@@ -987,7 +1060,7 @@ export function OrderHistoryPage() {
       }
     }
   };
- 
+
   const handleActionWithFiles = async (orderId: string, action: string, files: File[]) => {
     try {
       const token = sessionStorage.getItem("token");
@@ -1021,6 +1094,36 @@ export function OrderHistoryPage() {
     }
   };
  
+  const handleAcceptDonation = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/donations/accept/${id}`, {
+        method: "PUT",
+        headers: authHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Accept donation failed");
+      toast.success("Đã chấp nhận yêu cầu donation");
+      await fetchDonations();
+    } catch (err: any) {
+      toast.error(err.message || "Không thể chấp nhận donation");
+    }
+  };
+
+  const handleRejectDonation = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/donations/reject/${id}`, {
+        method: "PUT",
+        headers: authHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Reject donation failed");
+      toast.success("Đã từ chối yêu cầu donation");
+      await fetchDonations();
+    } catch (err: any) {
+      toast.error(err.message || "Không thể từ chối donation");
+    }
+  };
+
   const allOrders = [
     ...buyingOrders.map((o) => ({ ...o, _role: "buyer" })),
     ...sellingOrders.map((o) => ({ ...o, _role: "seller" })),
@@ -1126,6 +1229,12 @@ export function OrderHistoryPage() {
               >
                 Đang bán ({sellingOrders.length})
               </TabsTrigger>
+              <TabsTrigger
+                value="donations"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              >
+                Donations ({donations.length})
+              </TabsTrigger>
             </TabsList>
  
             {(["all", "buying", "selling"] as const).map((tab) => {
@@ -1212,9 +1321,63 @@ export function OrderHistoryPage() {
                 </TabsContent>
               );
             })}
+
+            <TabsContent value="donations" className="space-y-3 mt-0">
+              {donations.length === 0 ? (
+                <Card>
+                  <CardContent className="p-16 text-center text-gray-400">
+                    <Package className="w-14 h-14 mx-auto mb-4 text-gray-200 dark:text-gray-700" />
+                    <p className="font-medium">Không có yêu cầu donation nào</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                donations.map((donation: any) => (
+                  <Card key={donation._id}>
+                    <CardContent className="p-5">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <h3 className="font-semibold text-base">
+                            {donation.productId?.title || "Sản phẩm donation"}
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Người yêu cầu:{" "}
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {donation.requesterId?.fullName ||
+                                donation.requesterId?.userName ||
+                                "Ẩn danh"}
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Trạng thái: {donation.status || "pending"}
+                          </p>
+                        </div>
+
+                        {donation.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleAcceptDonation(donation._id)}
+                            >
+                              Chấp nhận
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => handleRejectDonation(donation._id)}
+                            >
+                              Từ chối
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </TabsContent>
           </Tabs>
         )}
       </div>
+
     </div>
   );
 }
