@@ -8,7 +8,8 @@ import {
   emptyData,
 } from './managerDashboardTypes';
 
-const API_URL = 'http://localhost:5000/api/manager';
+const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = `${API_BASE}/api/manager`;
 
 const validateInput = (value: string, fieldName: string, isDescription: boolean = false): boolean => {
   const trimmed = value.trim();

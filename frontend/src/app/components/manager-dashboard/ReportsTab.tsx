@@ -19,7 +19,6 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const isDetailsOpen = !!selectedTargetId;
 
-  // Group reports by targetId
   const groupedReportsMap: Record<string, {
     targetId: string;
     targetType: string;
@@ -79,10 +78,9 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
               {paginatedGroupedReports.length ? (
                 paginatedGroupedReports.map((group) => {
                   const hasPending = group.reports.some(r => r.status === 'pending' || r.status === 'reviewing');
-                  
+
                   return (
                     <TableRow key={group.targetId} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
-                      {/* Target */}
                       <TableCell className="pl-6 align-middle font-medium">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
                           {group.targetName === 'Unknown Target' ? 'Không rõ' : group.targetName}
@@ -90,28 +88,23 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                         <div className="text-[11px] text-slate-400">ID: {group.targetId}</div>
                       </TableCell>
 
-                      {/* Type */}
                       <TableCell className="align-middle">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                          group.targetType === 'product'
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${group.targetType === 'product'
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                             : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
-                        }`}>
+                          }`}>
                           {group.targetType === 'product' ? 'Sản phẩm' : 'Người dùng'}
                         </span>
                       </TableCell>
 
-                      {/* Report Count */}
                       <TableCell className="align-middle font-semibold text-slate-700 dark:text-slate-300">
                         {group.reports.length}
                       </TableCell>
 
-                      {/* Warnings */}
                       <TableCell className="align-middle font-semibold text-amber-600 dark:text-amber-500">
                         {group.targetWarnings}
                       </TableCell>
-
-                      {/* Status */}
+                      
                       <TableCell className="align-middle">
                         {hasPending ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 dark:bg-rose-900/25 dark:text-rose-400">
@@ -124,7 +117,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                         )}
                       </TableCell>
 
-                      {/* Actions */}
+                     
                       <TableCell className="pr-6 align-middle">
                         <div className="flex justify-end gap-2">
                           {group.targetType === 'product' && (
@@ -176,7 +169,6 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
         />
       </Card>
 
-      {/* Grouped Report Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={(open) => !open && setSelectedTargetId(null)}>
         <DialogContent className="max-w-2xl rounded-3xl border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95 max-h-[85vh] overflow-y-auto">
           <DialogHeader className="text-left">
@@ -190,15 +182,14 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
 
           {selectedGroup && (
             <div className="mt-3 space-y-6">
-              {/* Target info */}
+            
               <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 space-y-2 border border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Đối tượng bị báo cáo</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                    selectedGroup.targetType === 'product'
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${selectedGroup.targetType === 'product'
                       ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                       : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
-                  }`}>
+                    }`}>
                     {selectedGroup.targetType === 'product' ? 'Sản phẩm' : 'Người dùng'}
                   </span>
                 </div>
@@ -212,7 +203,6 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                 </div>
               </div>
 
-              {/* Reports List */}
               <div>
                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center">
                   Danh sách báo cáo ({selectedGroup.reports.length})
@@ -234,7 +224,7 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                         </div>
                         <StatusBadge status={report.status} />
                       </div>
-                      
+
                       <div className="text-sm text-slate-600 dark:text-gray-300 bg-slate-50/55 dark:bg-slate-950/20 p-2.5 rounded-xl border border-slate-100/50 dark:border-slate-900">
                         <span className="text-xs text-slate-400 font-medium block mb-1">Lý do báo cáo:</span>
                         {report.reason}
@@ -270,9 +260,6 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                 </div>
               </div>
 
-
-
-              {/* Close Button */}
               <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
                 <Button variant="outline" type="button" onClick={() => setSelectedTargetId(null)}>
                   Đóng

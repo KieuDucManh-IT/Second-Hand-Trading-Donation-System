@@ -46,7 +46,6 @@ export function DisputesTab({ disputesData, resolveDispute }: DisputesTabProps) 
     setCurrentPage(1);
   };
 
-  // Combine disputes into a unified list
   const orderDisputes = (disputesData.orders || []).map((o) => ({
     ...o,
     id: o._id,
@@ -87,7 +86,6 @@ export function DisputesTab({ disputesData, resolveDispute }: DisputesTabProps) 
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  // Apply history toggle and status filter
   const filteredDisputes = allDisputes.filter((dispute) => {
     const isResolved = dispute.complaintStatus === 'resolved' || dispute.complaintStatus === 'rejected';
     if (showHistory && !isResolved) return false;
@@ -155,7 +153,6 @@ export function DisputesTab({ disputesData, resolveDispute }: DisputesTabProps) 
             Xử lý tranh chấp giao dịch
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
-            {/* History Toggle Segment */}
             <div className="flex items-center rounded-xl bg-slate-100 p-1 dark:bg-slate-850">
               <Button
                 variant="ghost"
@@ -183,7 +180,6 @@ export function DisputesTab({ disputesData, resolveDispute }: DisputesTabProps) 
               </Button>
             </div>
 
-            {/* Status Dropdown */}
             <select
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900/70"
               value={selectedStatus}

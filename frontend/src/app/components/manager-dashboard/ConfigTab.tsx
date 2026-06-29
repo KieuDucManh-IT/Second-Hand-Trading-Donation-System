@@ -11,12 +11,12 @@ export function ConfigTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Fetch configuration on mount
   useEffect(() => {
     const fetchConfig = async () => {
       try {
         const token = sessionStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/manager/config', {
+        const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
+        const res = await fetch(`${API_BASE}/api/manager/config`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -91,7 +91,8 @@ export function ConfigTab() {
     setSaving(true);
     try {
       const token = sessionStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/manager/config', {
+      const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_BASE}/api/manager/config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
