@@ -161,6 +161,111 @@ exports.payExchangeDeposit = async (req, res) => {
   }
 };
 
+exports.uploadDeliveryVideo = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { invoiceId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng chọn video giao hàng",
+      });
+    }
+
+    if (!req.file.mimetype.startsWith("video/")) {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ được upload video giao hàng",
+      });
+    }
+
+    const invoice = await ExchangeInvoice.findById(invoiceId);
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn trao đổi",
+      });
+    }
+
+    const isRequester = String(invoice.requester) === String(userId);
+    const isReceiver = String(invoice.receiver) === String(userId);
+
+    if (!isRequester && !isReceiver) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không thuộc hóa đơn trao đổi này",
+      });
+    }
+
+    if (invoice.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ được upload video khi giao dịch đang trong trạng thái đang trao đổi",
+      });
+    }
+
+    const myDepositStatus = isRequester
+      ? invoice.requesterDepositStatus
+      : invoice.receiverDepositStatus;
+
+    if (myDepositStatus !== "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Bạn cần thanh toán tiền bảo hiểm trước khi upload video giao hàng",
+      });
+    }
+
+    const existedVideo = isRequester
+      ? invoice.requesterDeliveryVideo?.url
+      : invoice.receiverDeliveryVideo?.url;
+
+    if (existedVideo) {
+      return res.status(400).json({
+        success: false,
+        message: "Bạn đã upload video giao hàng rồi",
+      });
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer, {
+      folder: "exchange-delivery-videos",
+      resourceType: "video",
+    });
+
+    const videoData = {
+      url: result.secure_url,
+      publicId: result.public_id,
+      resourceType: result.resource_type || "video",
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      uploadedAt: new Date(),
+    };
+
+    if (isRequester) {
+      invoice.requesterDeliveryVideo = videoData;
+    } else {
+      invoice.receiverDeliveryVideo = videoData;
+    }
+
+    await invoice.save();
+
+    res.json({
+      success: true,
+      message: "Đã upload video giao hàng",
+      invoice,
+    });
+  } catch (error) {
+    console.error("UPLOAD DELIVERY VIDEO ERROR:", error);
+
+    res.status(400).json({
+      success: false,
+      message: error.message || "Không thể upload video giao hàng",
+    });
+  }
+};
+
 exports.confirmExchangeCompleted = async (req, res) => {
   try {
     const userId = getUserId(req);
