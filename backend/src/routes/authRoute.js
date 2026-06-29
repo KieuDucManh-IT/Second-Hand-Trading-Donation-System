@@ -10,7 +10,8 @@ const {
   verifyForgotPasswordOTP,
   googleLogin,
   updateAvatar,
-  getProfile
+  getProfile,
+  getSellerReviews
 } = require("../controllers/authController");
 
 const { protect } = require("../middlewares/authMiddleware");
@@ -31,5 +32,6 @@ router.post("/google-login", googleLogin);
 router.patch("/update-avatar", protect, uploadAvatarMiddleware.single("avatar"), updateAvatar );
 
 router.get("/profile/:userId", getProfile);
+router.get("/profile/:userId/reviews", getSellerReviews);
 
 module.exports = router;

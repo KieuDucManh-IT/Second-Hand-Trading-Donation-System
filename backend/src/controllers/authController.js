@@ -609,6 +609,51 @@ const getProfile = async (req, res) => {
   }
 };
 
+const getSellerReviews = async (req, res) => {
+  try {
+    const Order = require("../models/modelOrder");
+    const ProductImage = require("../models/modelProductImage");
+    const { userId } = req.params;
+
+    const reviews = await Order.find({
+      sellerId: userId,
+      "sellerRating.rating": { $exists: true, $gt: 0 }
+    })
+    .populate("productId", "title thumbnail price condition type status")
+    .populate("buyerId", "fullName avatar email userName")
+    .sort({ "sellerRating.ratedAt": -1 });
+
+    const productIds = reviews.map(r => r.productId?._id).filter(Boolean);
+    const images = await ProductImage.find({ productId: { $in: productIds } }).sort({ order: 1 });
+
+    const imageMap = {};
+    for (const img of images) {
+      const pid = String(img.productId);
+      if (!imageMap[pid]) imageMap[pid] = [];
+      imageMap[pid].push(img);
+    }
+
+    const reviewsWithImages = reviews.map(r => {
+      const obj = r.toObject();
+      if (obj.productId) {
+        obj.productId.images = imageMap[String(obj.productId._id)] || [];
+      }
+      return obj;
+    });
+
+    return res.status(200).json({
+      success: true,
+      reviews: reviewsWithImages
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Không thể lấy danh sách đánh giá",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   login,
   sendRegisterOTP,
@@ -618,5 +663,6 @@ module.exports = {
   verifyForgotPasswordOTP,
   googleLogin,
   updateAvatar,
-  getProfile
+  getProfile,
+  getSellerReviews
 };

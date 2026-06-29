@@ -551,3 +551,21 @@ exports.getMyProductsForExchange = async (req, res) => {
     });
   }
 };
+
+exports.getProductReviews = async (req, res, next) => {
+  try {
+    const Order = require("../models/modelOrder");
+    const { id } = req.params;
+
+    const reviews = await Order.find({
+      productId: id,
+      "sellerRating.rating": { $exists: true, $gt: 0 }
+    })
+    .populate("buyerId", "fullName avatar email userName")
+    .sort({ "sellerRating.ratedAt": -1 });
+
+    res.json({ success: true, reviews });
+  } catch (err) {
+    next(err);
+  }
+};
