@@ -73,8 +73,9 @@ exports.getMyExchangeInvoices = async (req, res) => {
       .populate("receiver", "name fullName username email avatar profileImage")
       .populate("requesterProduct")
       .populate("receiverProduct")
-      .sort({ createdAt: -1 });
-
+      .sort({ createdAt: -1 })
+      .lean();
+      
     const invoicesWithImages = await attachProductImagesToInvoices(invoices);
 
     res.json({
@@ -166,6 +167,18 @@ exports.uploadDeliveryVideo = async (req, res) => {
     const userId = getUserId(req);
     const { invoiceId } = req.params;
 
+    console.log("UPLOAD DELIVERY VIDEO HIT:", {
+      invoiceId,
+      userId: String(userId),
+      file: req.file
+        ? {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        }
+        : null,
+    });
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -180,7 +193,7 @@ exports.uploadDeliveryVideo = async (req, res) => {
       });
     }
 
-    const invoice = await ExchangeInvoice.findById(invoiceId);
+    const invoice = await ExchangeInvoice.findById(invoiceId).lean();
 
     if (!invoice) {
       return res.status(404).json({
@@ -202,7 +215,7 @@ exports.uploadDeliveryVideo = async (req, res) => {
     if (invoice.status !== "active") {
       return res.status(400).json({
         success: false,
-        message: "Chỉ được upload video khi giao dịch đang trong trạng thái đang trao đổi",
+        message: "Chỉ được upload video khi giao dịch đang trao đổi",
       });
     }
 
@@ -233,33 +246,62 @@ exports.uploadDeliveryVideo = async (req, res) => {
       resourceType: "video",
     });
 
+    if (!result || !result.secure_url) {
+      return res.status(400).json({
+        success: false,
+        message: "Upload Cloudinary thất bại, không nhận được URL video",
+      });
+    }
+
     const videoData = {
       url: result.secure_url,
       publicId: result.public_id,
-      resourceType: result.resource_type || "video",
+      resourceType: "video",
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
       uploadedAt: new Date(),
     };
 
-    if (isRequester) {
-      invoice.requesterDeliveryVideo = videoData;
-    } else {
-      invoice.receiverDeliveryVideo = videoData;
-    }
+    const updateField = isRequester
+      ? "requesterDeliveryVideo"
+      : "receiverDeliveryVideo";
 
-    await invoice.save();
+    console.log("SAVE DELIVERY VIDEO FIELD:", updateField, videoData.url);
 
-    res.json({
+    await ExchangeInvoice.updateOne(
+      { _id: invoiceId },
+      {
+        $set: {
+          [updateField]: videoData,
+        },
+      },
+      {
+        strict: false,
+      }
+    );
+
+    const updatedInvoice = await ExchangeInvoice.findById(invoiceId)
+      .populate("requester", "name fullName username email avatar profileImage")
+      .populate("receiver", "name fullName username email avatar profileImage")
+      .populate("requesterProduct")
+      .populate("receiverProduct")
+      .lean();
+
+    console.log("UPDATED DELIVERY VIDEO CHECK:", {
+      requesterDeliveryVideo: updatedInvoice?.requesterDeliveryVideo,
+      receiverDeliveryVideo: updatedInvoice?.receiverDeliveryVideo,
+    });
+
+    return res.json({
       success: true,
       message: "Đã upload video giao hàng",
-      invoice,
+      invoice: updatedInvoice,
     });
   } catch (error) {
     console.error("UPLOAD DELIVERY VIDEO ERROR:", error);
 
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
       message: error.message || "Không thể upload video giao hàng",
     });
@@ -374,7 +416,8 @@ exports.getExchangeInvoiceDetail = async (req, res) => {
       .populate("requester", "name fullName username email avatar profileImage")
       .populate("receiver", "name fullName username email avatar profileImage")
       .populate("requesterProduct")
-      .populate("receiverProduct");
+      .populate("receiverProduct")
+      .lean();
 
     if (!invoice) {
       return res.status(404).json({

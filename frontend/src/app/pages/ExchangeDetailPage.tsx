@@ -547,6 +547,8 @@ export function ExchangeDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [deliveryVideo, setDeliveryVideo] = useState<File | null>(null);
 
   const disputePreviewItems = useMemo(() => {
     return disputeFiles.map((file) => ({
@@ -555,6 +557,18 @@ export function ExchangeDetailPage() {
       isVideo: file.type.startsWith("video"),
     }));
   }, [disputeFiles]);
+
+  const deliveryPreviewUrl = useMemo(() => {
+    return deliveryVideo ? URL.createObjectURL(deliveryVideo) : "";
+  }, [deliveryVideo]);
+
+  useEffect(() => {
+    return () => {
+      if (deliveryPreviewUrl) {
+        URL.revokeObjectURL(deliveryPreviewUrl);
+      }
+    };
+  }, [deliveryPreviewUrl]);
 
   useEffect(() => {
     return () => {
@@ -617,6 +631,71 @@ export function ExchangeDetailPage() {
   function resetDisputeForm() {
     setDisputeReason("");
     setDisputeFiles([]);
+  }
+
+  function resetDeliveryForm() {
+    setDeliveryVideo(null);
+  }
+
+  function handleDeliveryVideoChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      setDeliveryVideo(null);
+      return;
+    }
+
+    const allowedTypes = [
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Video không hợp lệ. Chỉ cho phép MP4, MOV hoặc WEBM.");
+      e.target.value = "";
+      setDeliveryVideo(null);
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Video quá lớn. Tối đa 50MB.");
+      e.target.value = "";
+      setDeliveryVideo(null);
+      return;
+    }
+
+    setDeliveryVideo(file);
+  }
+
+  async function submitDeliveryVideo() {
+    if (!deliveryVideo) {
+      toast.error("Vui lòng chọn video giao hàng");
+      return;
+    }
+
+    try {
+      setActionLoading("delivery-video");
+
+      const formData = new FormData();
+      formData.append("deliveryVideo", deliveryVideo);
+
+      const data = await api(`/exchange-escrow/${invoiceId}/delivery-video`, {
+        method: "POST",
+        body: formData,
+      });
+
+      toast.success(data.message || "Đã upload video giao hàng");
+
+      setDeliveryOpen(false);
+      resetDeliveryForm();
+
+      await fetchExchangeDetail();
+    } catch (error: any) {
+      toast.error(error.message || "Không thể upload video giao hàng");
+    } finally {
+      setActionLoading(null);
+    }
   }
 
   function handleDisputeFilesChange(e: ChangeEvent<HTMLInputElement>) {
@@ -804,6 +883,19 @@ export function ExchangeDetailPage() {
   const partnerConfirmed = isRequester
     ? !!invoice.receiverConfirmed
     : !!invoice.requesterConfirmed;
+
+  const myDeliveryVideo = isRequester
+    ? invoice.requesterDeliveryVideo
+    : invoice.receiverDeliveryVideo;
+
+  const partnerDeliveryVideo = isRequester
+    ? invoice.receiverDeliveryVideo
+    : invoice.requesterDeliveryVideo;
+
+  const canUploadDeliveryVideo =
+    status === "active" &&
+    myDepositStatus === "paid" &&
+    !myDeliveryVideo?.url;
 
   const feeRate = Number(invoice.feeRate ?? 0.1);
 
@@ -1036,6 +1128,60 @@ export function ExchangeDetailPage() {
                     </div>
                   </div>
 
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-500 dark:text-gray-400 mb-3">
+                      Video giao hàng
+                    </h4>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                        <p className="text-sm font-medium mb-2">Video của tôi</p>
+
+                        {myDeliveryVideo?.url ? (
+                          <div>
+                            <video
+                              src={normalizeUrl(myDeliveryVideo.url)}
+                              controls
+                              className="h-48 w-full rounded-lg bg-black object-cover"
+                            />
+
+                            <p className="mt-2 text-xs text-gray-500">
+                              Upload lúc: {formatDate(myDeliveryVideo.uploadedAt)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            Bạn chưa upload video giao hàng.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                        <p className="text-sm font-medium mb-2">Video của đối phương</p>
+
+                        {partnerDeliveryVideo?.url ? (
+                          <div>
+                            <video
+                              src={normalizeUrl(partnerDeliveryVideo.url)}
+                              controls
+                              className="h-48 w-full rounded-lg bg-black object-cover"
+                            />
+
+                            <p className="mt-2 text-xs text-gray-500">
+                              Upload lúc: {formatDate(partnerDeliveryVideo.uploadedAt)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            Đối phương chưa upload video giao hàng.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   {status === "active" && (
                     <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
                       Cả 2 bên đã đặt cọc. Khi cả 2 xác nhận hoàn tất trao đổi
@@ -1109,6 +1255,96 @@ export function ExchangeDetailPage() {
                     )}
                     Thanh toán bảo hiểm
                   </Button>
+                )}
+
+                {canUploadDeliveryVideo && (
+                  <Dialog
+                    open={deliveryOpen}
+                    onOpenChange={(open) => {
+                      setDeliveryOpen(open);
+
+                      if (!open) {
+                        resetDeliveryForm();
+                      }
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        size="lg"
+                        disabled={!!actionLoading}
+                      >
+                        Upload video giao hàng
+                      </Button>
+                    </DialogTrigger>
+
+                    <DialogContent className="max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Upload video giao hàng</DialogTitle>
+                        <DialogDescription>
+                          Quay hoặc chọn video quá trình giao hàng để đối phương có thể kiểm tra
+                          trước khi xác nhận hoàn tất trao đổi.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="mb-2 text-sm font-medium">Video giao hàng</p>
+
+                          <input
+                            type="file"
+                            accept="video/mp4,video/quicktime,video/webm"
+                            onChange={handleDeliveryVideoChange}
+                            className="w-full rounded-lg border px-3 py-2 text-sm"
+                          />
+
+                          <p className="mt-1 text-xs text-gray-500">
+                            Hỗ trợ MP4, MOV, WEBM. Tối đa 50MB.
+                          </p>
+                        </div>
+
+                        {deliveryPreviewUrl && (
+                          <div>
+                            <p className="mb-2 text-sm font-medium">Xem trước:</p>
+
+                            <video
+                              src={deliveryPreviewUrl}
+                              controls
+                              className="h-64 w-full rounded-lg bg-black object-cover"
+                            />
+
+                            <p className="mt-1 text-xs text-gray-500">
+                              {deliveryVideo?.name}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setDeliveryOpen(false);
+                            resetDeliveryForm();
+                          }}
+                          disabled={!!actionLoading}
+                        >
+                          Hủy
+                        </Button>
+
+                        <Button
+                          onClick={submitDeliveryVideo}
+                          disabled={!!actionLoading}
+                        >
+                          {actionLoading === "delivery-video" && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Gửi video
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 )}
 
                 {canConfirmCompleted && (
@@ -1260,6 +1496,7 @@ export function ExchangeDetailPage() {
 
                 {!canAccept &&
                   !canPayDeposit &&
+                  !canUploadDeliveryVideo &&
                   !canConfirmCompleted &&
                   !canDispute && (
                     <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500 dark:bg-gray-800">
