@@ -964,7 +964,7 @@ function OrderCard({
  
 // ── Main Page ───────────────────────────────────────────────────────────────
 export function OrderHistoryPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
  
   const [buyingOrders, setBuyingOrders] = useState<any[]>([]);
@@ -972,6 +972,18 @@ export function OrderHistoryPage() {
   const [donations, setDonations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const currentUserId = (user as any)?._id || (user as any)?.id;
+
+  const receivedDonations = donations.filter(
+    (donation: any) =>
+      (donation.donorId?._id || donation.donorId) === currentUserId,
+  );
+
+  const myDonations = donations.filter(
+    (donation: any) =>
+      (donation.requesterId?._id || donation.requesterId) === currentUserId,
+  );
  
   const fetchOrders = useCallback(async () => {
     try {
@@ -1110,10 +1122,17 @@ export function OrderHistoryPage() {
   };
 
   const handleRejectDonation = async (id: string) => {
+    const reason = prompt(
+      "Lý do từ chối?\n\nVí dụ:\n- Địa chỉ quá xa\n- Sản phẩm không còn\n- Không đủ điều kiện",
+    );
+
+    if (!reason?.trim()) return;
+
     try {
       const res = await fetch(`${API_BASE}/api/donations/reject/${id}`, {
         method: "PUT",
         headers: authHeaders(),
+        body: JSON.stringify({ reason: reason.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Reject donation failed");
@@ -1121,6 +1140,25 @@ export function OrderHistoryPage() {
       await fetchDonations();
     } catch (err: any) {
       toast.error(err.message || "Không thể từ chối donation");
+    }
+  };
+
+  const updateDeliveryStatus = async (id: string, deliveryStatus: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/donations/delivery/${id}`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ deliveryStatus }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Không thể cập nhật trạng thái giao hàng");
+      }
+
+      toast.success("Đã cập nhật trạng thái giao hàng");
+      await fetchDonations();
+    } catch (err: any) {
+      toast.error(err.message || "Cập nhật trạng thái giao hàng thất bại");
     }
   };
 
@@ -1183,7 +1221,7 @@ export function OrderHistoryPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={fetchOrders}
+            onClick={() => { fetchOrders(); fetchDonations(); }}
             className="rounded-full gap-2"
           >
             <RefreshCw className="w-4 h-4" /> Làm mới
@@ -1322,57 +1360,217 @@ export function OrderHistoryPage() {
               );
             })}
 
-            <TabsContent value="donations" className="space-y-3 mt-0">
-              {donations.length === 0 ? (
-                <Card>
-                  <CardContent className="p-16 text-center text-gray-400">
-                    <Package className="w-14 h-14 mx-auto mb-4 text-gray-200 dark:text-gray-700" />
-                    <p className="font-medium">Không có yêu cầu donation nào</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                donations.map((donation: any) => (
-                  <Card key={donation._id}>
-                    <CardContent className="p-5">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <h3 className="font-semibold text-base">
-                            {donation.productId?.title || "Sản phẩm donation"}
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Người yêu cầu:{" "}
-                            <span className="font-medium text-gray-700 dark:text-gray-300">
-                              {donation.requesterId?.fullName ||
-                                donation.requesterId?.userName ||
-                                "Ẩn danh"}
-                            </span>
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Trạng thái: {donation.status || "pending"}
-                          </p>
-                        </div>
+            <TabsContent value="donations" className="mt-0">
+              <Tabs defaultValue="received">
+                <TabsList className="mb-6 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 p-1 rounded-xl gap-1">
+                  <TabsTrigger
+                    value="received"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+                  >
+                    Received Requests ({receivedDonations.length})
+                  </TabsTrigger>
 
-                        {donation.status === "pending" && (
-                          <div className="flex gap-2">
-                            <Button
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => handleAcceptDonation(donation._id)}
-                            >
-                              Chấp nhận
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              onClick={() => handleRejectDonation(donation._id)}
-                            >
-                              Từ chối
-                            </Button>
+                  <TabsTrigger
+                    value="my"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+                  >
+                    My Requests ({myDonations.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="received" className="space-y-3 mt-0">
+                  {receivedDonations.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-16 text-center text-gray-400">
+                        <Package className="w-14 h-14 mx-auto mb-4 text-gray-200 dark:text-gray-700" />
+                        <p className="font-medium">Không có yêu cầu donation nào gửi đến bạn</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    receivedDonations.map((donation: any) => (
+                      <Card key={donation._id}>
+                        <CardContent className="p-5">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                              <h3 className="font-semibold text-base">
+                                {donation.productId?.title || "Sản phẩm donation"}
+                              </h3>
+
+                              <p className="text-sm text-gray-500 mt-1">
+                                Người yêu cầu:{" "}
+                                <span className="font-medium text-gray-700 dark:text-gray-300">
+                                  {donation.requesterId?.fullName ||
+                                    donation.requesterId?.userName ||
+                                    "Ẩn danh"}
+                                </span>
+                              </p>
+
+                              <p className="text-xs text-gray-400 mt-1">
+                                Ngày yêu cầu:{" "}
+                                {donation.createdAt
+                                  ? new Date(donation.createdAt).toLocaleDateString("vi-VN")
+                                  : "—"}
+                              </p>
+
+                              <p className="mt-2 text-sm">
+                                Trạng thái:
+                                <span className="font-semibold ml-2 capitalize">
+                                  {donation.status || "pending"}
+                                </span>
+                              </p>
+
+                              {donation.status === "accepted" && (
+                                <p className="text-green-600 mt-2 text-sm">
+                                  Trạng thái giao hàng:
+                                  <span className="font-semibold ml-2">
+                                    {donation.deliveryStatus === "shipping"
+                                      ? "🚚 Đang giao"
+                                      : "✅ Đã giao"}
+                                  </span>
+                                </p>
+                              )}
+
+                              {donation.status === "rejected" && (
+                                <p className="text-red-500 mt-2 text-sm">
+                                  Lý do:
+                                  <span className="font-semibold ml-2">
+                                    {donation.rejectReason || "Không có lý do"}
+                                  </span>
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 md:justify-end">
+                              {donation.status === "pending" && (
+                                <>
+                                  <Button
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={() => handleAcceptDonation(donation._id)}
+                                  >
+                                    Chấp nhận
+                                  </Button>
+
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() => handleRejectDonation(donation._id)}
+                                  >
+                                    Từ chối
+                                  </Button>
+                                </>
+                              )}
+
+                              {donation.status === "accepted" && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant={donation.deliveryStatus === "shipping" ? "default" : "outline"}
+                                    className={
+                                      donation.deliveryStatus === "shipping"
+                                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                        : ""
+                                    }
+                                    onClick={() =>
+                                      updateDeliveryStatus(donation._id, "shipping")
+                                    }
+                                  >
+                                    🚚 Đang giao
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant={donation.deliveryStatus === "delivered" ? "default" : "outline"}
+                                    className={
+                                      donation.deliveryStatus === "delivered"
+                                        ? "bg-green-600 hover:bg-green-700 text-white"
+                                        : ""
+                                    }
+                                    onClick={() =>
+                                      updateDeliveryStatus(donation._id, "delivered")
+                                    }
+                                  >
+                                    ✅ Đã giao
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="my" className="space-y-3 mt-0">
+                  {myDonations.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-16 text-center text-gray-400">
+                        <Package className="w-14 h-14 mx-auto mb-4 text-gray-200 dark:text-gray-700" />
+                        <p className="font-medium">Bạn chưa gửi yêu cầu donation nào</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    myDonations.map((donation: any) => (
+                      <Card key={donation._id}>
+                        <CardContent className="p-5">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                              <h3 className="font-semibold text-base">
+                                {donation.productId?.title || "Sản phẩm donation"}
+                              </h3>
+
+                              <p className="text-sm text-gray-500 mt-1">
+                                Người tặng:{" "}
+                                <span className="font-medium text-gray-700 dark:text-gray-300">
+                                  {donation.donorId?.fullName ||
+                                    donation.donorId?.userName ||
+                                    "Ẩn danh"}
+                                </span>
+                              </p>
+
+                              <p className="text-xs text-gray-400 mt-1">
+                                Ngày yêu cầu:{" "}
+                                {donation.createdAt
+                                  ? new Date(donation.createdAt).toLocaleDateString("vi-VN")
+                                  : "—"}
+                              </p>
+
+                              <p className="mt-2 text-sm">
+                                Trạng thái:
+                                <span className="font-semibold ml-2 capitalize">
+                                  {donation.status || "pending"}
+                                </span>
+                              </p>
+
+                              {donation.status === "pending" && (
+                                <p className="text-yellow-600 mt-2 text-sm">
+                                  ⏳ Đang chờ người tặng xác nhận...
+                                </p>
+                              )}
+
+                              {donation.status === "accepted" && (
+                                <p className="text-green-600 mt-2 text-sm">
+                                  {donation.deliveryStatus === "shipping"
+                                    ? "🚚 Người tặng đang giao"
+                                    : "✅ Đã giao"}
+                                </p>
+                              )}
+
+                              {donation.status === "rejected" && (
+                                <p className="text-red-500 mt-2 text-sm">
+                                  Lý do:
+                                  <span className="font-semibold ml-2">
+                                    {donation.rejectReason || "Không có lý do"}
+                                  </span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         )}
