@@ -63,11 +63,11 @@ type UserMini = {
 type ProductImage =
   | string
   | {
-      imageUrl?: string;
-      url?: string;
-      secure_url?: string;
-      path?: string;
-    };
+    imageUrl?: string;
+    url?: string;
+    secure_url?: string;
+    path?: string;
+  };
 
 type ProductMini = {
   _id?: string;
@@ -102,6 +102,16 @@ type Complaint = {
   createdAt?: string;
 };
 
+type DeliveryVideo = {
+  url?: string;
+  publicId?: string;
+  resourceType?: string;
+  originalName?: string;
+  mimeType?: string;
+  size?: number;
+  uploadedAt?: string;
+};
+
 type ExchangeInvoice = {
   _id?: string;
   id?: string;
@@ -129,6 +139,9 @@ type ExchangeInvoice = {
 
   requesterConfirmed?: boolean;
   receiverConfirmed?: boolean;
+
+  requesterDeliveryVideo?: DeliveryVideo;
+  receiverDeliveryVideo?: DeliveryVideo;
 
   acceptedAt?: string;
   activeAt?: string;
@@ -246,10 +259,10 @@ function getProductImage(product: any) {
   if (firstImage && typeof firstImage === "object") {
     return normalizeUrl(
       firstImage.imageUrl ||
-        firstImage.url ||
-        firstImage.secure_url ||
-        firstImage.path ||
-        ""
+      firstImage.url ||
+      firstImage.secure_url ||
+      firstImage.path ||
+      ""
     );
   }
 
@@ -572,15 +585,15 @@ export function ExchangeDetailPage() {
     try {
       setActionLoading(action);
 
-        const data = await api(path, {
-          method: "POST",
-          body: body ? JSON.stringify(body) : undefined,
-        });
+      const data = await api(path, {
+        method: "POST",
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-        notifyProductCatalogChanged();
-        toast.success(data.message || "Thao tác thành công");
+      notifyProductCatalogChanged();
+      toast.success(data.message || "Thao tác thành công");
 
-        await fetchExchangeDetail();
+      await fetchExchangeDetail();
     } catch (error: any) {
       const msg = error.message || "Thao tác thất bại";
 
