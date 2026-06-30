@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/button';
@@ -5,7 +6,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Star, MapPin, Calendar, MessageCircle, Settings } from 'lucide-react';
+import { Star, MapPin, Calendar, MessageCircle, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiProduct } from '../api/productApi';
@@ -21,6 +22,17 @@ interface ProfileUser {
   locations?: { phoneNumber: string; address: string }[];
 }
 
+interface SellerReview {
+  orderId: string;
+  rating: number;
+  comment: string;
+  ratedAt: string;
+  buyer: { id: string; fullName: string; userName?: string; avatar?: string } | null;
+  product: { id: string; title: string; thumbnail?: string } | null;
+}
+
+const REVIEWS_PER_PAGE = 20;
+
 export function ProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
@@ -30,6 +42,15 @@ export function ProfilePage() {
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Reviews state
+  const [reviews, setReviews] = useState<SellerReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
 
   const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
 
@@ -64,6 +85,35 @@ export function ProfilePage() {
 
     fetchProfileAndProducts();
   }, [userId, API_BASE]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchReviews = async () => {
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+
+        const res = await fetch(
+          `${API_BASE}/api/orders/seller/${userId}/reviews?page=${reviewsPage}&limit=${REVIEWS_PER_PAGE}`
+        );
+        if (!res.ok) {
+          throw new Error('Could not load reviews');
+        }
+        const data = await res.json();
+        setReviews(data.reviews || []);
+        setAverageRating(data.averageRating || 0);
+        setTotalReviews(data.totalReviews || 0);
+        setReviewsTotalPages(data.pagination?.totalPages || 1);
+      } catch (err: any) {
+        setReviewsError(err.message || 'Something went wrong');
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, [userId, API_BASE, reviewsPage]);
 
   if (loading) {
     return (
@@ -106,10 +156,23 @@ export function ProfilePage() {
 
               <div className="flex-1">
                 <h1 className="text-3xl font-bold mb-2">{profileUser.fullName}</h1>
-                <div className="flex items-center space-x-1 mb-4">
-                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold">{profileUser.rating || 0}</span>
-                  <span className="text-gray-600 dark:text-gray-400"> rating</span>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${
+                          i < Math.round(averageRating)
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="font-semibold">{averageRating.toFixed(1)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    ({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})
+                  </span>
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-gray-600 dark:text-gray-400 mb-6">
@@ -193,11 +256,100 @@ export function ProfilePage() {
           </TabsContent>
 
           <TabsContent value="reviews" className="mt-6">
-            <Card>
-              <CardContent className="p-8 text-center text-gray-500">
-                No reviews yet
-              </CardContent>
-            </Card>
+            {reviewsLoading ? (
+              <Card>
+                <CardContent className="p-8 text-center text-gray-500">Loading reviews...</CardContent>
+              </Card>
+            ) : reviewsError ? (
+              <Card>
+                <CardContent className="p-8 text-center text-red-500">{reviewsError}</CardContent>
+              </Card>
+            ) : reviews.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-gray-500">
+                  No reviews yet
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <Card key={review.orderId}>
+                      <CardContent className="p-5">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={review.buyer?.avatar || undefined} />
+                            <AvatarFallback>
+                              {(review.buyer?.fullName || review.buyer?.userName || 'U')[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="font-semibold">
+                                {review.buyer?.fullName || review.buyer?.userName || 'Anonymous'}
+                              </p>
+                              <span className="text-xs text-gray-500">
+                                {new Date(review.ratedAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 my-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            {review.product && (
+                              <p className="text-xs text-gray-500 mb-1">
+                                Product: {review.product.title}
+                              </p>
+                            )}
+                            {review.comment && (
+                              <p className="text-gray-700 dark:text-gray-300">{review.comment}</p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {reviewsTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={reviewsPage <= 1}
+                      onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Page {reviewsPage} of {reviewsTotalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={reviewsPage >= reviewsTotalPages}
+                      onClick={() => setReviewsPage((p) => Math.min(reviewsTotalPages, p + 1))}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>

@@ -566,6 +566,59 @@ async function rateSeller(orderId, buyerId, rating, comment) {
   return order;
 }
  
+async function getSellerReviews(sellerId, { page = 1, limit = 20 } = {}) {
+  const filter = { sellerId, "sellerRating.rating": { $exists: true, $gt: 0 } };
+  const pageNum = Math.max(Number(page) || 1, 1);
+  const lim = Math.max(Number(limit) || 20, 1);
+  const skip = (pageNum - 1) * lim;
+
+  const total = await Order.countDocuments(filter);
+
+  const orders = await Order.find(filter)
+    .sort({ "sellerRating.ratedAt": -1, createdAt: -1 })
+    .skip(skip)
+    .limit(lim)
+    .populate("buyerId", "fullName userName avatar")
+    .populate("productId", "title thumbnail")
+    .select("buyerId productId sellerRating createdAt");
+
+  const reviews = orders.map((o) => ({
+    orderId: o._id,
+    rating: o.sellerRating.rating,
+    comment: o.sellerRating.comment,
+    ratedAt: o.sellerRating.ratedAt,
+    buyer: o.buyerId
+      ? {
+          id: o.buyerId._id,
+          fullName: o.buyerId.fullName,
+          userName: o.buyerId.userName,
+          avatar: o.buyerId.avatar,
+        }
+      : null,
+    product: o.productId
+      ? { id: o.productId._id, title: o.productId.title, thumbnail: o.productId.thumbnail }
+      : null,
+  }));
+
+  const allRatedOrders = await Order.find(filter).select("sellerRating.rating");
+  const totalReviews = allRatedOrders.length;
+  const averageRating = totalReviews > 0
+    ? Math.round((allRatedOrders.reduce((sum, o) => sum + (o.sellerRating?.rating || 0), 0) / totalReviews) * 10) / 10
+    : 0;
+
+  return {
+    reviews,
+    averageRating,
+    totalReviews,
+    pagination: {
+      total,
+      page: pageNum,
+      limit: lim,
+      totalPages: Math.ceil(total / lim) || 1,
+    },
+  };
+}
+
 module.exports = {
   payOrderByWallet,
   sellerConfirmOrder,
@@ -577,5 +630,5 @@ module.exports = {
   autoReleaseExpiredOrders,
   autoCancelExpiredPendingOrders,
   rateSeller,
+  getSellerReviews,
 };
- 

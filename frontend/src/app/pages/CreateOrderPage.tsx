@@ -124,7 +124,6 @@ export function CreateOrderPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
  
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wallet");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -302,7 +301,7 @@ export function CreateOrderPage() {
   const platformFee = Math.round(product.price * 0.1);
  
   const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim() || !address.trim() || !city.trim()) {
+    if (!name.trim() || !phone.trim() || !address.trim()) {
       toast.error("Vui lòng điền đầy đủ thông tin giao hàng");
       return;
     }
@@ -328,7 +327,6 @@ export function CreateOrderPage() {
         email,
         phone,
         address,
-        city,
       });
  
       if (paymentMethod === "wallet") {
@@ -430,11 +428,9 @@ export function CreateOrderPage() {
                         />
                       </div>
                     </div>
- 
+
                     <div className="space-y-1.5">
-                      <Label htmlFor="email" className="text-sm">
-                        Email
-                      </Label>
+                      <Label htmlFor="email" className="text-sm">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
@@ -447,8 +443,8 @@ export function CreateOrderPage() {
                         />
                       </div>
                     </div>
- 
-                    <div className="space-y-1.5">
+
+                    <div className="space-y-1.5 sm:col-span-2">
                       <Label htmlFor="phone" className="text-sm">
                         Số điện thoại <span className="text-red-500">*</span>
                       </Label>
@@ -463,28 +459,38 @@ export function CreateOrderPage() {
                         />
                       </div>
                     </div>
- 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="city" className="text-sm">
-                        Tỉnh / Thành phố <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="city"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="Hà Nội"
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
                   </div>
- 
+
+                  {/* Chọn địa chỉ từ profile nếu có nhiều */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="address" className="text-sm">
+                    <Label className="text-sm">
                       Địa chỉ nhận hàng <span className="text-red-500">*</span>
                     </Label>
+
+                    {user?.locations && user.locations.length > 1 && (
+                      <div className="relative mb-2">
+                        <select
+                          className="w-full appearance-none border border-border rounded-xl px-4 py-2.5 pr-10 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                          value={address}
+                          onChange={(e) => {
+                            const selected = user!.locations.find(l => l.address === e.target.value);
+                            if (selected) {
+                              setAddress(selected.address);
+                              if (selected.phoneNumber) setPhone(selected.phoneNumber);
+                            }
+                          }}
+                        >
+                          <option value="">-- Chọn địa chỉ đã lưu --</option>
+                          {user.locations.map((loc, idx) => (
+                            <option key={idx} value={loc.address}>
+                              {loc.address}{loc.phoneNumber ? ` — ${loc.phoneNumber}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <MapPin className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      </div>
+                    )}
+
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -495,6 +501,7 @@ export function CreateOrderPage() {
                         className="pl-9"
                       />
                     </div>
+                    <p className="text-xs text-gray-400">Hoặc nhập địa chỉ khác bên trên</p>
                   </div>
                 </div>
  

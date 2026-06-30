@@ -134,6 +134,18 @@ exports.rateSeller = async (req, res) => {
   }
 };
 
+// Lấy danh sách đánh giá của một người bán (public, có phân trang)
+exports.getSellerReviews = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const result = await escrowService.getSellerReviews(sellerId, { page, limit });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message || "Không thể lấy danh sách đánh giá" });
+  }
+};
+ 
 const Order = require("../models/modelOrder");
 const Product = require("../models/modelProduct");
 

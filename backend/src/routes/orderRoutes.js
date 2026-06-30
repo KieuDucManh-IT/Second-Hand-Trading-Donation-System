@@ -18,6 +18,7 @@ const uploadShippingProof = multer({
 });
 
 // Create and query orders
+router.get("/seller/:sellerId/reviews", orderEscrowController.getSellerReviews);
 router.post("/", protect, orderEscrowController.createOrder);
 router.get("/my/buying", protect, orderEscrowController.getMyBuyingOrders);
 router.get("/my/selling", protect, orderEscrowController.getMySellingOrders);
