@@ -44,7 +44,7 @@ function sortByTime(msgs: ApiMessage[]): ApiMessage[] {
  
 /* ── Component ───────────────────────────────────────────────────────────── */
 export function MessagesPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isAuthReady, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
  
@@ -70,8 +70,9 @@ export function MessagesPage() {
  
   /* ── Auth guard ──────────────────────────────────────────────────────── */
   useEffect(() => {
+    if (!isAuthReady) return;
     if (!isAuthenticated) navigate('/login');
-  }, [isAuthenticated, navigate]);
+  }, [isAuthReady, isAuthenticated, navigate]);
  
   /* ── Kết nối Socket.IO ──────────────────────────────────────────────── */
   useEffect(() => {

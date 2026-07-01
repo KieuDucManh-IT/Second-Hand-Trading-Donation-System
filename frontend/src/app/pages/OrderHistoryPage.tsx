@@ -949,9 +949,9 @@ function OrderCard({
  
 // ── Main Page ───────────────────────────────────────────────────────────────
 export function OrderHistoryPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAuthReady } = useAuth();
   const navigate = useNavigate();
- 
+
   const [buyingOrders, setBuyingOrders] = useState<any[]>([]);
   const [sellingOrders, setSellingOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -981,12 +981,13 @@ export function OrderHistoryPage() {
   }, []);
  
   useEffect(() => {
+    if (!isAuthReady) return;
     if (!isAuthenticated) {
       navigate("/login");
       return;
     }
     fetchOrders();
-  }, [isAuthenticated, navigate, fetchOrders]);
+  }, [isAuthReady, isAuthenticated, navigate, fetchOrders]);
  
   const handleAction = async (orderId: string, action: string, data?: any) => {
     try {

@@ -17,7 +17,6 @@ export interface ShippingInfo {
   email?:  string;
   phone:   string;
   address: string;
-  city:    string;
 }
  
 export interface Order {

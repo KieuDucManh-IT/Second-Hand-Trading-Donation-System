@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
  
 const PLATFORM_FEE_RATE = Number(process.env.PLATFORM_FEE_RATE || 0.1);
@@ -84,7 +85,6 @@ const orderSchema = new mongoose.Schema(
       email: String,
       phone: String,
       address: String,
-      city: String,
     },
  
     // Timestamps nghiệp vụ
