@@ -30,19 +30,30 @@ type WalletData = {
 
 type Transaction = {
     _id: string;
-    type: "deposit" | "withdraw";
-    status: "pending" | "completed" | "failed" | "rejected" | "expired";
+    type:
+    | "deposit"
+    | "withdraw"
+    | "exchange_deposit"
+    | "exchange_refund"
+    | "exchange_fee"
+    | "order_payment"
+    | "order_refund"
+    | string;
+    status: "pending" | "completed" | "failed" | "rejected" | "expired" | string;
     amount: number | string;
     code: string;
     transferContent?: string;
     createdAt: string;
+    metadata?: {
+        direction?: "credit" | "debit" | "fee" | string;
+        [key: string]: any;
+    };
     bankInfo?: {
         bankName?: string;
         accountNumber?: string;
         accountName?: string;
     };
 };
-
 type DepositPayment = {
     orderCode: number;
     amount: number;
@@ -147,10 +158,91 @@ function normalizeTransaction(item: any): Transaction {
         status: item.status,
         amount: extractAmount(item),
         code: item.code || item.transactionCode || item.transferCode || "",
-        transferContent: item.transferContent || item.description || item.content || "",
+        transferContent: item.transferContent || item.description || item.content || item.note || "",
         createdAt: item.createdAt || new Date().toISOString(),
+        metadata: item.metadata || {},
         bankInfo: item.bankInfo,
     };
+}
+
+function isCreditTransaction(item: Transaction) {
+    const direction = item.metadata?.direction;
+    const type = item.type;
+
+    return (
+        direction === "credit" ||
+        type === "deposit" ||
+        type === "exchange_refund" ||
+        type === "order_refund" ||
+        type === "refund"
+    );
+}
+
+function isDebitTransaction(item: Transaction) {
+    const direction = item.metadata?.direction;
+    const type = item.type;
+
+    return (
+        direction === "debit" ||
+        direction === "fee" ||
+        type === "withdraw" ||
+        type === "exchange_deposit" ||
+        type === "exchange_fee" ||
+        type === "order_payment"
+    );
+}
+
+function getTransactionTitle(item: Transaction) {
+    switch (item.type) {
+        case "deposit":
+            return "Nạp tiền";
+        case "withdraw":
+            return "Rút tiền";
+        case "exchange_deposit":
+            return "Đặt cọc trao đổi";
+        case "exchange_refund":
+            return "Hoàn tiền trao đổi";
+        case "exchange_fee":
+            return "Phí trung gian trao đổi";
+        case "order_payment":
+            return "Thanh toán đơn hàng";
+        case "order_refund":
+            return "Hoàn tiền đơn hàng";
+        default:
+            if (isCreditTransaction(item)) return "Cộng tiền vào ví";
+            if (isDebitTransaction(item)) return "Trừ tiền từ ví";
+            return "Giao dịch ví";
+    }
+}
+
+function getTransactionIcon(item: Transaction) {
+    if (isCreditTransaction(item)) {
+        return <ArrowDownToLine size={22} />;
+    }
+
+    return <ArrowUpFromLine size={22} />;
+}
+
+function getTransactionIconClass(item: Transaction) {
+    if (isCreditTransaction(item)) {
+        return "bg-emerald-50 text-emerald-600";
+    }
+
+    return "bg-sky-50 text-sky-600";
+}
+
+function getTransactionAmountClass(item: Transaction) {
+    if (isCreditTransaction(item)) {
+        return "text-emerald-600";
+    }
+
+    return "text-slate-900";
+}
+
+function getTransactionSign(item: Transaction) {
+    if (isCreditTransaction(item)) return "+";
+    if (isDebitTransaction(item)) return "-";
+    return "";
 }
 
 export default function WalletPage() {
@@ -688,22 +780,13 @@ export default function WalletPage() {
                                 className="flex flex-col gap-3 rounded-2xl border border-slate-100 p-4 transition hover:bg-slate-50 md:flex-row md:items-center md:justify-between"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div
-                                        className={`rounded-2xl p-3 ${item.type === "deposit"
-                                            ? "bg-emerald-50 text-emerald-600"
-                                            : "bg-sky-50 text-sky-600"
-                                            }`}
-                                    >
-                                        {item.type === "deposit" ? (
-                                            <ArrowDownToLine size={22} />
-                                        ) : (
-                                            <ArrowUpFromLine size={22} />
-                                        )}
+                                    <div className={`rounded-2xl p-3 ${getTransactionIconClass(item)}`}>
+                                        {getTransactionIcon(item)}
                                     </div>
 
                                     <div>
                                         <p className="font-bold text-slate-900">
-                                            {item.type === "deposit" ? "Nạp tiền" : "Rút tiền"}
+                                            {getTransactionTitle(item)}
                                         </p>
                                         <p className="text-sm text-slate-500">
                                             Mã GD: {item.code}
@@ -715,13 +798,8 @@ export default function WalletPage() {
                                 </div>
 
                                 <div className="flex items-center justify-between gap-4 md:justify-end">
-                                    <p
-                                        className={`text-lg font-bold ${item.type === "deposit"
-                                            ? "text-emerald-600"
-                                            : "text-slate-900"
-                                            }`}
-                                    >
-                                        {item.type === "deposit" ? "+" : "-"}
+                                    <p className={`text-lg font-bold ${getTransactionAmountClass(item)}`}>
+                                        {getTransactionSign(item)}
                                         {formatMoney(item.amount)}
                                     </p>
 
