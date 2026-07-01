@@ -100,6 +100,8 @@ type Complaint = {
   evidences?: ComplaintEvidence[];
   status?: "pending" | "reviewing" | "resolved" | "rejected";
   createdAt?: string;
+  resolvedAt?: string;
+  resolutionNote?: string;
 };
 
 type DeliveryVideo = {
@@ -454,6 +456,22 @@ function ComplaintDetailBlock({
     return (
       <div className={`rounded-lg p-4 text-sm ${isMine ? "bg-orange-50 text-orange-800" : "bg-red-50 text-red-800"}`}>
         <p className="font-semibold">{label}</p>
+        {complaint.status && (
+          <p className="mt-1 text-xs opacity-70">
+            Trạng thái xử lý:{" "}
+            <b>
+              {complaint.status === "pending"
+                ? "Chờ xử lý"
+                : complaint.status === "reviewing"
+                  ? "Đang xem xét"
+                  : complaint.status === "resolved"
+                    ? "Đã giải quyết"
+                    : complaint.status === "rejected"
+                      ? "Đã từ chối"
+                      : complaint.status}
+            </b>
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-2">
           <Avatar className="w-8 h-8">
             <AvatarImage src={getAvatar(disputeBy)} />
@@ -465,6 +483,7 @@ function ComplaintDetailBlock({
         {complaint.createdAt && (
           <p className="mt-1 text-xs opacity-70">Gửi lúc: {formatDate(complaint.createdAt)}</p>
         )}
+        
         {evidences.length > 0 && (
           <div className="mt-4">
             <p className="mb-2 font-semibold">Bằng chứng:</p>
@@ -487,6 +506,18 @@ function ComplaintDetailBlock({
                 );
               })}
             </div>
+          </div>
+        )}
+        {complaint.resolutionNote && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300">
+            <p className="font-semibold">Lý do Manager xử lý:</p>
+            <p className="mt-1">{complaint.resolutionNote}</p>
+
+            {complaint.resolvedAt && (
+              <p className="mt-2 text-xs opacity-70">
+                Xử lý lúc: {formatDate(complaint.resolvedAt)}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -1197,7 +1228,7 @@ export function ExchangeDetailPage() {
                     </div>
                   )}
 
-                  {status === "disputed" && (
+                  {(status === "disputed" || invoice.complaint || invoice.counterComplaint) && (
                     <ComplaintDetailBlock
                       invoice={invoice}
                       currentUserId={currentUserId}
