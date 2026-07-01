@@ -580,10 +580,12 @@ async function autoReleaseExpiredExchangeInvoices() {
  */
 async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = false, note = "") {
   const session = await mongoose.startSession();
+
   try {
     session.startTransaction();
 
     const invoice = await ExchangeInvoice.findById(invoiceId).session(session);
+
     if (!invoice) {
       throw new Error("Không tìm thấy hóa đơn trao đổi");
     }
@@ -592,119 +594,203 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       throw new Error("Giao dịch không ở trạng thái tranh chấp");
     }
 
-    if (resolution === "reject") {
-      // Reject: Từ chối khiếu nại (Giao dịch hoàn tất bình thường, trả lại cọc trừ phí 10%)
-      const requesterDeposit = Number(invoice.requesterDepositAmount || 0);
-      const receiverDeposit = Number(invoice.receiverDepositAmount || 0);
+    const allowedResolutions = [
+      "accept",
+      "reject",
+      "refund_a",
+      "refund_b",
+      "continue_auto_release",
+    ];
 
-      const requesterFee = Math.round(requesterDeposit * invoice.feeRate);
-      const receiverFee = Math.round(receiverDeposit * invoice.feeRate);
+    if (!allowedResolutions.includes(resolution)) {
+      throw new Error("Loại giải quyết tranh chấp không hợp lệ");
+    }
 
-      const requesterRefund = requesterDeposit - requesterFee;
-      const receiverRefund = receiverDeposit - receiverFee;
+    const requesterDeposit = Number(invoice.requesterDepositAmount || 0);
+    const receiverDeposit = Number(invoice.receiverDepositAmount || 0);
+    const totalDeposit = requesterDeposit + receiverDeposit;
 
-      const requesterWallet = await ensureWallet(invoice.requester, session);
-      const receiverWallet = await ensureWallet(invoice.receiver, session);
+    const requesterWallet = await ensureWallet(invoice.requester, session);
+    const receiverWallet = await ensureWallet(invoice.receiver, session);
 
-      requesterWallet.balance += requesterRefund;
-      receiverWallet.balance += receiverRefund;
+    const disputerId = invoice.disputeBy;
+    const isRequesterDisputer = sameId(invoice.requester, disputerId);
 
-      await requesterWallet.save({ session });
-      await receiverWallet.save({ session });
+    const disputer = isRequesterDisputer ? invoice.requester : invoice.receiver;
+    const opponent = isRequesterDisputer ? invoice.receiver : invoice.requester;
 
-      invoice.requesterFee = requesterFee;
-      invoice.receiverFee = receiverFee;
-      invoice.requesterRefundAmount = requesterRefund;
-      invoice.receiverRefundAmount = receiverRefund;
+    const disputerWallet = isRequesterDisputer ? requesterWallet : receiverWallet;
+    const opponentWallet = isRequesterDisputer ? receiverWallet : requesterWallet;
 
-      invoice.requesterDepositStatus = "refunded";
-      invoice.receiverDepositStatus = "refunded";
+    const markComplaintResolved = (status, resolutionNote) => {
+      if (invoice.complaint) {
+        invoice.complaint.status = status;
+        invoice.complaint.resolvedAt = new Date();
+        invoice.complaint.resolutionNote = resolutionNote;
+      }
+
+      if (invoice.counterComplaint) {
+        invoice.counterComplaint.status = status;
+        invoice.counterComplaint.resolvedAt = new Date();
+        invoice.counterComplaint.resolutionNote = resolutionNote;
+      }
+    };
+
+    /*
+      refund_a:
+      A = người khiếu nại.
+      Manager hoàn toàn bộ tiền cọc/giá trị escrow cho A.
+    */
+    if (resolution === "refund_a") {
+      disputerWallet.balance += totalDeposit;
+      await disputerWallet.save({ session });
+
+      if (isRequesterDisputer) {
+        invoice.requesterRefundAmount = totalDeposit;
+        invoice.receiverRefundAmount = 0;
+        invoice.requesterDepositStatus = "refunded";
+        invoice.receiverDepositStatus = "forfeited";
+      } else {
+        invoice.requesterRefundAmount = 0;
+        invoice.receiverRefundAmount = totalDeposit;
+        invoice.requesterDepositStatus = "forfeited";
+        invoice.receiverDepositStatus = "refunded";
+      }
+
+      invoice.requesterFee = 0;
+      invoice.receiverFee = 0;
       invoice.status = "completed";
       invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
 
-      if (invoice.complaint) {
-        invoice.complaint.status = "rejected";
-        invoice.complaint.resolvedAt = new Date();
-        invoice.complaint.resolutionNote = note;
-      }
-      if (invoice.counterComplaint) {
-        invoice.counterComplaint.status = "rejected";
-        invoice.counterComplaint.resolvedAt = new Date();
-        invoice.counterComplaint.resolutionNote = note;
-      }
+      markComplaintResolved(
+        "resolved",
+        note || "Manager quyết định hoàn toàn bộ giá trị cho bên A/người khiếu nại"
+      );
 
       await invoice.save({ session });
 
-      // Mark both products as sold — không dùng session
-      await Product.findByIdAndUpdate(
-        invoice.requesterProduct,
-        { status: "sold", isAvailable: false }
-      );
-      await Product.findByIdAndUpdate(
-        invoice.receiverProduct,
-        { status: "sold", isAvailable: false }
-      );
-
       await createWalletTransaction({
-        wallet: requesterWallet._id,
-        user: invoice.requester,
+        wallet: disputerWallet._id,
+        user: disputer,
         type: "exchange_refund",
-        amount: requesterRefund,
+        amount: totalDeposit,
         exchangeInvoice: invoice._id,
-        note: `Hoàn tiền bảo hiểm trao đổi sau khi bác bỏ khiếu nại: ${note}`,
-        metadata: { direction: "credit", depositAmount: requesterDeposit, fee: requesterFee, reason: "dispute_rejected" },
+        note: `Manager hoàn toàn bộ tiền cho bên A/người khiếu nại: ${note}`,
+        metadata: {
+          direction: "credit",
+          reason: "manager_refund_a",
+          requesterDeposit,
+          receiverDeposit,
+          totalDeposit,
+        },
         session,
       });
 
-      await createWalletTransaction({
-        wallet: requesterWallet._id,
-        user: invoice.requester,
-        type: "exchange_fee",
-        amount: requesterFee,
-        exchangeInvoice: invoice._id,
-        note: "Phí trung gian trao đổi",
-        metadata: { direction: "fee", reason: "dispute_rejected" },
-        session,
+      await Product.findByIdAndUpdate(invoice.requesterProduct, {
+        status: "sold",
+        isAvailable: false,
       });
 
+      await Product.findByIdAndUpdate(invoice.receiverProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+    }
+
+    /*
+      refund_b:
+      B = bên bị khiếu nại.
+      Manager hoàn toàn bộ tiền cọc/giá trị escrow cho B.
+    */
+    else if (resolution === "refund_b") {
+      opponentWallet.balance += totalDeposit;
+      await opponentWallet.save({ session });
+
+      if (isRequesterDisputer) {
+        invoice.requesterRefundAmount = 0;
+        invoice.receiverRefundAmount = totalDeposit;
+        invoice.requesterDepositStatus = "forfeited";
+        invoice.receiverDepositStatus = "refunded";
+      } else {
+        invoice.requesterRefundAmount = totalDeposit;
+        invoice.receiverRefundAmount = 0;
+        invoice.requesterDepositStatus = "refunded";
+        invoice.receiverDepositStatus = "forfeited";
+      }
+
+      invoice.requesterFee = 0;
+      invoice.receiverFee = 0;
+      invoice.status = "completed";
+      invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
+
+      markComplaintResolved(
+        "resolved",
+        note || "Manager quyết định hoàn toàn bộ giá trị cho bên B/bên bị khiếu nại"
+      );
+
+      await invoice.save({ session });
+
       await createWalletTransaction({
-        wallet: receiverWallet._id,
-        user: invoice.receiver,
+        wallet: opponentWallet._id,
+        user: opponent,
         type: "exchange_refund",
-        amount: receiverRefund,
+        amount: totalDeposit,
         exchangeInvoice: invoice._id,
-        note: `Hoàn tiền bảo hiểm trao đổi sau khi bác bỏ khiếu nại: ${note}`,
-        metadata: { direction: "credit", depositAmount: receiverDeposit, fee: receiverFee, reason: "dispute_rejected" },
+        note: `Manager hoàn toàn bộ tiền cho bên B/bên bị khiếu nại: ${note}`,
+        metadata: {
+          direction: "credit",
+          reason: "manager_refund_b",
+          requesterDeposit,
+          receiverDeposit,
+          totalDeposit,
+        },
         session,
       });
 
-      await createWalletTransaction({
-        wallet: receiverWallet._id,
-        user: invoice.receiver,
-        type: "exchange_fee",
-        amount: receiverFee,
-        exchangeInvoice: invoice._id,
-        note: "Phí trung gian trao đổi",
-        metadata: { direction: "fee", reason: "dispute_rejected" },
-        session,
+      await Product.findByIdAndUpdate(invoice.requesterProduct, {
+        status: "sold",
+        isAvailable: false,
       });
 
-    } else if (resolution === "accept") {
-      // Accept: Chấp thuận khiếu nại (Claimant thắng)
-      const disputerId = invoice.disputeBy;
-      const isRequesterDisputer = sameId(invoice.requester, disputerId);
+      await Product.findByIdAndUpdate(invoice.receiverProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+    }
 
-      const disputer = isRequesterDisputer ? invoice.requester : invoice.receiver;
-      const opponent = isRequesterDisputer ? invoice.receiver : invoice.requester;
+    /*
+      continue_auto_release:
+      Manager từ chối giải quyết.
+      Giao dịch quay lại active, mở lại auto refund.
+      Tiền vẫn tiếp tục theo mốc autoReleaseAt hiện có.
+    */
+    else if (resolution === "continue_auto_release") {
+      invoice.status = "active";
+      invoice.autoRefundPaused = false;
 
-      const disputerDeposit = isRequesterDisputer ? Number(invoice.requesterDepositAmount || 0) : Number(invoice.receiverDepositAmount || 0);
-      const opponentDeposit = isRequesterDisputer ? Number(invoice.receiverDepositAmount || 0) : Number(invoice.requesterDepositAmount || 0);
+      if (!invoice.autoReleaseAt) {
+        invoice.autoReleaseAt = addDays(new Date(), 7);
+      }
 
-      const disputerWallet = await ensureWallet(disputer, session);
-      const opponentWallet = await ensureWallet(opponent, session);
+      markComplaintResolved(
+        "rejected",
+        note || "Manager từ chối giải quyết, giao dịch tiếp tục cơ chế tự động hoàn tiền"
+      );
+
+      await invoice.save({ session });
+    }
+
+    /*
+      Giữ tương thích logic cũ:
+      accept = bên khiếu nại thắng.
+    */
+    else if (resolution === "accept") {
+      const disputerDeposit = isRequesterDisputer ? requesterDeposit : receiverDeposit;
+      const opponentDeposit = isRequesterDisputer ? receiverDeposit : requesterDeposit;
 
       if (hasReturnedGoods) {
-        // Trường hợp 2.1: Đã hoàn trả hàng (Hoàn tiền cọc 100% cho cả 2 bên)
         disputerWallet.balance += disputerDeposit;
         opponentWallet.balance += opponentDeposit;
 
@@ -715,15 +801,19 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
         invoice.receiverRefundAmount = invoice.receiverDepositAmount;
         invoice.requesterDepositStatus = "refunded";
         invoice.receiverDepositStatus = "refunded";
-        
+
         await createWalletTransaction({
           wallet: disputerWallet._id,
           user: disputer,
           type: "exchange_refund",
           amount: disputerDeposit,
           exchangeInvoice: invoice._id,
-          note: `Hoàn tiền cọc trao đổi do chấp thuận khiếu nại (Đã trả hàng): ${note}`,
-          metadata: { direction: "credit", depositAmount: disputerDeposit, reason: "dispute_accepted_returned" },
+          note: `Hoàn tiền cọc trao đổi do chấp thuận khiếu nại, đã trả hàng: ${note}`,
+          metadata: {
+            direction: "credit",
+            depositAmount: disputerDeposit,
+            reason: "dispute_accepted_returned",
+          },
           session,
         });
 
@@ -733,24 +823,26 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
           type: "exchange_refund",
           amount: opponentDeposit,
           exchangeInvoice: invoice._id,
-          note: `Hoàn tiền cọc trao đổi do chấp thuận khiếu nại (Đã nhận lại hàng): ${note}`,
-          metadata: { direction: "credit", depositAmount: opponentDeposit, reason: "dispute_accepted_returned" },
+          note: `Hoàn tiền cọc trao đổi do chấp thuận khiếu nại, đã nhận lại hàng: ${note}`,
+          metadata: {
+            direction: "credit",
+            depositAmount: opponentDeposit,
+            reason: "dispute_accepted_returned",
+          },
           session,
         });
 
-        // Return products to available — không dùng session
-        await Product.findByIdAndUpdate(
-          invoice.requesterProduct,
-          { status: "available", isAvailable: true }
-        );
-        await Product.findByIdAndUpdate(
-          invoice.receiverProduct,
-          { status: "available", isAvailable: true }
-        );
+        await Product.findByIdAndUpdate(invoice.requesterProduct, {
+          status: "available",
+          isAvailable: true,
+        });
 
+        await Product.findByIdAndUpdate(invoice.receiverProduct, {
+          status: "available",
+          isAvailable: true,
+        });
       } else {
-        // Trường hợp 2.2: Chưa hoàn trả hàng (Tịch thu tiền cọc của Disputer chuyển sang cho Opponent, hoàn tiền cọc của Opponent)
-        opponentWallet.balance += (opponentDeposit + disputerDeposit);
+        opponentWallet.balance += opponentDeposit + disputerDeposit;
         await opponentWallet.save({ session });
 
         if (isRequesterDisputer) {
@@ -772,7 +864,11 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
           amount: opponentDeposit,
           exchangeInvoice: invoice._id,
           note: `Hoàn tiền cọc trao đổi của bạn: ${note}`,
-          metadata: { direction: "credit", depositAmount: opponentDeposit, reason: "dispute_accepted_not_returned" },
+          metadata: {
+            direction: "credit",
+            depositAmount: opponentDeposit,
+            reason: "dispute_accepted_not_returned",
+          },
           session,
         });
 
@@ -783,38 +879,107 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
           amount: disputerDeposit,
           exchangeInvoice: invoice._id,
           note: `Bồi thường từ cọc của đối phương do không hoàn trả hàng: ${note}`,
-          metadata: { direction: "credit", depositAmount: disputerDeposit, reason: "dispute_compensation" },
+          metadata: {
+            direction: "credit",
+            depositAmount: disputerDeposit,
+            reason: "dispute_compensation",
+          },
           session,
         });
 
-        // Keep products sold — không dùng session
-        await Product.findByIdAndUpdate(
-          invoice.requesterProduct,
-          { status: "sold", isAvailable: false }
-        );
-        await Product.findByIdAndUpdate(
-          invoice.receiverProduct,
-          { status: "sold", isAvailable: false }
-        );
+        await Product.findByIdAndUpdate(invoice.requesterProduct, {
+          status: "sold",
+          isAvailable: false,
+        });
+
+        await Product.findByIdAndUpdate(invoice.receiverProduct, {
+          status: "sold",
+          isAvailable: false,
+        });
       }
 
       invoice.status = "completed";
       invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
 
-      if (invoice.complaint) {
-        invoice.complaint.status = "resolved";
-        invoice.complaint.resolvedAt = new Date();
-        invoice.complaint.resolutionNote = note;
-      }
-      if (invoice.counterComplaint) {
-        invoice.counterComplaint.status = "resolved";
-        invoice.counterComplaint.resolvedAt = new Date();
-        invoice.counterComplaint.resolutionNote = note;
-      }
+      markComplaintResolved("resolved", note);
 
       await invoice.save({ session });
-    } else {
-      throw new Error("Loại giải quyết tranh chấp không hợp lệ");
+    }
+
+    /*
+      Giữ tương thích logic cũ:
+      reject = bác khiếu nại và hoàn cọc 2 bên trừ phí.
+    */
+    else if (resolution === "reject") {
+      const requesterFee = Math.round(requesterDeposit * invoice.feeRate);
+      const receiverFee = Math.round(receiverDeposit * invoice.feeRate);
+
+      const requesterRefund = requesterDeposit - requesterFee;
+      const receiverRefund = receiverDeposit - receiverFee;
+
+      requesterWallet.balance += requesterRefund;
+      receiverWallet.balance += receiverRefund;
+
+      await requesterWallet.save({ session });
+      await receiverWallet.save({ session });
+
+      invoice.requesterFee = requesterFee;
+      invoice.receiverFee = receiverFee;
+      invoice.requesterRefundAmount = requesterRefund;
+      invoice.receiverRefundAmount = receiverRefund;
+
+      invoice.requesterDepositStatus = "refunded";
+      invoice.receiverDepositStatus = "refunded";
+      invoice.status = "completed";
+      invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
+
+      markComplaintResolved("rejected", note);
+
+      await invoice.save({ session });
+
+      await Product.findByIdAndUpdate(invoice.requesterProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+
+      await Product.findByIdAndUpdate(invoice.receiverProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+
+      await createWalletTransaction({
+        wallet: requesterWallet._id,
+        user: invoice.requester,
+        type: "exchange_refund",
+        amount: requesterRefund,
+        exchangeInvoice: invoice._id,
+        note: `Hoàn tiền bảo hiểm trao đổi sau khi bác bỏ khiếu nại: ${note}`,
+        metadata: {
+          direction: "credit",
+          depositAmount: requesterDeposit,
+          fee: requesterFee,
+          reason: "dispute_rejected",
+        },
+        session,
+      });
+
+      await createWalletTransaction({
+        wallet: receiverWallet._id,
+        user: invoice.receiver,
+        type: "exchange_refund",
+        amount: receiverRefund,
+        exchangeInvoice: invoice._id,
+        note: `Hoàn tiền bảo hiểm trao đổi sau khi bác bỏ khiếu nại: ${note}`,
+        metadata: {
+          direction: "credit",
+          depositAmount: receiverDeposit,
+          fee: receiverFee,
+          reason: "dispute_rejected",
+        },
+        session,
+      });
     }
 
     await session.commitTransaction();
