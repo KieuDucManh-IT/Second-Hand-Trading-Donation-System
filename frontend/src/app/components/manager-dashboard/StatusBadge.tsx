@@ -19,6 +19,7 @@ const statusLabels: Record<string, string> = {
   rejected: 'Đã bác bỏ',
   disputed: 'Đang tranh chấp',
   sold: 'Đã giao dịch',
+  reserved: 'Đang giao dịch',
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {
@@ -40,7 +41,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
-  if (status === 'pending' || status === 'reviewing' || status === 'disputed') {
+  if (status === 'pending' || status === 'reviewing' || status === 'disputed' || status === 'reserved') {
     return (
       <Badge className="rounded-full bg-amber-500 text-white hover:bg-amber-500 capitalize">
         {label}

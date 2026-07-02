@@ -99,6 +99,7 @@ export function ProductsTab({
             <option value="all">Tất cả trạng thái</option>
             <option value="available">Đang hiển thị</option>
             <option value="hidden">Đã ẩn</option>
+            <option value="reserved">Đang giao dịch</option>
             <option value="sold">Đã giao dịch</option>
           </select>
         </div>
