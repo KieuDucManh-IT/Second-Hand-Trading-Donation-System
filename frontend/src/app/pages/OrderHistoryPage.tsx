@@ -1305,7 +1305,7 @@ export function OrderHistoryPage() {
                 value="donations"
                 className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
               >
-                Donations ({donations.length})
+                Quyên góp ({donations.length})
               </TabsTrigger>
             </TabsList>
  
@@ -1401,14 +1401,14 @@ export function OrderHistoryPage() {
                     value="received"
                     className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
                   >
-                    Received Requests ({receivedDonations.length})
+                    Yêu cầu đã nhận ({receivedDonations.length})
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="my"
                     className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
                   >
-                    My Requests ({myDonations.length})
+                    Yêu cầu của tôi ({myDonations.length})
                   </TabsTrigger>
                 </TabsList>
 
@@ -1448,8 +1448,14 @@ export function OrderHistoryPage() {
 
                               <p className="mt-2 text-sm">
                                 Trạng thái:
-                                <span className="font-semibold ml-2 capitalize">
-                                  {donation.status || "pending"}
+                                <span className="font-semibold ml-2">
+                                  {donation.status === "pending"
+                                    ? "Đang chờ"
+                                    : donation.status === "accepted"
+                                      ? "Đã chấp nhận"
+                                      : donation.status === "rejected"
+                                        ? "Bị từ chối"
+                                        : donation.status || "Đang chờ"}
                                 </span>
                               </p>
 
@@ -1570,8 +1576,14 @@ export function OrderHistoryPage() {
 
                               <p className="mt-2 text-sm">
                                 Trạng thái:
-                                <span className="font-semibold ml-2 capitalize">
-                                  {donation.status || "pending"}
+                                <span className="font-semibold ml-2">
+                                  {donation.status === "pending"
+                                    ? "Đang chờ"
+                                    : donation.status === "accepted"
+                                      ? "Đã chấp nhận"
+                                      : donation.status === "rejected"
+                                        ? "Bị từ chối"
+                                        : donation.status || "Đang chờ"}
                                 </span>
                               </p>
 

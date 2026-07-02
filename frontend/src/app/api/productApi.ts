@@ -32,6 +32,8 @@ export interface ApiProduct {
   } | null;
   thumbnail: string | null;
   images: { imageUrl: string; order: number }[];
+  pendingApproval?: boolean;
+  rejectReason?: string;
   createdAt: string;
   updatedAt: string;
 }

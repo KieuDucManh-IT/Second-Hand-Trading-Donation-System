@@ -320,6 +320,21 @@ function isEvidenceVideo(file: ComplaintEvidence) {
   );
 }
 
+function getDepositStatusLabel(status?: string) {
+  switch (status) {
+    case "unpaid":
+      return "Chưa thanh toán";
+    case "paid":
+      return "Đã thanh toán";
+    case "refunded":
+      return "Đã hoàn tiền";
+    case "forfeited":
+      return "Bị tịch thu";
+    default:
+      return "Chưa thanh toán";
+  }
+}
+
 export function ExchangeRequestsPage() {
   const navigate = useNavigate();
   const auth: any = useAuth();
@@ -719,7 +734,7 @@ export function ExchangeRequestsPage() {
                   <p className="mt-1 text-xs text-gray-500">
                     Trạng thái:{" "}
                     <span className="font-semibold">
-                      {myDepositStatus || "unpaid"}
+                      {getDepositStatusLabel(myDepositStatus)}
                     </span>
                   </p>
                 </div>
@@ -871,7 +886,7 @@ export function ExchangeRequestsPage() {
                   }}
                 >
                   <Eye className="w-4 h-4 mr-2" />
-                  View Details
+                  Xem chi tiết
                 </Button>
 
                 {canAccept && (
@@ -988,7 +1003,7 @@ export function ExchangeRequestsPage() {
               window.location.href = "/products";
             }}
           >
-            Browse Products
+            Xem sản phẩm
           </Button>
         </CardContent>
       </Card>
@@ -1033,7 +1048,7 @@ export function ExchangeRequestsPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Exchange Requests</h1>
+            <h1 className="text-3xl font-bold mb-2">Yêu cầu trao đổi</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Quản lý yêu cầu trao đổi, thanh toán bảo hiểm và xác nhận hoàn
               tất.
@@ -1059,7 +1074,7 @@ export function ExchangeRequestsPage() {
               }}
             >
               <History className="w-4 h-4 mr-2" />
-              View History
+              Xem lịch sử
             </Button>
 
             <Button
@@ -1068,7 +1083,7 @@ export function ExchangeRequestsPage() {
               }}
             >
               <ArrowLeftRight className="w-4 h-4 mr-2" />
-              Browse Products
+              Xem sản phẩm
             </Button>
           </div>
         </div>
@@ -1076,15 +1091,15 @@ export function ExchangeRequestsPage() {
         <Tabs defaultValue="received">
           <TabsList className="mb-6">
             <TabsTrigger value="received">
-              Received ({receivedInvoices.length})
+              Nhận được ({receivedInvoices.length})
             </TabsTrigger>
-            <TabsTrigger value="sent">Sent ({sentInvoices.length})</TabsTrigger>
+            <TabsTrigger value="sent">Đã gửi ({sentInvoices.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="received">
             <InvoiceList
               list={receivedInvoices}
-              emptyTitle="No exchange requests received"
+              emptyTitle="Không có yêu cầu trao đổi nào nhận được"
               emptyDescription="Khi có người muốn đổi sản phẩm với bạn, yêu cầu sẽ xuất hiện tại đây."
             />
           </TabsContent>
@@ -1092,7 +1107,7 @@ export function ExchangeRequestsPage() {
           <TabsContent value="sent">
             <InvoiceList
               list={sentInvoices}
-              emptyTitle="No exchange requests sent"
+              emptyTitle="Không có yêu cầu trao đổi nào đã gửi"
               emptyDescription="Bạn chưa gửi yêu cầu trao đổi nào."
             />
           </TabsContent>

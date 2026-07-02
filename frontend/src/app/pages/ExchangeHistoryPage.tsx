@@ -358,6 +358,21 @@ function isEvidenceVideo(file: ComplaintEvidence) {
   );
 }
 
+function getDepositStatusLabel(status?: string) {
+  switch (status) {
+    case "unpaid":
+      return "Chưa thanh toán";
+    case "paid":
+      return "Đã thanh toán";
+    case "refunded":
+      return "Đã hoàn tiền";
+    case "forfeited":
+      return "Bị tịch thu";
+    default:
+      return "Chưa thanh toán";
+  }
+}
+
 function getDisputer(invoice: ExchangeInvoice) {
   const disputeById = getId(invoice.disputeBy);
 
@@ -944,7 +959,7 @@ export function ExchangeHistoryPage() {
                   <p className="text-xs text-gray-500">Bảo hiểm của tôi</p>
                   <p className="font-bold">{formatMoney(myDeposit)}</p>
                   <p className="mt-1 text-xs text-gray-500">
-                    {myDepositStatus}
+                    {getDepositStatusLabel(myDepositStatus)}
                   </p>
                 </div>
 
@@ -1024,7 +1039,7 @@ export function ExchangeHistoryPage() {
                   }}
                 >
                   <Eye className="w-4 h-4 mr-2" />
-                  View Details
+                  Xem chi tiết
                 </Button>
 
                 {canAccept && (
@@ -1122,7 +1137,7 @@ export function ExchangeHistoryPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Exchange History</h1>
+            <h1 className="text-3xl font-bold mb-2">Lịch sử trao đổi</h1>
             <p className="text-gray-600 dark:text-gray-400">
               Xem toàn bộ lịch sử trao đổi, tiền bảo hiểm, phí trung gian và
               trạng thái hoàn tiền.
@@ -1147,7 +1162,7 @@ export function ExchangeHistoryPage() {
               }}
             >
               <ArrowLeftRight className="w-4 h-4 mr-2" />
-              Browse Products
+              Xem sản phẩm
             </Button>
           </div>
         </div>
@@ -1213,7 +1228,7 @@ export function ExchangeHistoryPage() {
                       navigate("/products");
                     }}
                   >
-                    Browse Products
+                    Xem sản phẩm
                   </Button>
                 )}
               </CardContent>
