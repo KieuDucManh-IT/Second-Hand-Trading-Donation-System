@@ -19,7 +19,7 @@ interface Category {
  
 export function CreateProductPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAuthReady } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
  
   const [categories, setCategories] = useState<Category[]>([]);
@@ -46,8 +46,9 @@ export function CreateProductPage() {
  
   // Redirect nếu chưa đăng nhập
   useEffect(() => {
+    if (!isAuthReady) return;
     if (!isAuthenticated) navigate('/login');
-  }, [isAuthenticated, navigate]);
+  }, [isAuthReady, isAuthenticated, navigate]);
  
   // Load categories từ API
   useEffect(() => {

@@ -299,6 +299,40 @@ function OrderDetailModal({
             )}
           </div>
  
+          {/* Shipping Address - hiển thị cho cả buyer và seller khi là COD hoặc có shippingInfo */}
+          {order.shippingInfo && (order.shippingInfo.address || order.shippingInfo.phone || order.shippingInfo.name) && (
+            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2 mb-2">
+                <Truck className="w-4 h-4 text-amber-500" />
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  Địa chỉ giao hàng
+                </p>
+              </div>
+              <div className="space-y-1">
+                {order.shippingInfo.name && (
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    {order.shippingInfo.name}
+                  </p>
+                )}
+                {order.shippingInfo.phone && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    📞 {order.shippingInfo.phone}
+                  </p>
+                )}
+                {order.shippingInfo.email && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    ✉️ {order.shippingInfo.email}
+                  </p>
+                )}
+                {(order.shippingInfo.address || order.shippingInfo.city) && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    📍 {[order.shippingInfo.address, order.shippingInfo.city].filter(Boolean).join(", ")}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Timestamps */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>

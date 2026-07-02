@@ -22,7 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export function TransactionHistoryPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAuthReady } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -53,12 +53,13 @@ export function TransactionHistoryPage() {
   };
 
   useEffect(() => {
+    if (!isAuthReady) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
     fetchTransactions();
-  }, [isAuthenticated, navigate]);
+  }, [isAuthReady, isAuthenticated, navigate]);
 
   const getTransactionBadge = (type: string) => {
     const config: Record<string, { label: string; className: string; icon: any }> = {
