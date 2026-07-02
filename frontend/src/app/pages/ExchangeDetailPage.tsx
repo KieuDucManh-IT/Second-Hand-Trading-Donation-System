@@ -379,6 +379,18 @@ function getDisputer(invoice: ExchangeInvoice) {
   return null;
 }
 
+function getUsername(user: any) {
+  if (!user || typeof user === "string") return "Người dùng";
+
+  return (
+    user.username ||
+    user.name ||
+    user.fullName ||
+    user.email ||
+    "Người dùng"
+  );
+}
+
 function getDisputerLabel(invoice: ExchangeInvoice, currentUserId: string) {
   const disputeById = getId(invoice.disputeBy);
 
@@ -395,7 +407,7 @@ function getDisputerLabel(invoice: ExchangeInvoice, currentUserId: string) {
   const name = disputer ? getName(disputer) : "Người dùng";
 
   if (disputeById === currentUserId) {
-    return `${name} (Bạn)`;
+    return `${name}`;
   }
 
   return name;
@@ -448,8 +460,24 @@ function ComplaintDetailBlock({
   const renderComplaintCard = (complaint: Complaint | undefined, disputeBy: any, label: string, isMine: boolean) => {
     if (!complaint) return null;
     const evidences = complaint.evidences || [];
-    const disputerName = disputeBy ? getName(disputeBy) : "Người dùng";
-    const fallbackChar = disputerName.charAt(0).toUpperCase();
+    const disputeById = getId(disputeBy);
+
+    let resolvedDisputer: any = null;
+
+    if (disputeById === getId(invoice.requester)) {
+      resolvedDisputer = invoice.requester;
+    } else if (disputeById === getId(invoice.receiver)) {
+      resolvedDisputer = invoice.receiver;
+    } else if (disputeBy && typeof disputeBy === "object") {
+      resolvedDisputer = disputeBy;
+    }
+
+    const disputerUsername = resolvedDisputer
+      ? getUsername(resolvedDisputer)
+      : "Người dùng";
+
+    const fallbackChar = disputerUsername.charAt(0).toUpperCase();
+    const isCurrentUserDisputer = disputeById === currentUserId;
     const isVideo = (file: ComplaintEvidence) =>
       file.type === "video" || file.resourceType === "video" || file.mimeType?.startsWith("video/");
 
@@ -477,13 +505,19 @@ function ComplaintDetailBlock({
             <AvatarImage src={getAvatar(disputeBy)} />
             <AvatarFallback>{fallbackChar}</AvatarFallback>
           </Avatar>
-          <p>Người khiếu nại: <b>{disputerName}{getId(disputeBy) === currentUserId ? " (Bạn)" : ""}</b></p>
+          <p>
+            Người khiếu nại:{" "}
+            <b>
+              {disputerUsername}
+              {isCurrentUserDisputer ? "" : ""}
+            </b>
+          </p>
         </div>
         {complaint.reason && <p className="mt-2">Lý do: <b>{complaint.reason}</b></p>}
         {complaint.createdAt && (
           <p className="mt-1 text-xs opacity-70">Gửi lúc: {formatDate(complaint.createdAt)}</p>
         )}
-        
+
         {evidences.length > 0 && (
           <div className="mt-4">
             <p className="mb-2 font-semibold">Bằng chứng:</p>
