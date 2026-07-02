@@ -235,7 +235,7 @@ function normalizeDispute(raw: any): DisputeDetail | null {
 export function TransactionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isAuthReady, user } = useAuth();
 
   const [transaction, setTransaction] = useState<TransactionDetail | null>(null);
   const [dispute, setDispute] = useState<DisputeDetail | null>(null);
@@ -247,10 +247,11 @@ export function TransactionDetailPage() {
   const [disputeDescription, setDisputeDescription] = useState('');
 
   useEffect(() => {
+    if (!isAuthReady) return;
     if (!isAuthenticated) {
       navigate('/login', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthReady, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (!isAuthenticated || !id) return;

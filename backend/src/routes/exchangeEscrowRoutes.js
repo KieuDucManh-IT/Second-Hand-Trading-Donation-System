@@ -40,6 +40,14 @@ router.post(
   exchangeEscrowController.payExchangeDeposit
 );
 
+// Upload video giao hàng
+router.post(
+  "/:invoiceId/delivery-video",
+  protect,
+  uploadComplaintEvidence.single("deliveryVideo"),
+  exchangeEscrowController.uploadDeliveryVideo
+);
+
 // Xác nhận hoàn tất trao đổi
 router.post(
   "/:invoiceId/confirm-completed",

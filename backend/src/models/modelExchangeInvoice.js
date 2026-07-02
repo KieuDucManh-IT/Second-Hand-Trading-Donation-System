@@ -62,6 +62,37 @@ const complaintSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const deliveryVideoSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+    },
+    publicId: {
+      type: String,
+    },
+    resourceType: {
+      type: String,
+      enum: ["video"],
+      default: "video",
+    },
+    originalName: {
+      type: String,
+    },
+    mimeType: {
+      type: String,
+    },
+    size: {
+      type: Number,
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const exchangeInvoiceSchema = new mongoose.Schema(
   {
     requester: {
@@ -169,6 +200,16 @@ const exchangeInvoiceSchema = new mongoose.Schema(
     receiverConfirmed: {
       type: Boolean,
       default: false,
+    },
+
+    requesterDeliveryVideo: {
+      type: deliveryVideoSchema,
+      default: undefined,
+    },
+
+    receiverDeliveryVideo: {
+      type: deliveryVideoSchema,
+      default: undefined,
     },
 
     acceptedAt: Date,

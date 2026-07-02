@@ -82,6 +82,16 @@ type Complaint = {
   createdAt?: string;
 };
 
+type DeliveryVideo = {
+  url?: string;
+  publicId?: string;
+  resourceType?: string;
+  originalName?: string;
+  mimeType?: string;
+  size?: number;
+  uploadedAt?: string;
+};
+
 type ExchangeInvoice = {
   _id?: string;
   id?: string;
@@ -109,6 +119,8 @@ type ExchangeInvoice = {
 
   requesterConfirmed?: boolean;
   receiverConfirmed?: boolean;
+  requesterDeliveryVideo?: DeliveryVideo;
+  receiverDeliveryVideo?: DeliveryVideo;
 
   acceptedAt?: string;
   activeAt?: string;
@@ -448,8 +460,8 @@ export function ExchangeRequestsPage() {
     setComplaintInvoice(invoice);
     setComplaintReason(
       invoice.complaint?.reason ||
-        invoice.disputeReason ||
-        "Sản phẩm không đúng mô tả"
+      invoice.disputeReason ||
+      "Sản phẩm không đúng mô tả"
     );
     setComplaintFiles([]);
   }
@@ -599,6 +611,13 @@ export function ExchangeRequestsPage() {
 
     const myProduct = requesterSide ? requesterProduct : receiverProduct;
     const partnerProduct = requesterSide ? receiverProduct : requesterProduct;
+    const myDeliveryVideo = requesterSide
+      ? invoice.requesterDeliveryVideo
+      : invoice.receiverDeliveryVideo;
+
+    const partnerDeliveryVideo = requesterSide
+      ? invoice.receiverDeliveryVideo
+      : invoice.requesterDeliveryVideo;
 
     const status = invoice.status || "pending_receiver_accept";
 
@@ -732,6 +751,52 @@ export function ExchangeRequestsPage() {
                   quá 7 ngày không có khiếu nại, hệ thống sẽ hoàn tiền bảo hiểm
                   cho từng người sau khi trừ 10% phí trung gian.
                 </div>
+              )}
+
+              {(myDeliveryVideo?.url || partnerDeliveryVideo?.url) && (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {myDeliveryVideo?.url && (
+                    <div className="rounded-lg border bg-white p-3 dark:bg-gray-800">
+                      <p className="mb-2 text-xs font-semibold text-gray-600">
+                        Video giao hàng của tôi
+                      </p>
+
+                      <video
+                        src={normalizeImageUrl(myDeliveryVideo.url)}
+                        controls
+                        className="h-32 w-full rounded bg-black object-cover"
+                      />
+
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatDate(myDeliveryVideo.uploadedAt)}
+                      </p>
+                    </div>
+                  )}
+
+                  {partnerDeliveryVideo?.url && (
+                    <div className="rounded-lg border bg-white p-3 dark:bg-gray-800">
+                      <p className="mb-2 text-xs font-semibold text-gray-600">
+                        Video giao hàng của đối phương
+                      </p>
+
+                      <video
+                        src={normalizeImageUrl(partnerDeliveryVideo.url)}
+                        controls
+                        className="h-32 w-full rounded bg-black object-cover"
+                      />
+
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatDate(partnerDeliveryVideo.uploadedAt)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {status === "active" && !myDeliveryVideo?.url && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Bạn chưa upload video giao hàng. Bấm View Details để upload.
+                </p>
               )}
 
               {invoice.autoReleaseAt && status === "active" && (

@@ -124,7 +124,6 @@ export function CreateOrderPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
  
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wallet");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -140,33 +139,43 @@ export function CreateOrderPage() {
     }
   }, [isAuthenticated, navigate]);
  
+  // Fetch profile mới nhất từ API, tự động điền thông tin giao hàng
   useEffect(() => {
-    if (user) {
-      setName(user.name || "");
-      setEmail(user.email || "");
- 
-      // Ưu tiên lấy từ user.locations (AuthContext)
-      if (user.locations && user.locations.length > 0) {
-        const firstLocation = user.locations[0];
-        setPhone(firstLocation.phoneNumber || "");
-        setAddress(firstLocation.address || "");
-      }
- 
-      // Fallback: đọc từ sessionStorage/localStorage cho các field còn thiếu
-      const stored = sessionStorage.getItem("user") || localStorage.getItem("user");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (!user.locations || user.locations.length === 0) {
-            setPhone(parsed.phoneNumber || parsed.phone || "");
-            setAddress(parsed.location || parsed.address || "");
-          }
-          setCity(parsed.city || "");
-        } catch {
-          // ignore invalid stored user json
-        }
+    if (!user) return;
+
+    // Điền ngay từ AuthContext trước
+    setName(user.name || "");
+    setEmail(user.email || "");
+    if (user.locations && user.locations.length > 0) {
+      setPhone(user.locations[0].phoneNumber || "");
+      setAddress(user.locations[0].address || "");
+    }
+
+    // Fetch profile mới nhất để lấy dữ liệu cập nhật nhất
+    async function fetchFreshProfile() {
+      try {
+        const token = getToken();
+        const res = await fetch(`${API_BASE}/auth/profile/${user!.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const profile = data.user || data.data || data;
+
+        const loc = profile.locations?.[0];
+        const freshName = profile.fullName || profile.name || user!.name || "";
+        const freshPhone = loc?.phoneNumber || profile.phone || "";
+        const freshAddress = loc?.address || "";
+
+        if (freshName) setName(freshName);
+        if (freshPhone) setPhone(freshPhone);
+        if (freshAddress) setAddress(freshAddress);
+      } catch {
+        // Giữ nguyên dữ liệu AuthContext đã điền ở trên
       }
     }
+
+    fetchFreshProfile();
   }, [user]);
  
   useEffect(() => {
@@ -292,7 +301,7 @@ export function CreateOrderPage() {
   const platformFee = Math.round(product.price * 0.1);
  
   const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim() || !address.trim() || !city.trim()) {
+    if (!name.trim() || !phone.trim() || !address.trim()) {
       toast.error("Vui lòng điền đầy đủ thông tin giao hàng");
       return;
     }
@@ -318,7 +327,6 @@ export function CreateOrderPage() {
         email,
         phone,
         address,
-        city,
       });
  
       if (paymentMethod === "wallet") {
@@ -386,7 +394,24 @@ export function CreateOrderPage() {
                     <User className="w-4 h-4" />
                     Thông tin nhận hàng
                   </h2>
- 
+
+                  {/* Banner: Đã tự động điền từ profile */}
+                  {(phone || address) ? (
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-4 py-2.5">
+                      <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                        <span>Thông tin được lấy từ hồ sơ của bạn. Bạn có thể chỉnh sựa nếu cần.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-2.5">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                      <span className="text-sm text-yellow-700 dark:text-yellow-400">
+                        Bạn chưa có đẻa chỉ trong hồ sơ. Vui lòng điền thông tin giao hàng bên dưới.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="name" className="text-sm">
@@ -403,11 +428,9 @@ export function CreateOrderPage() {
                         />
                       </div>
                     </div>
- 
+
                     <div className="space-y-1.5">
-                      <Label htmlFor="email" className="text-sm">
-                        Email
-                      </Label>
+                      <Label htmlFor="email" className="text-sm">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
@@ -420,8 +443,8 @@ export function CreateOrderPage() {
                         />
                       </div>
                     </div>
- 
-                    <div className="space-y-1.5">
+
+                    <div className="space-y-1.5 sm:col-span-2">
                       <Label htmlFor="phone" className="text-sm">
                         Số điện thoại <span className="text-red-500">*</span>
                       </Label>
@@ -436,28 +459,38 @@ export function CreateOrderPage() {
                         />
                       </div>
                     </div>
- 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="city" className="text-sm">
-                        Tỉnh / Thành phố <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="city"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="Hà Nội"
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
                   </div>
- 
+
+                  {/* Chọn địa chỉ từ profile nếu có nhiều */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="address" className="text-sm">
+                    <Label className="text-sm">
                       Địa chỉ nhận hàng <span className="text-red-500">*</span>
                     </Label>
+
+                    {user?.locations && user.locations.length > 1 && (
+                      <div className="relative mb-2">
+                        <select
+                          className="w-full appearance-none border border-border rounded-xl px-4 py-2.5 pr-10 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                          value={address}
+                          onChange={(e) => {
+                            const selected = user!.locations.find(l => l.address === e.target.value);
+                            if (selected) {
+                              setAddress(selected.address);
+                              if (selected.phoneNumber) setPhone(selected.phoneNumber);
+                            }
+                          }}
+                        >
+                          <option value="">-- Chọn địa chỉ đã lưu --</option>
+                          {user.locations.map((loc, idx) => (
+                            <option key={idx} value={loc.address}>
+                              {loc.address}{loc.phoneNumber ? ` — ${loc.phoneNumber}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <MapPin className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      </div>
+                    )}
+
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
@@ -468,6 +501,7 @@ export function CreateOrderPage() {
                         className="pl-9"
                       />
                     </div>
+                    <p className="text-xs text-gray-400">Hoặc nhập địa chỉ khác bên trên</p>
                   </div>
                 </div>
  

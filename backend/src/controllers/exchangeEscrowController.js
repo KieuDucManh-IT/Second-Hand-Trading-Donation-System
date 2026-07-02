@@ -73,8 +73,9 @@ exports.getMyExchangeInvoices = async (req, res) => {
       .populate("receiver", "name fullName username email avatar profileImage")
       .populate("requesterProduct")
       .populate("receiverProduct")
-      .sort({ createdAt: -1 });
-
+      .sort({ createdAt: -1 })
+      .lean();
+      
     const invoicesWithImages = await attachProductImagesToInvoices(invoices);
 
     res.json({
@@ -157,6 +158,152 @@ exports.payExchangeDeposit = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || "Không thể thanh toán tiền bảo hiểm",
+    });
+  }
+};
+
+exports.uploadDeliveryVideo = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { invoiceId } = req.params;
+
+    console.log("UPLOAD DELIVERY VIDEO HIT:", {
+      invoiceId,
+      userId: String(userId),
+      file: req.file
+        ? {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        }
+        : null,
+    });
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng chọn video giao hàng",
+      });
+    }
+
+    if (!req.file.mimetype.startsWith("video/")) {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ được upload video giao hàng",
+      });
+    }
+
+    const invoice = await ExchangeInvoice.findById(invoiceId).lean();
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn trao đổi",
+      });
+    }
+
+    const isRequester = String(invoice.requester) === String(userId);
+    const isReceiver = String(invoice.receiver) === String(userId);
+
+    if (!isRequester && !isReceiver) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không thuộc hóa đơn trao đổi này",
+      });
+    }
+
+    if (invoice.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ được upload video khi giao dịch đang trao đổi",
+      });
+    }
+
+    const myDepositStatus = isRequester
+      ? invoice.requesterDepositStatus
+      : invoice.receiverDepositStatus;
+
+    if (myDepositStatus !== "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Bạn cần thanh toán tiền bảo hiểm trước khi upload video giao hàng",
+      });
+    }
+
+    const existedVideo = isRequester
+      ? invoice.requesterDeliveryVideo?.url
+      : invoice.receiverDeliveryVideo?.url;
+
+    if (existedVideo) {
+      return res.status(400).json({
+        success: false,
+        message: "Bạn đã upload video giao hàng rồi",
+      });
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer, {
+      folder: "exchange-delivery-videos",
+      resourceType: "video",
+    });
+
+    if (!result || !result.secure_url) {
+      return res.status(400).json({
+        success: false,
+        message: "Upload Cloudinary thất bại, không nhận được URL video",
+      });
+    }
+
+    const videoData = {
+      url: result.secure_url,
+      publicId: result.public_id,
+      resourceType: "video",
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      uploadedAt: new Date(),
+    };
+
+    const updateField = isRequester
+      ? "requesterDeliveryVideo"
+      : "receiverDeliveryVideo";
+
+    console.log("SAVE DELIVERY VIDEO FIELD:", updateField, videoData.url);
+
+    await ExchangeInvoice.updateOne(
+      { _id: invoiceId },
+      {
+        $set: {
+          [updateField]: videoData,
+        },
+      },
+      {
+        strict: false,
+      }
+    );
+
+    const updatedInvoice = await ExchangeInvoice.findById(invoiceId)
+      .populate("requester", "name fullName username email avatar profileImage")
+      .populate("receiver", "name fullName username email avatar profileImage")
+      .populate("requesterProduct")
+      .populate("receiverProduct")
+      .lean();
+
+    console.log("UPDATED DELIVERY VIDEO CHECK:", {
+      requesterDeliveryVideo: updatedInvoice?.requesterDeliveryVideo,
+      receiverDeliveryVideo: updatedInvoice?.receiverDeliveryVideo,
+    });
+
+    return res.json({
+      success: true,
+      message: "Đã upload video giao hàng",
+      invoice: updatedInvoice,
+    });
+  } catch (error) {
+    console.error("UPLOAD DELIVERY VIDEO ERROR:", error);
+
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Không thể upload video giao hàng",
     });
   }
 };
@@ -269,7 +416,8 @@ exports.getExchangeInvoiceDetail = async (req, res) => {
       .populate("requester", "name fullName username email avatar profileImage")
       .populate("receiver", "name fullName username email avatar profileImage")
       .populate("requesterProduct")
-      .populate("receiverProduct");
+      .populate("receiverProduct")
+      .lean();
 
     if (!invoice) {
       return res.status(404).json({
