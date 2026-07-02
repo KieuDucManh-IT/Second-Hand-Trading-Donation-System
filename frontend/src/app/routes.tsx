@@ -11,6 +11,7 @@ import { EmailVerificationPage } from "./pages/EmailVerificationPage";
 import { ProductListingPage } from "./pages/ProductListingPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { CreateProductPage } from "./pages/CreateProductPage";
+import { ProductReviewsPage } from "./pages/ProductReviewsPage";
 
 import { MessagesPage } from "./pages/MessagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
 
       { path: "products", element: <ProductListingPage /> },
       { path: "products/:id", element: <ProductDetailPage /> },
+      { path: "products/:id/reviews", element: <ProductReviewsPage /> },
       { path: "create-product", element: <CreateProductPage /> },
 
       { path: "donations", element: <DonationPage /> },

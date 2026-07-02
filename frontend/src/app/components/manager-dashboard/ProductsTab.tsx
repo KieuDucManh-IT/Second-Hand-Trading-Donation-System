@@ -25,7 +25,6 @@ export function ProductsTab({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
-  // Extract unique categories from the list
   const categoriesList = Array.from(
     new Set(
       productViewList
@@ -34,9 +33,7 @@ export function ProductsTab({
     )
   ).sort() as string[];
 
-  // Filter products locally
   const filteredProducts = productViewList.filter((product) => {
-    // If not looking specifically for sold products, hide them automatically in general views
     if (selectedStatus !== 'sold' && product.status === 'sold') {
       return false;
     }
@@ -71,7 +68,6 @@ export function ProductsTab({
           <CardTitle>Quản lý sản phẩm</CardTitle>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* Search Input */}
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -82,7 +78,6 @@ export function ProductsTab({
             />
           </div>
 
-          {/* Category Dropdown */}
           <select
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900/70"
             value={selectedCategory}
@@ -96,7 +91,6 @@ export function ProductsTab({
             ))}
           </select>
 
-          {/* Status Dropdown */}
           <select
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900/70"
             value={selectedStatus}

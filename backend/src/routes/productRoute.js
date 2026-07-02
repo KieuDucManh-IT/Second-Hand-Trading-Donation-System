@@ -16,6 +16,7 @@ const {
   rejectProduct,
   getMyProductsForExchange,
   getSensitiveWordsRoute,
+  getProductReviews,
 } = require('../controllers/productController');
 
 const { protect }       = require('../middlewares/authMiddleware');
@@ -40,6 +41,8 @@ router.get("/my/exchange", protect, getMyProductsForExchange);
 
 // ── Manager routes cần đặt TRƯỚC /:id ───────────────────────────────────────
 router.get('/pending', protect, requireManager, getPendingProducts);
+
+router.get('/:id/reviews', getProductReviews);
 
 // Route động /:id phải để sau cùng trong nhóm GET
 router.get('/:id', getProductById);
