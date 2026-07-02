@@ -46,7 +46,19 @@ export function ProfilePage() {
         const profileData = await profileRes.json();
         setProfileUser(profileData.user);
 
-        const productsRes = await fetch(`${API_BASE}/api/products/seller/${userId}`);
+        const isOwn = currentUser && currentUser.id === userId;
+        let productsRes;
+        if (isOwn) {
+          productsRes = await fetch(`${API_BASE}/api/products/my`, {
+            headers: {
+              Authorization: `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } else {
+          productsRes = await fetch(`${API_BASE}/api/products/seller/${userId}`);
+        }
+
         if (productsRes.ok) {
           const productsData = await productsRes.json();
           setProducts(productsData.data || []);
@@ -59,7 +71,7 @@ export function ProfilePage() {
     };
 
     fetchProfileAndProducts();
-  }, [userId, API_BASE]);
+  }, [userId, API_BASE, currentUser]);
 
   if (loading) {
     return (
@@ -94,9 +106,15 @@ export function ProfilePage() {
 
   const isTradedListing = (product: ApiProduct) => product.status === 'sold';
 
+  const isHiddenListing = (product: ApiProduct) => product.status === 'hidden';
+
   const activeListings = products.filter(isActiveListing);
   const transactedListings = products
     .filter(isTradedListing)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
+
+  const hiddenListings = products
+    .filter(isHiddenListing)
     .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
 
 
@@ -256,6 +274,70 @@ export function ProfilePage() {
             </div>
           )}
         </div>
+
+        {isOwnProfile && (
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
+            <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+              Tin đăng đã ẩn & chờ duyệt ({hiddenListings.length})
+            </h2>
+            {hiddenListings.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-gray-500">
+                  Không có tin đăng nào bị ẩn hoặc đang chờ duyệt.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {hiddenListings.map((product) => (
+                  <Card
+                    key={product._id}
+                    className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer opacity-75 hover:opacity-100 transition-opacity relative"
+                    onClick={() => navigate(`/products/${product._id}`)}
+                  >
+                    <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
+                      <ImageWithFallback
+                        src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ''}
+                        alt={product.title}
+                        className="w-full h-full object-cover"
+                      />
+                      {product.type === 'donate' && (
+                        <Badge className="absolute top-3 left-3 bg-green-500 text-white">
+                          Miễn phí
+                        </Badge>
+                      )}
+                      <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1 z-10">
+                        {product.pendingApproval ? (
+                          <Badge className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1">
+                            Đang chờ duyệt
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-600 text-white text-xs font-bold px-2.5 py-1">
+                            Đã bị ẩn
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold mb-1 line-clamp-1">{product.title}</h3>
+                      {product.type === 'donate' ? (
+                        <div className="text-xl font-bold text-green-600">Miễn phí</div>
+                      ) : (
+                        <div className="text-xl font-bold text-slate-500 dark:text-slate-400">
+                          {product.price.toLocaleString('vi-VN')} đ
+                        </div>
+                      )}
+                      {product.rejectReason && (
+                        <div className="mt-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 p-2 rounded border border-red-200/50 dark:border-red-900/50">
+                          <strong>Lý do từ chối:</strong> {product.rejectReason}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
