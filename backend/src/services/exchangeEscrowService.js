@@ -610,6 +610,10 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
     const receiverDeposit = Number(invoice.receiverDepositAmount || 0);
     const totalDeposit = requesterDeposit + receiverDeposit;
 
+    const feeRate = Number(invoice.feeRate ?? EXCHANGE_FEE_RATE ?? 0.1);
+    const totalFee = Math.round(totalDeposit * feeRate);
+    const netRefundAmount = Math.max(totalDeposit - totalFee, 0);
+
     const requesterWallet = await ensureWallet(invoice.requester, session);
     const receiverWallet = await ensureWallet(invoice.receiver, session);
 
@@ -642,30 +646,36 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       Manager hoàn toàn bộ tiền cọc/giá trị escrow cho A.
     */
     if (resolution === "refund_a") {
-      disputerWallet.balance += totalDeposit;
+      disputerWallet.balance += netRefundAmount;
       await disputerWallet.save({ session });
 
       if (isRequesterDisputer) {
-        invoice.requesterRefundAmount = totalDeposit;
+        invoice.requesterRefundAmount = netRefundAmount;
         invoice.receiverRefundAmount = 0;
+
+        invoice.requesterFee = totalFee;
+        invoice.receiverFee = 0;
+
         invoice.requesterDepositStatus = "refunded";
         invoice.receiverDepositStatus = "forfeited";
       } else {
         invoice.requesterRefundAmount = 0;
-        invoice.receiverRefundAmount = totalDeposit;
+        invoice.receiverRefundAmount = netRefundAmount;
+
+        invoice.requesterFee = 0;
+        invoice.receiverFee = totalFee;
+
         invoice.requesterDepositStatus = "forfeited";
         invoice.receiverDepositStatus = "refunded";
       }
 
-      invoice.requesterFee = 0;
-      invoice.receiverFee = 0;
       invoice.status = "completed";
       invoice.completedAt = new Date();
       invoice.autoRefundPaused = false;
 
       markComplaintResolved(
         "resolved",
-        note || "Manager quyết định hoàn toàn bộ giá trị cho bên A/người khiếu nại"
+        note || "Manager quyết định hoàn giá trị cho bên A sau khi trừ phí giao dịch"
       );
 
       await invoice.save({ session });
@@ -674,15 +684,37 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
         wallet: disputerWallet._id,
         user: disputer,
         type: "exchange_refund",
-        amount: totalDeposit,
+        amount: netRefundAmount,
         exchangeInvoice: invoice._id,
-        note: `Manager hoàn toàn bộ tiền cho bên A/người khiếu nại: ${note}`,
+        note: `Manager hoàn tiền cho bên A sau khi trừ phí ${Math.round(
+          feeRate * 100
+        )}%: ${note}`,
         metadata: {
           direction: "credit",
           reason: "manager_refund_a",
           requesterDeposit,
           receiverDeposit,
           totalDeposit,
+          feeRate,
+          fee: totalFee,
+          netRefundAmount,
+        },
+        session,
+      });
+
+      await createWalletTransaction({
+        wallet: disputerWallet._id,
+        user: disputer,
+        type: "exchange_fee",
+        amount: totalFee,
+        exchangeInvoice: invoice._id,
+        note: `Phí giao dịch ${Math.round(feeRate * 100)}% khi Manager hoàn tiền cho bên A`,
+        metadata: {
+          direction: "fee",
+          reason: "manager_refund_a_fee",
+          totalDeposit,
+          feeRate,
+          fee: totalFee,
         },
         session,
       });
@@ -704,30 +736,36 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       Manager hoàn toàn bộ tiền cọc/giá trị escrow cho B.
     */
     else if (resolution === "refund_b") {
-      opponentWallet.balance += totalDeposit;
+      opponentWallet.balance += netRefundAmount;
       await opponentWallet.save({ session });
 
       if (isRequesterDisputer) {
         invoice.requesterRefundAmount = 0;
-        invoice.receiverRefundAmount = totalDeposit;
+        invoice.receiverRefundAmount = netRefundAmount;
+
+        invoice.requesterFee = 0;
+        invoice.receiverFee = totalFee;
+
         invoice.requesterDepositStatus = "forfeited";
         invoice.receiverDepositStatus = "refunded";
       } else {
-        invoice.requesterRefundAmount = totalDeposit;
+        invoice.requesterRefundAmount = netRefundAmount;
         invoice.receiverRefundAmount = 0;
+
+        invoice.requesterFee = totalFee;
+        invoice.receiverFee = 0;
+
         invoice.requesterDepositStatus = "refunded";
         invoice.receiverDepositStatus = "forfeited";
       }
 
-      invoice.requesterFee = 0;
-      invoice.receiverFee = 0;
       invoice.status = "completed";
       invoice.completedAt = new Date();
       invoice.autoRefundPaused = false;
 
       markComplaintResolved(
         "resolved",
-        note || "Manager quyết định hoàn toàn bộ giá trị cho bên B/bên bị khiếu nại"
+        note || "Manager quyết định hoàn giá trị cho bên B sau khi trừ phí giao dịch"
       );
 
       await invoice.save({ session });
@@ -736,15 +774,37 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
         wallet: opponentWallet._id,
         user: opponent,
         type: "exchange_refund",
-        amount: totalDeposit,
+        amount: netRefundAmount,
         exchangeInvoice: invoice._id,
-        note: `Manager hoàn toàn bộ tiền cho bên B/bên bị khiếu nại: ${note}`,
+        note: `Manager hoàn tiền cho bên B sau khi trừ phí ${Math.round(
+          feeRate * 100
+        )}%: ${note}`,
         metadata: {
           direction: "credit",
           reason: "manager_refund_b",
           requesterDeposit,
           receiverDeposit,
           totalDeposit,
+          feeRate,
+          fee: totalFee,
+          netRefundAmount,
+        },
+        session,
+      });
+
+      await createWalletTransaction({
+        wallet: opponentWallet._id,
+        user: opponent,
+        type: "exchange_fee",
+        amount: totalFee,
+        exchangeInvoice: invoice._id,
+        note: `Phí giao dịch ${Math.round(feeRate * 100)}% khi Manager hoàn tiền cho bên B`,
+        metadata: {
+          direction: "fee",
+          reason: "manager_refund_b_fee",
+          totalDeposit,
+          feeRate,
+          fee: totalFee,
         },
         session,
       });
@@ -759,7 +819,6 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
         isAvailable: false,
       });
     }
-
     /*
       continue_auto_release:
       Manager từ chối giải quyết.
