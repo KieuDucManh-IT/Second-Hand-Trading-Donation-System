@@ -111,7 +111,7 @@ export function CreateOrderPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user, isAuthenticated, isAuthReady } = useAuth();
+  const { user, isAuthenticated } = useAuth();
  
   const productFromState = location.state?.product as CheckoutProduct | undefined;
   const productId = searchParams.get("productId") || productFromState?._id;
@@ -134,11 +134,10 @@ export function CreateOrderPage() {
   const [loading, setLoading] = useState(false);
  
   useEffect(() => {
-    if (!isAuthReady) return;
     if (!isAuthenticated) {
       navigate("/login");
     }
-  }, [isAuthReady, isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate]);
  
   // Fetch profile mới nhất từ API, tự động điền thông tin giao hàng
   useEffect(() => {
