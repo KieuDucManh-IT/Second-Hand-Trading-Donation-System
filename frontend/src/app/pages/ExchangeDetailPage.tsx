@@ -359,6 +359,21 @@ function getStatusIcon(status?: ExchangeStatus) {
 
 
 
+function getDepositStatusLabel(status?: string) {
+  switch (status) {
+    case "unpaid":
+      return "Chưa thanh toán";
+    case "paid":
+      return "Đã thanh toán";
+    case "refunded":
+      return "Đã hoàn tiền";
+    case "forfeited":
+      return "Bị tịch thu";
+    default:
+      return "Chưa thanh toán";
+  }
+}
+
 function getDisputer(invoice: ExchangeInvoice) {
   const disputeById = getId(invoice.disputeBy);
 
@@ -1012,7 +1027,7 @@ export function ExchangeDetailPage() {
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Exchange Requests
+          Quay lại Yêu cầu trao đổi
         </Button>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -1022,7 +1037,7 @@ export function ExchangeDetailPage() {
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="flex items-center gap-2">
                     <ArrowLeftRight className="w-6 h-6 text-blue-600" />
-                    Exchange Invoice Details
+                    Chi tiết hóa đơn trao đổi
                   </CardTitle>
 
                   <Badge
@@ -1132,7 +1147,7 @@ export function ExchangeDetailPage() {
                           {formatMoney(myDepositAmount)}
                         </p>
                         <p className="mt-1 text-xs text-gray-500">
-                          {myDepositStatus}
+                          {getDepositStatusLabel(myDepositStatus)}
                         </p>
                       </div>
 
@@ -1159,7 +1174,7 @@ export function ExchangeDetailPage() {
                     <div className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
                       Đối phương đặt cọc:{" "}
                       <b>{formatMoney(partnerDepositAmount)}</b> — trạng thái:{" "}
-                      <b>{partnerDepositStatus}</b>
+                      <b>{getDepositStatusLabel(partnerDepositStatus)}</b>
                     </div>
                   </div>
 
@@ -1276,7 +1291,7 @@ export function ExchangeDetailPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Actions</CardTitle>
+                <CardTitle>Thao tác</CardTitle>
               </CardHeader>
 
               <CardContent className="space-y-3">
@@ -1585,7 +1600,7 @@ export function ExchangeDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Timeline</CardTitle>
+                <CardTitle className="text-sm">Lịch trình</CardTitle>
               </CardHeader>
 
               <CardContent>

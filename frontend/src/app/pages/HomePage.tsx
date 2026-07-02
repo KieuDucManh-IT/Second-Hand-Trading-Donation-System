@@ -105,17 +105,16 @@ export function HomePage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <Badge className="bg-green-500 text-white">
-                Safe & Trusted Platform
+                Nền tảng An toàn & Tin cậy
               </Badge>
               <h1 className="text-5xl font-bold text-gray-900 dark:text-white leading-tight">
-                Buy, Sell & Donate
+                Mua, Bán & Quyên góp
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-500">
-                  Second-Hand Items
+                  Đồ cũ chất lượng
                 </span>
               </h1>
               <p className="text-xl text-gray-600 dark:text-gray-300">
-                Join our community marketplace where you can trade pre-loved items safely
-                and contribute to a sustainable future.
+                Tham gia thị trường cộng đồng của chúng tôi nơi bạn có thể trao đổi đồ cũ một cách an toàn và đóng góp vào tương lai bền vững.
               </p>
  
               {/* Search Bar */}

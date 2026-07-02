@@ -15,6 +15,8 @@ import { Eye, EyeOff, Lock, MapPin, Phone, Package, Trash2 } from "lucide-react"
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 
+const API_BASE = (import.meta as any).env.VITE_API_URL || "http://localhost:5000";
+
 type LocationItem = {
     _id: string;
     phoneNumber: string;
@@ -54,10 +56,10 @@ export function AccountSettingsPage() {
             const token = sessionStorage.getItem("token");
 
             if (!token) {
-                throw new Error("You are not logged in");
+                throw new Error("Bạn chưa đăng nhập");
             }
 
-            const res = await fetch("http://localhost:5000/api/location/my-locations", {
+            const res = await fetch(`${API_BASE}/api/location/my-locations`, {
                 method: "GET",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -74,13 +76,13 @@ export function AccountSettingsPage() {
             }
 
             if (!res.ok) {
-                throw new Error(data.message || "Get locations failed");
+                throw new Error(data.message || "Lấy danh sách địa chỉ thất bại");
             }
 
             setLocations(data.locations || []);
         } catch (err: any) {
-            setLocationError(err.message || "Get locations failed");
-            toast.error(err.message || "Get locations failed");
+            setLocationError(err.message || "Lấy danh sách địa chỉ thất bại");
+            toast.error(err.message || "Lấy danh sách địa chỉ thất bại");
         } finally {
             setListLoading(false);
         }
@@ -94,11 +96,11 @@ export function AccountSettingsPage() {
             const token = sessionStorage.getItem("token");
 
             if (!token) {
-                throw new Error("You are not logged in");
+                throw new Error("Bạn chưa đăng nhập");
             }
 
             const res = await fetch(
-                `http://localhost:5000/api/location/delete-location/${locationId}`,
+                `${API_BASE}/api/location/delete-location/${locationId}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -117,15 +119,15 @@ export function AccountSettingsPage() {
             }
 
             if (!res.ok) {
-                throw new Error(data.message || "Delete location failed");
+                throw new Error(data.message || "Xóa địa chỉ thất bại");
             }
 
-            toast.success(data.message || "Location deleted successfully!");
+            toast.success(data.message || "Xóa địa chỉ thành công!");
 
             setLocations(data.locations || []);
         } catch (err: any) {
-            setLocationError(err.message || "Delete location failed");
-            toast.error(err.message || "Delete location failed");
+            setLocationError(err.message || "Xóa địa chỉ thất bại");
+            toast.error(err.message || "Xóa địa chỉ thất bại");
         } finally {
             setDeleteLoadingId(null);
         }
@@ -143,27 +145,27 @@ export function AccountSettingsPage() {
         const isCreatingPassword = user?.hasPassword === false;
 
         if (!isCreatingPassword && !currentPassword) {
-            setPasswordError("Please enter your current password");
+            setPasswordError("Vui lòng nhập mật khẩu hiện tại");
             return;
         }
 
         if (!newPassword || !confirmPassword) {
-            setPasswordError("Please fill in new password and confirm password");
+            setPasswordError("Vui lòng điền mật khẩu mới và xác nhận mật khẩu");
             return;
         }
 
         if (newPassword.length < 6) {
-            setPasswordError("New password must be at least 6 characters");
+            setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự");
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            setPasswordError("Confirm password does not match");
+            setPasswordError("Mật khẩu xác nhận không khớp");
             return;
         }
 
         if (!isCreatingPassword && currentPassword === newPassword) {
-            setPasswordError("New password cannot be the same as current password");
+            setPasswordError("Mật khẩu mới không được trùng với mật khẩu hiện tại");
             return;
         }
 
@@ -173,10 +175,10 @@ export function AccountSettingsPage() {
             const token = sessionStorage.getItem("token");
 
             if (!token) {
-                throw new Error("You are not logged in");
+                throw new Error("Bạn chưa đăng nhập");
             }
 
-            const res = await fetch("http://localhost:5000/api/auth/change-password", {
+            const res = await fetch(`${API_BASE}/api/auth/change-password`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -192,10 +194,10 @@ export function AccountSettingsPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.message || "Change password failed");
+                throw new Error(data.message || "Đổi mật khẩu thất bại");
             }
 
-            toast.success(data.message || "Password updated successfully!");
+            toast.success(data.message || "Cập nhật mật khẩu thành công!");
 
             setCurrentPassword("");
             setNewPassword("");
@@ -205,8 +207,8 @@ export function AccountSettingsPage() {
                 hasPassword: true,
             });
         } catch (err: any) {
-            setPasswordError(err.message || "Change password failed");
-            toast.error(err.message || "Change password failed");
+            setPasswordError(err.message || "Đổi mật khẩu thất bại");
+            toast.error(err.message || "Đổi mật khẩu thất bại");
         } finally {
             setPasswordLoading(false);
         }
@@ -217,12 +219,12 @@ export function AccountSettingsPage() {
     setLocationError("");
 
     if (!phoneNumber.trim()) {
-        setLocationError("Please enter your phone number");
+        setLocationError("Vui lòng nhập số điện thoại");
         return;
     }
 
     if (!location.trim()) {
-        setLocationError("Please enter your address");
+        setLocationError("Vui lòng nhập địa chỉ của bạn");
         return;
     }
 
@@ -232,10 +234,10 @@ export function AccountSettingsPage() {
         const token = sessionStorage.getItem("token");
 
         if (!token) {
-            throw new Error("You are not logged in");
+            throw new Error("Bạn chưa đăng nhập");
         }
 
-        const res = await fetch("http://localhost:5000/api/location/add-location", {
+        const res = await fetch(`${API_BASE}/api/location/add-location`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -257,18 +259,18 @@ export function AccountSettingsPage() {
         }
 
         if (!res.ok) {
-            throw new Error(data.message || "Update location failed");
+            throw new Error(data.message || "Cập nhật địa chỉ thất bại");
         }
 
-        toast.success(data.message || "Location added successfully!");
+        toast.success(data.message || "Thêm địa chỉ thành công!");
 
         await fetchMyLocations();
 
         setPhoneNumber("");
         setLocation("");
     } catch (err: any) {
-        setLocationError(err.message || "Update location failed");
-        toast.error(err.message || "Update location failed");
+        setLocationError(err.message || "Cập nhật địa chỉ thất bại");
+        toast.error(err.message || "Cập nhật địa chỉ thất bại");
     } finally {
         setLocationLoading(false);
     }
@@ -284,11 +286,11 @@ export function AccountSettingsPage() {
                     </div>
 
                     <CardTitle className="text-2xl font-bold">
-                        Account Settings
+                        Thiết lập tài khoản
                     </CardTitle>
 
                     <CardDescription>
-                        Manage your password, phone number and address
+                        Quản lý mật khẩu, số điện thoại và địa chỉ nhận hàng của bạn
                     </CardDescription>
                 </CardHeader>
 
@@ -305,7 +307,7 @@ export function AccountSettingsPage() {
                             }
                         >
                             <Lock className="w-4 h-4 mr-2" />
-                            Change Password
+                            Đổi mật khẩu
                         </Button>
 
                         <Button
@@ -319,7 +321,7 @@ export function AccountSettingsPage() {
                             }
                         >
                             <MapPin className="w-4 h-4 mr-2" />
-                            Location
+                            Địa chỉ giao hàng
                         </Button>
                     </div>
 
@@ -332,13 +334,13 @@ export function AccountSettingsPage() {
                             )}
 
                             <div className="space-y-2">
-                                <Label htmlFor="currentPassword">Current Password</Label>
+                                <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
 
                                 <div className="relative">
                                     <Input
                                         id="currentPassword"
                                         type={showCurrentPassword ? "text" : "password"}
-                                        placeholder="Enter current password"
+                                        placeholder="Nhập mật khẩu hiện tại"
                                         value={currentPassword}
                                         onChange={(e) => setCurrentPassword(e.target.value)}
                                         autoComplete="current-password"
@@ -359,13 +361,13 @@ export function AccountSettingsPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="newPassword">New Password</Label>
+                                <Label htmlFor="newPassword">Mật khẩu mới</Label>
 
                                 <div className="relative">
                                     <Input
                                         id="newPassword"
                                         type={showNewPassword ? "text" : "password"}
-                                        placeholder="Enter new password"
+                                        placeholder="Nhập mật khẩu mới"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         autoComplete="new-password"
@@ -386,13 +388,13 @@ export function AccountSettingsPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                                <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
 
                                 <div className="relative">
                                     <Input
                                         id="confirmPassword"
                                         type={showConfirmPassword ? "text" : "password"}
-                                        placeholder="Confirm new password"
+                                        placeholder="Xác nhận mật khẩu mới"
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         autoComplete="new-password"
@@ -417,7 +419,7 @@ export function AccountSettingsPage() {
                                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                                 disabled={passwordLoading}
                             >
-                                {passwordLoading ? "Updating password..." : "Update Password"}
+                                {passwordLoading ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
                             </Button>
                         </form>
                     )}
@@ -432,7 +434,7 @@ export function AccountSettingsPage() {
                                 )}
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                                    <Label htmlFor="phoneNumber">Số điện thoại</Label>
 
                                     <div className="relative">
                                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -440,7 +442,7 @@ export function AccountSettingsPage() {
                                         <Input
                                             id="phoneNumber"
                                             type="text"
-                                            placeholder="Enter your phone number"
+                                            placeholder="Nhập số điện thoại của bạn"
                                             value={phoneNumber}
                                             onChange={(e) => setPhoneNumber(e.target.value)}
                                             className="pl-10"
@@ -449,7 +451,7 @@ export function AccountSettingsPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="location">Address</Label>
+                                    <Label htmlFor="location">Địa chỉ</Label>
 
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -457,7 +459,7 @@ export function AccountSettingsPage() {
                                         <Input
                                             id="location"
                                             type="text"
-                                            placeholder="Enter your address"
+                                            placeholder="Nhập địa chỉ của bạn"
                                             value={location}
                                             onChange={(e) => setLocation(e.target.value)}
                                             className="pl-10"
@@ -470,13 +472,13 @@ export function AccountSettingsPage() {
                                     className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                                     disabled={locationLoading}
                                 >
-                                    {locationLoading ? "Saving..." : "Save Location"}
+                                    {locationLoading ? "Đang lưu..." : "Lưu địa chỉ"}
                                 </Button>
                             </form>
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-semibold">My Locations</h3>
+                                    <h3 className="text-lg font-semibold">Địa chỉ đã lưu</h3>
 
                                     <Button
                                         type="button"
@@ -485,15 +487,15 @@ export function AccountSettingsPage() {
                                         onClick={fetchMyLocations}
                                         disabled={listLoading}
                                     >
-                                        {listLoading ? "Loading..." : "Refresh"}
+                                        {listLoading ? "Đang tải..." : "Làm mới"}
                                     </Button>
                                 </div>
 
                                 {listLoading ? (
-                                    <p className="text-sm text-gray-500">Loading locations...</p>
+                                    <p className="text-sm text-gray-500">Đang tải địa chỉ...</p>
                                 ) : locations.length === 0 ? (
                                     <div className="rounded-lg border border-dashed p-4 text-center text-sm text-gray-500">
-                                        You do not have any saved locations yet.
+                                        Bạn chưa lưu địa chỉ giao nhận nào.
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -522,7 +524,7 @@ export function AccountSettingsPage() {
                                                     disabled={deleteLoadingId === item._id}
                                                 >
                                                     <Trash2 className="w-4 h-4 mr-1" />
-                                                    {deleteLoadingId === item._id ? "Deleting..." : "Delete"}
+                                                    {deleteLoadingId === item._id ? "Đang xóa..." : "Xóa"}
                                                 </Button>
                                             </div>
                                         ))}
@@ -537,7 +539,7 @@ export function AccountSettingsPage() {
                             to="/"
                             className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
                         >
-                            ← Back to Home
+                            ← Quay lại Trang chủ
                         </Link>
                     </div>
                 </CardContent>

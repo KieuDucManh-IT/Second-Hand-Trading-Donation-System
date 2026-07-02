@@ -41,7 +41,7 @@ export function ProfilePage() {
         setError(null);
         const profileRes = await fetch(`${API_BASE}/api/auth/profile/${userId}`);
         if (!profileRes.ok) {
-          throw new Error('Could not load user profile');
+          throw new Error('Không thể tải thông tin cá nhân');
         }
         const profileData = await profileRes.json();
         setProfileUser(profileData.user);
@@ -64,7 +64,7 @@ export function ProfilePage() {
           setProducts(productsData.data || []);
         }
       } catch (err: any) {
-        setError(err.message || 'Something went wrong');
+        setError(err.message || 'Đã có lỗi xảy ra');
       } finally {
         setLoading(false);
       }
@@ -76,7 +76,7 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-500">Loading profile...</p>
+        <p className="text-gray-500">Đang tải thông tin cá nhân...</p>
       </div>
     );
   }
@@ -84,20 +84,20 @@ export function ProfilePage() {
   if (error || !profileUser) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
-        <p className="text-red-500 font-semibold mb-4">{error || 'User not found'}</p>
-        <Button onClick={() => navigate('/')}>Back to Home</Button>
+        <p className="text-red-500 font-semibold mb-4">{error || 'Không tìm thấy người dùng'}</p>
+        <Button onClick={() => navigate('/')}>Quay lại Trang chủ</Button>
       </div>
     );
   }
 
-  const joinedDateFormatted = new Date(profileUser.joinedDate).toLocaleDateString('en-US', {
+  const joinedDateFormatted = new Date(profileUser.joinedDate).toLocaleDateString('vi-VN', {
     year: 'numeric',
     month: 'long',
   });
 
   const locationText = profileUser.locations && profileUser.locations.length > 0
     ? profileUser.locations[0].address
-    : 'No location specified';
+    : 'Chưa cập nhật địa chỉ';
 
   const isOwnProfile = currentUser?.id === profileUser.id;
 
@@ -117,8 +117,6 @@ export function ProfilePage() {
     .filter(isHiddenListing)
     .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
 
-
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -135,7 +133,7 @@ export function ProfilePage() {
                 <div className="flex items-center space-x-1 mb-4">
                   <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                   <span className="font-semibold">{profileUser.rating || 0}</span>
-                  <span className="text-gray-600 dark:text-gray-400"> rating</span>
+                  <span className="text-gray-600 dark:text-gray-400"> đánh giá</span>
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-gray-600 dark:text-gray-400 mb-6">
@@ -145,7 +143,7 @@ export function ProfilePage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4" />
-                    <span>Joined {joinedDateFormatted}</span>
+                    <span>Đã tham gia {joinedDateFormatted}</span>
                   </div>
                 </div>
 
@@ -155,7 +153,7 @@ export function ProfilePage() {
                     className="bg-gradient-to-r from-green-500 to-blue-500"
                   >
                     <Settings className="w-4 h-4 mr-2" />
-                    Account Settings
+                    Thiết lập tài khoản
                   </Button>
                 ) : (
                   <Button
@@ -163,7 +161,7 @@ export function ProfilePage() {
                     className="bg-gradient-to-r from-green-500 to-blue-500"
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
-                    Contact
+                    Liên hệ
                   </Button>
                 )}
               </div>

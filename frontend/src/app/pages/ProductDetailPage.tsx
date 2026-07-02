@@ -336,7 +336,7 @@ export function ProductDetailPage() {
             productId: product._id,
             donorId,
             requesterId,
-            message: "I would like to receive this item",
+            message: "Tôi muốn nhận vật phẩm này",
           }),
         });
 
@@ -777,7 +777,15 @@ export function ProductDetailPage() {
                       Trạng thái
                     </dt>
                     <dd className="text-gray-600 dark:text-gray-400 capitalize">
-                      {product.status === "sold" ? "Đã giao dịch" : product.status}
+                      {product.status === "sold"
+                        ? "Đã giao dịch"
+                        : product.status === "reserved"
+                        ? "Đang giao dịch"
+                        : product.status === "available"
+                        ? "Đang hiển thị"
+                        : product.status === "hidden"
+                        ? "Đã ẩn"
+                        : product.status}
                     </dd>
                   </div>
                 </dl>

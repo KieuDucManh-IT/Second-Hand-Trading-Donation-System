@@ -105,12 +105,12 @@ export function Header() {
     if (!file) return;
  
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      toast.error('Vui lòng chọn một tệp hình ảnh');
       return;
     }
  
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image must be smaller than 2MB');
+      toast.error('Kích thước ảnh phải nhỏ hơn 2MB');
       return;
     }
  
@@ -118,7 +118,7 @@ export function Header() {
       setAvatarUploading(true);
  
       const token = sessionStorage.getItem('token');
-      if (!token) throw new Error('You are not logged in');
+      if (!token) throw new Error('Bạn chưa đăng nhập');
  
       const formData = new FormData();
       formData.append('avatar', file);
@@ -140,14 +140,14 @@ export function Header() {
         throw new Error('Backend trả về HTML, kiểm tra lại route update-avatar hoặc lỗi server backend');
       }
  
-      if (!res.ok) throw new Error(data.message || 'Upload avatar failed');
+      if (!res.ok) throw new Error(data.message || 'Tải ảnh đại diện lên thất bại');
  
       const newAvatarUrl = `${data.user.avatar}?t=${Date.now()}`;
       updateProfile({ avatar: newAvatarUrl });
-      toast.success(data.message || 'Avatar updated successfully');
+      toast.success(data.message || 'Cập nhật ảnh đại diện thành công');
     } catch (err: any) {
       console.error('UPLOAD AVATAR ERROR:', err);
-      toast.error(err.message || 'Upload avatar failed');
+      toast.error(err.message || 'Tải ảnh đại diện lên thất bại');
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
@@ -175,7 +175,7 @@ export function Header() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search for products, categories..."
+                placeholder="Tìm kiếm sản phẩm, danh mục..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 w-full rounded-full border-gray-300 dark:border-gray-600"
@@ -199,7 +199,7 @@ export function Header() {
                   className="hidden sm:flex items-center space-x-2 rounded-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                 >
                   <Plus className="w-5 h-5" />
-                  <span className="hidden lg:inline">Post Item</span>
+                  <span className="hidden lg:inline">Đăng tin</span>
                 </Button>
  
                 {/* Messages */}
@@ -251,7 +251,7 @@ export function Header() {
                         avatarInputRef.current?.click();
                       }}
                       className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-green-500 to-blue-500 text-white flex items-center justify-center border-2 border-white dark:border-gray-800 shadow hover:scale-105 transition disabled:opacity-60"
-                      title="Change avatar"
+                      title="Thay đổi ảnh đại diện"
                     >
                       <Plus className="w-3 h-3" />
                     </button>
@@ -264,49 +264,39 @@ export function Header() {
  
                       <DropdownMenuItem onClick={() => navigate(`/profile/${user?.id}`)}>
                         <User className="w-4 h-4 mr-2" />
-                        My Profile
+                        Trang cá nhân
                       </DropdownMenuItem>
  
                       <DropdownMenuItem onClick={() => navigate('/wallet')}>
                         <Wallet className="w-4 h-4 mr-2" />
-                        My Wallet
+                        Ví của tôi
                       </DropdownMenuItem>
  
                       <DropdownMenuItem onClick={() => navigate('/orders')}>
                         <Package className="w-4 h-4 mr-2" />
-                        My Orders
+                        Đơn hàng của tôi
                       </DropdownMenuItem>
  
                       <DropdownMenuItem onClick={() => navigate('/exchanges')}>
                         <ArrowLeftRight className="w-4 h-4 mr-2" />
-                        Exchanges
-                      </DropdownMenuItem>
- 
-                      <DropdownMenuItem onClick={() => navigate('/transactions')}>
-                        <ShieldCheck className="w-4 h-4 mr-2" />
-                        Transactions
+                        Yêu cầu trao đổi
                       </DropdownMenuItem>
  
                       <DropdownMenuItem onClick={() => navigate('/notifications')}>
                         <Package className="w-4 h-4 mr-2" />
-                        Notifications
-                      </DropdownMenuItem>
- 
-                      <DropdownMenuItem>
-                        <Heart className="w-4 h-4 mr-2" />
-                        Favorites
+                        Thông báo
                       </DropdownMenuItem>
  
                       <DropdownMenuItem onClick={() => navigate('/account-settings')}>
                         <Settings className="w-4 h-4 mr-2" />
-                        Settings
+                        Cài đặt
                       </DropdownMenuItem>
  
                       {user?.role === 'manager' && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => navigate('/manager')}>
-                            Manager Dashboard
+                            Bảng quản trị
                           </DropdownMenuItem>
                         </>
                       )}
@@ -315,7 +305,7 @@ export function Header() {
  
                       <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="w-4 h-4 mr-2" />
-                        Logout
+                        Đăng xuất
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -324,13 +314,13 @@ export function Header() {
             ) : (
               <>
                 <Button variant="outline" onClick={() => navigate('/login')} className="hidden sm:flex">
-                  Login
+                  Đăng nhập
                 </Button>
                 <Button
                   onClick={() => navigate('/register')}
                   className="rounded-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                 >
-                  Sign Up
+                  Đăng ký
                 </Button>
               </>
             )}
@@ -353,7 +343,7 @@ export function Header() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Tìm kiếm..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 w-full rounded-full"
@@ -374,7 +364,7 @@ export function Header() {
                   className="w-full justify-start"
                 >
                   <User className="w-5 h-5 mr-2" />
-                  My Profile
+                  Trang cá nhân
                 </Button>
  
                 <Button
@@ -383,7 +373,7 @@ export function Header() {
                   className="w-full justify-start"
                 >
                   <Plus className="w-5 h-5 mr-2" />
-                  Post Item
+                  Đăng tin
                 </Button>
  
                 <Button
@@ -392,7 +382,7 @@ export function Header() {
                   className="w-full justify-start"
                 >
                   <MessageSquare className="w-5 h-5 mr-2" />
-                  Messages
+                  Tin nhắn
                 </Button>
  
                 <Button
@@ -401,7 +391,7 @@ export function Header() {
                   className="w-full justify-start"
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
-                  Cart
+                  Giỏ hàng
                 </Button>
  
                 <Button
@@ -410,25 +400,16 @@ export function Header() {
                   className="w-full justify-start"
                 >
                   <Package className="w-5 h-5 mr-2" />
-                  My Orders
+                  Đơn hàng của tôi
                 </Button>
  
-                <Button
+                 <Button
                   variant="ghost"
                   onClick={() => { navigate('/exchanges'); setMobileMenuOpen(false); }}
                   className="w-full justify-start"
                 >
                   <ArrowLeftRight className="w-5 h-5 mr-2" />
-                  Exchanges
-                </Button>
- 
-                <Button
-                  variant="ghost"
-                  onClick={() => { navigate('/transactions'); setMobileMenuOpen(false); }}
-                  className="w-full justify-start"
-                >
-                  <ShieldCheck className="w-5 h-5 mr-2" />
-                  Transactions
+                  Yêu cầu trao đổi
                 </Button>
  
                 <Button
@@ -437,7 +418,7 @@ export function Header() {
                   className="w-full justify-start"
                 >
                   <Package className="w-5 h-5 mr-2" />
-                  Notifications
+                  Thông báo
                 </Button>
               </>
             ) : (
@@ -447,14 +428,14 @@ export function Header() {
                   onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
                   className="w-full"
                 >
-                  Login
+                  Đăng nhập
                 </Button>
  
                 <Button
                   onClick={() => { navigate('/register'); setMobileMenuOpen(false); }}
                   className="w-full bg-gradient-to-r from-green-500 to-blue-500"
                 >
-                  Sign Up
+                  Đăng ký
                 </Button>
               </>
             )}
