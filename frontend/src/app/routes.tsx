@@ -27,8 +27,7 @@ import { ExchangeHistoryPage } from "./pages/ExchangeHistoryPage";
 
 import { CreateOrderPage } from "./pages/CreateOrderPage";
 
-import { TransactionDetailPage } from "./pages/TransactionDetailPage";
-import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
+
 
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AccountSettingsPage } from "./pages/AccountSettingsPage";
@@ -69,8 +68,7 @@ export const router = createBrowserRouter([
       { path: "exchanges/:id", element: <ExchangeDetailPage /> },
       { path: "exchange-history", element: <ExchangeHistoryPage /> },
 
-      { path: "transactions", element: <TransactionHistoryPage /> },
-      { path: "transactions/:id", element: <TransactionDetailPage /> },
+
 
       { path: "manager", element: <ManagerDashboard /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
