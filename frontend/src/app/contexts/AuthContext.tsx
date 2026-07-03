@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userName: backendUser.userName || backendUser.fullName || backendUser.name || backendUser.email,
       avatar: backendUser.avatar || "",
       role: backendUser.role === "manager" ? "manager" : "user",
-      rating: backendUser.rating || 0,
+      rating: backendUser.rating || 5,
       totalReviews: backendUser.totalReviews || 0,
       joinedDate:
         backendUser.joinedDate ||
