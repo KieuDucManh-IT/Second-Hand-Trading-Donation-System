@@ -202,5 +202,5 @@ export async function fetchOrderById(
  
 /** Format tiền VND */
 export function formatVND(n: number): string {
-  return n.toLocaleString("vi-VN") + "đ";
+  return n.toLocaleString("vi-VN") + " VND";
 }

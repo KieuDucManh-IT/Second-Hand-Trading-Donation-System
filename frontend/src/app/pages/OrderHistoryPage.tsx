@@ -246,7 +246,7 @@ function OrderDetailModal({
                 #{order._id}
               </p>
               <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
-                {Number(order.totalPrice || 0).toLocaleString("vi-VN")} đ
+                {Number(order.totalPrice || 0).toLocaleString("vi-VN")} VND
               </p>
               <div className="mt-1">
                 <StatusBadge status={status} paymentMethod={order.paymentMethod} />
@@ -888,7 +888,7 @@ function OrderCard({
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   <span className="text-base font-bold text-gray-900 dark:text-white">
-                    — {Number(order.totalPrice || 0).toLocaleString("vi-VN")} đ
+                    — {Number(order.totalPrice || 0).toLocaleString("vi-VN")} VND
                   </span>
                   <StatusBadge status={status} paymentMethod={order.paymentMethod} />
                 </div>

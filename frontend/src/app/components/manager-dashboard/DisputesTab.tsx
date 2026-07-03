@@ -344,10 +344,7 @@ export function DisputesTab({ disputesData, resolveDispute }: DisputesTabProps) 
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(val);
+    return new Intl.NumberFormat('vi-VN').format(val) + ' VND';
   };
 
   const getResolutionButtonClass = () => {

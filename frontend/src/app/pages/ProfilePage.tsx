@@ -212,7 +212,7 @@ export function ProfilePage() {
                       <span className="text-xl font-bold text-green-600">Miễn phí</span>
                     ) : (
                       <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                        {product.price.toLocaleString('vi-VN')} đ
+                        {product.price.toLocaleString('vi-VN')} VND
                       </span>
                     )}
                   </CardContent>
@@ -263,7 +263,7 @@ export function ProfilePage() {
                       <span className="text-xl font-bold text-green-600">Miễn phí</span>
                     ) : (
                       <span className="text-xl font-bold text-slate-500 dark:text-slate-400 line-through">
-                        {product.price.toLocaleString('vi-VN')} đ
+                        {product.price.toLocaleString('vi-VN')} VND
                       </span>
                     )}
                   </CardContent>
@@ -323,7 +323,7 @@ export function ProfilePage() {
                         <div className="text-xl font-bold text-green-600">Miễn phí</div>
                       ) : (
                         <div className="text-xl font-bold text-slate-500 dark:text-slate-400">
-                          {product.price.toLocaleString('vi-VN')} đ
+                          {product.price.toLocaleString('vi-VN')} VND
                         </div>
                       )}
                       {product.rejectReason && (

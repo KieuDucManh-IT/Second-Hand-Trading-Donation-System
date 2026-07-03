@@ -194,7 +194,7 @@ export function FavoriteProductsPage() {
                       <span className="text-lg font-bold text-green-600">Miễn phí</span>
                     ) : (
                       <span className="text-lg font-bold text-gray-900 dark:text-white">
-                        {product.price.toLocaleString("vi-VN")} đ
+                        {product.price.toLocaleString("vi-VN")} VND
                       </span>
                     )}
                   </div>

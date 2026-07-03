@@ -166,7 +166,7 @@ export function ProductsTab({
                     {product.isDonation ? (
                       <Badge className="rounded-full bg-emerald-600 text-white hover:bg-emerald-600">Miễn phí</Badge>
                     ) : (
-                      `${product.price.toLocaleString('vi-VN')} đ`
+                      `${product.price.toLocaleString('vi-VN')} VND`
                     )}
                   </TableCell>
                   <TableCell className="align-top">
