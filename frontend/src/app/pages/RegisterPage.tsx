@@ -32,12 +32,12 @@ export function RegisterPage() {
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Mật khẩu nhập lại không khớp');
       return;
     }
 
     if (!agreeToTerms) {
-      setError('Please agree to the Terms of Service and Privacy Policy');
+      setError('Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật');
       return;
     }
 
@@ -57,16 +57,16 @@ export function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || 'Failed to send OTP');
-        toast.error(data.message || 'Failed to send OTP');
+        setError(data.message || 'Gửi mã OTP thất bại');
+        toast.error(data.message || 'Gửi mã OTP thất bại');
         return;
       }
 
-      toast.success('OTP has been sent to your email!');
+      toast.success('Mã OTP đã được gửi đến email của bạn!');
       setStep('OTP');
     } catch (err) {
-      setError('Cannot connect to server');
-      toast.error('Cannot connect to server');
+      setError('Không thể kết nối đến máy chủ');
+      toast.error('Không thể kết nối đến máy chủ');
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +77,7 @@ export function RegisterPage() {
     setError('');
 
     if (!otp) {
-      setError('Please enter OTP');
+      setError('Vui lòng nhập mã OTP');
       return;
     }
 
@@ -100,16 +100,16 @@ export function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || 'Invalid OTP');
-        toast.error(data.message || 'Invalid OTP');
+        setError(data.message || 'Mã OTP không hợp lệ');
+        toast.error(data.message || 'Mã OTP không hợp lệ');
         return;
       }
 
-      toast.success('Account created successfully!');
+      toast.success('Đăng ký tài khoản thành công!');
       navigate('/login');
     } catch (err) {
-      setError('Cannot connect to server');
-      toast.error('OTP verification failed');
+      setError('Không thể kết nối đến máy chủ');
+      toast.error('Xác thực OTP thất bại');
     } finally {
       setIsLoading(false);
     }
@@ -119,18 +119,18 @@ export function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-2xl flex items-center justify-center">
-            <Package className="w-8 h-8 text-white" />
+          <div className="mx-auto flex justify-center">
+            <img src="/assets/logo.png" alt="Logo" className="h-32 w-auto object-contain" />
           </div>
 
           <CardTitle className="text-2xl font-bold">
-            {step === 'REGISTER' ? 'Create Account' : 'Verify Email'}
+            {step === 'REGISTER' ? 'Tạo tài khoản' : 'Xác thực Email'}
           </CardTitle>
 
           <CardDescription>
             {step === 'REGISTER'
-              ? 'Join SecondLife and start trading today'
-              : `Enter the OTP sent to ${formData.email}`}
+              ? 'Tham gia Second-Hand Trading & Donation System và bắt đầu giao dịch ngay hôm nay'
+              : `Nhập mã OTP đã được gửi đến ${formData.email}`}
           </CardDescription>
         </CardHeader>
 
@@ -144,7 +144,7 @@ export function RegisterPage() {
           {step === 'REGISTER' ? (
             <form onSubmit={handleSendOTP} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="userName">User Name</Label>
+                <Label htmlFor="userName">Tên người dùng</Label>
                 <Input
                   id="userName"
                   type="text"
@@ -170,7 +170,7 @@ export function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Mật khẩu</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -190,11 +190,11 @@ export function RegisterPage() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">Must be at least 6 characters</p>
+                <p className="text-xs text-gray-500">Phải chứa ít nhất 6 ký tự</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
@@ -216,13 +216,13 @@ export function RegisterPage() {
                   htmlFor="terms"
                   className="text-sm text-gray-600 dark:text-gray-400 leading-tight cursor-pointer"
                 >
-                  I agree to the{' '}
+                  Tôi đồng ý với{' '}
                   <Link to="/terms" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                    Terms of Service
+                    Điều khoản dịch vụ
                   </Link>{' '}
-                  and{' '}
+                  và{' '}
                   <Link to="/privacy" className="text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                    Privacy Policy
+                    Chính sách bảo mật
                   </Link>
                 </label>
               </div>
@@ -232,24 +232,24 @@ export function RegisterPage() {
                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                 disabled={isLoading}
               >
-                {isLoading ? 'Sending OTP...' : 'Create Account'}
+                {isLoading ? 'Đang gửi mã OTP...' : 'Tạo tài khoản'}
               </Button>
             </form>
           ) : (
             <form onSubmit={handleVerifyOTP} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="otp">OTP Code</Label>
+                <Label htmlFor="otp">Mã OTP</Label>
                 <Input
                   id="otp"
                   type="text"
-                  placeholder="Enter 6-digit OTP"
+                  placeholder="Nhập mã OTP 6 chữ số"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   required
                   maxLength={6}
                 />
                 <p className="text-xs text-gray-500">
-                  Please check your email and enter the OTP code.
+                  Vui lòng kiểm tra email của bạn và nhập mã OTP.
                 </p>
               </div>
 
@@ -258,7 +258,7 @@ export function RegisterPage() {
                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
                 disabled={isLoading}
               >
-                {isLoading ? 'Verifying OTP...' : 'Verify OTP'}
+                {isLoading ? 'Đang xác thực OTP...' : 'Xác thực OTP'}
               </Button>
 
               <Button
@@ -268,21 +268,21 @@ export function RegisterPage() {
                 onClick={() => setStep('REGISTER')}
                 disabled={isLoading}
               >
-                Back to Register
+                Quay lại đăng ký
               </Button>
             </form>
           )}
 
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
+            Đã có tài khoản?{' '}
             <Link to="/login" className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium">
-              Sign in
+              Đăng nhập
             </Link>
           </div>
 
           <div className="text-center">
             <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400">
-              ← Back to Home
+              ← Quay lại trang chủ
             </Link>
           </div>
         </CardContent>
