@@ -328,7 +328,6 @@ export default function WalletPage() {
                 body: JSON.stringify({ amount }),
             });
 
-            console.log("DEPOSIT RESPONSE:", data);
 
             const payment =
                 data.payment ||
