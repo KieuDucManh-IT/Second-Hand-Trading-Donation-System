@@ -114,3 +114,34 @@ export const CONDITION_LABELS: Record<string, string> = {
   fair:     'Khá',
   poor:     'Cũ',
 };
+
+export async function toggleProductFavorite(id: string): Promise<{ success: boolean; isFavorite: boolean; message: string }> {
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/products/${id}/favorite`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || 'Không thể thực hiện yêu thích');
+  }
+  return res.json();
+}
+
+export async function fetchFavoriteProducts(): Promise<{ success: boolean; data: ApiProduct[] }> {
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/products/favorites`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || 'Không thể tải danh sách yêu thích');
+  }
+  return res.json();
+}

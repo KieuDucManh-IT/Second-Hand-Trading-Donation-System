@@ -17,6 +17,8 @@ const {
   getMyProductsForExchange,
   getSensitiveWordsRoute,
   getProductReviews,
+  toggleFavorite,
+  getFavoriteProducts,
 } = require('../controllers/productController');
 
 const { protect }       = require('../middlewares/authMiddleware');
@@ -38,6 +40,7 @@ router.get('/seller/:userId', getSellerProducts);
 // ── User protected routes cần đặt TRƯỚC /:id ────────────────────────────────
 router.get('/my', protect, getMyProducts);
 router.get("/my/exchange", protect, getMyProductsForExchange);
+router.get('/favorites', protect, getFavoriteProducts);
 
 // ── Manager routes cần đặt TRƯỚC /:id ───────────────────────────────────────
 router.get('/pending', protect, requireManager, getPendingProducts);
@@ -53,6 +56,7 @@ router.post('/:id/images', protect, uploadProduct.array('images', 8), uploadImag
 router.delete('/images/:imageId', protect, deleteImage);
 router.put('/:id', protect, updateProduct);
 router.delete('/:id', protect, deleteProduct);
+router.post('/:id/favorite', protect, toggleFavorite);
 
 // ── Manager routes ────────────────────────────────────────────────────────────
 router.put('/:id/approve', protect, requireManager, approveProduct);

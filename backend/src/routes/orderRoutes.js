@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middlewares/authMiddleware");
+const uploadComplaintEvidence = require("../middlewares/uploadComplaintEvidenceMiddleware");
 const orderEscrowController = require("../controllers/orderEscrowController");
 const multer = require("multer");
 
@@ -30,7 +31,7 @@ router.post("/:orderId/cancel", protect, orderEscrowController.cancelOrderAndRef
 router.post("/:orderId/ship", protect, uploadShippingProof.array("shippingProofImages", 5), orderEscrowController.markOrderShipping);
 router.post("/:orderId/deliver", protect, orderEscrowController.markOrderDelivered);
 router.post("/:orderId/receive", protect, orderEscrowController.buyerConfirmReceived);
-router.post("/:orderId/dispute", protect, orderEscrowController.openOrderDispute);
+router.post("/:orderId/dispute", protect, uploadComplaintEvidence.array("evidenceFiles", 5), orderEscrowController.openOrderDispute);
 
 // Admin / Manual trigger for auto release
 router.post("/auto-release", protect, orderEscrowController.manualRunAutoRelease);

@@ -65,20 +65,6 @@ exports.rejectDonation = async (req, res) => {
   }
 };
 
-exports.getDonations = async (req, res) => {
-  try {
-    const donations = await Donation.find()
-      .populate("productId")
-      .populate("donorId")
-      .populate("requesterId");
-
-    res.status(200).json(donations);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
 exports.getMyDonations = async (req, res) => {
   try {
     const userId = req.user.id;

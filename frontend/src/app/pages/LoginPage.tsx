@@ -41,11 +41,11 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      toast.success("Login successful!");
+      toast.success("Đăng nhập thành công!");
       navigate(getPostLoginPath());
     } catch (err: any) {
-      setError(err.message || "Invalid email or password");
-      toast.error(err.message || "Login failed");
+      setError(err.message || "Email hoặc mật khẩu không đúng");
+      toast.error(err.message || "Đăng nhập thất bại");
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +53,7 @@ export function LoginPage() {
 
   const handleGoogleLogin = async (credential?: string) => {
     if (!credential) {
-      toast.error("Google login failed");
+      toast.error("Đăng nhập Google thất bại");
       return;
     }
 
@@ -63,11 +63,11 @@ export function LoginPage() {
 
       await loginWithGoogle(credential);
 
-      toast.success("Google login successful!");
+      toast.success("Đăng nhập Google thành công!");
       navigate(getPostLoginPath());
     } catch (err: any) {
-      setError(err.message || "Google login failed");
-      toast.error(err.message || "Google login failed");
+      setError(err.message || "Đăng nhập Google thất bại");
+      toast.error(err.message || "Đăng nhập Google thất bại");
     } finally {
       setIsLoading(false);
     }
@@ -77,11 +77,11 @@ export function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-2xl flex items-center justify-center">
-            <Package className="w-8 h-8 text-white" />
+          <div className="mx-auto flex justify-center">
+            <img src="/assets/logo.png" alt="Logo" className="h-32 w-auto object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>Sign in to your SecondLife account</CardDescription>
+          <CardTitle className="text-2xl font-bold">Chào mừng trở lại</CardTitle>
+          <CardDescription>Đăng nhập vào tài khoản của bạn</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
@@ -106,12 +106,12 @@ export function LoginPage() {
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Mật khẩu</Label>
                 <Link
                   to="/forgot-password"
                   className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
                 >
-                  Forgot password?
+                  Quên mật khẩu?
                 </Link>
               </div>
               <div className="relative">
@@ -143,7 +143,7 @@ export function LoginPage() {
               className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </form>
 
@@ -153,7 +153,7 @@ export function LoginPage() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">
-                Login with Google
+                Hoặc đăng nhập bằng
               </span>
             </div>
           </div>
@@ -170,12 +170,12 @@ export function LoginPage() {
           </div>
 
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{" "}
+            Chưa có tài khoản?{" "}
             <Link
               to="/register"
               className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
             >
-              Sign up
+              Đăng ký ngay
             </Link>
           </div>
 
@@ -184,7 +184,7 @@ export function LoginPage() {
               to="/"
               className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
             >
-              ← Back to Home
+              ← Quay lại trang chủ
             </Link>
           </div>
         </CardContent>

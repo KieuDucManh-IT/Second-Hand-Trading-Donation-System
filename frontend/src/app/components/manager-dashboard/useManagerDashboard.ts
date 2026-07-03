@@ -136,18 +136,27 @@ export function useManagerDashboard() {
   const resolveDispute = async (
     disputeId: string,
     type: 'order' | 'exchange',
-    resolution: 'accept' | 'reject',
+    resolution: 'accept' | 'reject' | 'refund_a' | 'refund_b' | 'continue_auto_release',
     hasReturnedGoods: boolean,
     resolutionNote: string
   ) => {
     try {
+      let apiResolution = resolution;
+      if (type === 'order') {
+        if (resolution === 'refund_a') {
+          apiResolution = 'accept';
+        } else if (resolution === 'refund_b') {
+          apiResolution = 'reject';
+        }
+      }
+
       const response = await fetch(`${API_URL}/disputes/resolve`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
           disputeId,
           type,
-          resolution,
+          resolution: apiResolution,
           hasReturnedGoods,
           resolutionNote,
         }),

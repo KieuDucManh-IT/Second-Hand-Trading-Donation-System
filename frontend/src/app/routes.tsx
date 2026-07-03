@@ -12,6 +12,7 @@ import { ProductListingPage } from "./pages/ProductListingPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { CreateProductPage } from "./pages/CreateProductPage";
 import { ProductReviewsPage } from "./pages/ProductReviewsPage";
+import { FavoriteProductsPage } from "./pages/FavoriteProductsPage";
 
 import { MessagesPage } from "./pages/MessagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -34,7 +35,6 @@ import { AccountSettingsPage } from "./pages/AccountSettingsPage";
 import WalletPage from "./pages/WalletPage";
 
 import DonationRequestsPage from "./pages/DonationRequestsPage";
-import DonationRequest from "./pages/DonationRequest";
 import NotificationPage from "./pages/Notification";
 export const router = createBrowserRouter([
   {
@@ -53,9 +53,9 @@ export const router = createBrowserRouter([
       { path: "products/:id", element: <ProductDetailPage /> },
       { path: "products/:id/reviews", element: <ProductReviewsPage /> },
       { path: "create-product", element: <CreateProductPage /> },
+      { path: "favorites", element: <FavoriteProductsPage /> },
 
       { path: "donations", element: <DonationPage /> },
-      { path: "donation-request/:id", element: <DonationRequest /> },
       { path: "donation-requests", element: <DonationRequestsPage /> },
 
       { path: "messages", element: <MessagesPage /> },
