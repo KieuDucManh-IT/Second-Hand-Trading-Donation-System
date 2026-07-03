@@ -240,7 +240,7 @@ function getProductValue(product: any) {
 }
 
 function formatMoney(value?: number) {
-  return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + "đ";
+  return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + " VND";
 }
 
 function formatDate(value?: string) {
@@ -373,7 +373,6 @@ export function ExchangeRequestsPage() {
     const token = getToken();
     const url = `${API_BASE}${path}`;
 
-    console.log("CALL API:", url);
 
     const isFormData = options.body instanceof FormData;
 
