@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
@@ -185,10 +185,30 @@ export function DisputesTab({ disputesData, resolveDispute }: DisputesTabProps) 
   const [resolutionType, setResolutionType] = useState<ReviewResolution | null>(null);
   const [resolutionNote, setResolutionNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [showHistory, setShowHistory] = useState<boolean>(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  
+  const [selectedStatus, setSelectedStatus] = useState<string>(() => {
+    return sessionStorage.getItem('disputes_tab_selected_status') || 'all';
+  });
+  const [showHistory, setShowHistory] = useState<boolean>(() => {
+    return sessionStorage.getItem('disputes_tab_show_history') === 'true';
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem('disputes_tab_current_page');
+    return saved ? Number(saved) : 1;
+  });
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    sessionStorage.setItem('disputes_tab_selected_status', selectedStatus);
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    sessionStorage.setItem('disputes_tab_show_history', String(showHistory));
+  }, [showHistory]);
+
+  useEffect(() => {
+    sessionStorage.setItem('disputes_tab_current_page', String(currentPage));
+  }, [currentPage]);
 
   const handleToggleHistory = (historyMode: boolean) => {
     setShowHistory(historyMode);

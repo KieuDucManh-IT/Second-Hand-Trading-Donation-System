@@ -19,10 +19,19 @@ export function ProductsTab({
   updateProductStatus,
 }: ProductsTabProps) {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return sessionStorage.getItem('products_tab_search_query') || '';
+  });
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    return sessionStorage.getItem('products_tab_selected_category') || 'all';
+  });
+  const [selectedStatus, setSelectedStatus] = useState(() => {
+    return sessionStorage.getItem('products_tab_selected_status') || 'all';
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem('products_tab_current_page');
+    return saved ? Number(saved) : 1;
+  });
   const itemsPerPage = 10;
 
   const categoriesList = Array.from(
@@ -51,9 +60,31 @@ export function ProductsTab({
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const [isFirstRender, setIsFirstRender] = useState(true);
+
   useEffect(() => {
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      return;
+    }
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, selectedStatus]);
+
+  useEffect(() => {
+    sessionStorage.setItem('products_tab_search_query', searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    sessionStorage.setItem('products_tab_selected_category', selectedCategory);
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    sessionStorage.setItem('products_tab_selected_status', selectedStatus);
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    sessionStorage.setItem('products_tab_current_page', String(currentPage));
+  }, [currentPage]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice(

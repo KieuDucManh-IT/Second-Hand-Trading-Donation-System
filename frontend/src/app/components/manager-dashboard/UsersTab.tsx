@@ -19,8 +19,13 @@ export function UsersTab({
   currentUser,
   updateUserStatus,
 }: UsersTabProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return sessionStorage.getItem('users_tab_search_query') || '';
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem('users_tab_current_page');
+    return saved ? Number(saved) : 1;
+  });
   const itemsPerPage = 10;
 
   const filteredUsers = data.users.filter((user) =>
@@ -28,9 +33,23 @@ export function UsersTab({
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const [isFirstRender, setIsFirstRender] = useState(true);
+
   useEffect(() => {
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      return;
+    }
     setCurrentPage(1);
   }, [searchQuery]);
+
+  useEffect(() => {
+    sessionStorage.setItem('users_tab_search_query', searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    sessionStorage.setItem('users_tab_current_page', String(currentPage));
+  }, [currentPage]);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const paginatedUsers = filteredUsers.slice(

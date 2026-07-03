@@ -52,9 +52,20 @@ export function useManagerDashboard() {
   const [data, setData] = useState<ManagerDashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<DashboardTab>((location.state as any)?.tab || 'products');
+  
+  const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
+    const stateTab = (location.state as any)?.tab;
+    if (stateTab) return stateTab;
+    const savedTab = sessionStorage.getItem('manager_dashboard_active_tab') as DashboardTab;
+    if (savedTab && ['products', 'reports', 'users', 'categories', 'config', 'disputes'].includes(savedTab)) {
+      return savedTab;
+    }
+    return 'products';
+  });
 
-
+  useEffect(() => {
+    sessionStorage.setItem('manager_dashboard_active_tab', activeTab);
+  }, [activeTab]);
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState<'create' | 'edit'>('create');
@@ -62,7 +73,15 @@ export function useManagerDashboard() {
   const [categoryName, setCategoryName] = useState('');
   const [categoryDescription, setCategoryDescription] = useState('');
 
-  const [showAllProducts, setShowAllProducts] = useState(true);
+  const [showAllProducts, setShowAllProducts] = useState(() => {
+    const saved = sessionStorage.getItem('manager_dashboard_show_all_products');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('manager_dashboard_show_all_products', String(showAllProducts));
+  }, [showAllProducts]);
+
   const [allProductsList, setAllProductsList] = useState<Array<any>>([]);
   const [disputesData, setDisputesData] = useState<{ orders: Array<any>; exchanges: Array<any> }>({ orders: [], exchanges: [] });
 
