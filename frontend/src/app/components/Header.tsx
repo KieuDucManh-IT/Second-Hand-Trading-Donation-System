@@ -270,6 +270,11 @@ export function Header() {
                         Trang cá nhân
                       </DropdownMenuItem>
 
+                      <DropdownMenuItem onClick={() => navigate('/favorites')}>
+                        <Heart className="w-4 h-4 mr-2 text-gray-500" />
+                        Sản phẩm yêu thích
+                      </DropdownMenuItem>
+
                       <DropdownMenuItem onClick={() => navigate('/wallet')}>
                         <Wallet className="w-4 h-4 mr-2 text-gray-500" />
                         Ví của tôi
@@ -368,6 +373,15 @@ export function Header() {
                 >
                   <User className="w-5 h-5 mr-2" />
                   Trang cá nhân
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onClick={() => { navigate('/favorites'); setMobileMenuOpen(false); }}
+                  className="w-full justify-start"
+                >
+                  <Heart className="w-5 h-5 mr-2 text-gray-500" />
+                  Sản phẩm yêu thích
                 </Button>
 
                 <Button

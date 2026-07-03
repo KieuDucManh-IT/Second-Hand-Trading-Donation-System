@@ -569,3 +569,74 @@ exports.getProductReviews = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.toggleFavorite = async (req, res, next) => {
+  try {
+    const User = require("../models/modelUser");
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Sản phẩm không tồn tại hoặc đã bị xóa" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
+    }
+
+    if (!user.favorites) {
+      user.favorites = [];
+    }
+
+    const index = user.favorites.indexOf(id);
+    let isFavorite = false;
+    if (index === -1) {
+      user.favorites.push(id);
+      isFavorite = true;
+    } else {
+      user.favorites.splice(index, 1);
+      isFavorite = false;
+    }
+
+    await user.save();
+    res.json({
+      success: true,
+      message: isFavorite ? "Đã thêm vào danh sách yêu thích" : "Đã xóa khỏi danh sách yêu thích",
+      isFavorite
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getFavoriteProducts = async (req, res, next) => {
+  try {
+    const User = require("../models/modelUser");
+    const userId = req.user._id;
+
+    const user = await User.findById(userId).populate("favorites");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
+    }
+
+    const favoritedProducts = (user.favorites || []).filter(p => p != null);
+    const raw = favoritedProducts.map(p => p.toObject ? p.toObject() : p);
+
+    const populated = await Product.populate(raw, [
+      { path: 'ownerId', select: 'fullName avatar rating isVerified' },
+      { path: 'categoryId', select: 'name' }
+    ]);
+
+    const validProducts = populated.filter(p => p != null);
+    const products = await attachImages(validProducts);
+
+    res.json({
+      success: true,
+      data: products
+    });
+  } catch (err) {
+    next(err);
+  }
+};

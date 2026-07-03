@@ -26,14 +26,19 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Heart,
+  Share2,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../components/ui/sheet';
+import { toast } from 'sonner';
 import {
   fetchProducts,
   fetchCategories,
   ApiProduct,
   ApiCategory,
   CONDITION_LABELS,
+  toggleProductFavorite,
+  fetchFavoriteProducts,
 } from '../api/productApi';
  
 const CONDITIONS = ['new', 'like_new', 'good', 'fair', 'poor'] as const;
@@ -60,6 +65,7 @@ export function ProductListingPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
+  const [favorites, setFavorites]   = useState<string[]>([]);
  
   // Load categories once
   useEffect(() => {
@@ -67,6 +73,46 @@ export function ProductListingPage() {
       .then(res => setCategories(res.data))
       .catch(() => {});
   }, []);
+
+  // Load favorites once
+  useEffect(() => {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (token) {
+      fetchFavoriteProducts()
+        .then(res => {
+          if (res.success && Array.isArray(res.data)) {
+            setFavorites(res.data.map(p => p._id));
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const handleToggleFavorite = async (productId: string) => {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để yêu thích sản phẩm");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const res = await toggleProductFavorite(productId);
+      if (res.success) {
+        if (res.isFavorite) {
+          setFavorites(prev => [...prev, productId]);
+          toast.success(res.message);
+        } else {
+          setFavorites(prev => prev.filter(id => id !== productId));
+          toast.success(res.message);
+        }
+      } else {
+        toast.error(res.message || "Không thể thực hiện");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra");
+    }
+  };
  
   // Load products whenever filters change
   const loadProducts = useCallback(async () => {
@@ -350,6 +396,41 @@ export function ProductListingPage() {
                           alt={product.title}
                           className="w-full h-full object-cover"
                         />
+                        <div className="absolute top-2 right-2 flex gap-1.5 z-20">
+                          <button
+                            className="p-1.5 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 rounded-full shadow transition-all"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await navigator.clipboard.writeText(`${window.location.origin}/products/${product._id}`);
+                                toast.success("Đã sao chép liên kết sản phẩm");
+                              } catch {
+                                toast.error("Không thể sao chép liên kết");
+                              }
+                            }}
+                          >
+                            <Share2 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
+                          </button>
+                          <button
+                            className={`p-1.5 rounded-full shadow transition-all ${
+                              favorites.includes(product._id)
+                                ? "bg-red-500 hover:bg-red-600 text-white"
+                                : "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800"
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleFavorite(product._id);
+                            }}
+                          >
+                            <Heart
+                              className={`w-3.5 h-3.5 ${
+                                favorites.includes(product._id)
+                                  ? "fill-white text-white"
+                                  : "text-gray-600 dark:text-gray-300"
+                              }`}
+                            />
+                          </button>
+                        </div>
                         {product.type === 'donate' && (
                           <Badge className="absolute top-2 left-2 bg-green-500 text-white text-xs">
                             MIỄN PHÍ

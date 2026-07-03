@@ -185,7 +185,7 @@ export function ProfilePage() {
                 <Card
                   key={product._id}
                   className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer relative"
-                  onClick={() => navigate(`/products/${product._id}/reviews`)}
+                  onClick={() => navigate(`/products/${product._id}`)}
                 >
                   <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
                     <ImageWithFallback
@@ -238,7 +238,7 @@ export function ProfilePage() {
                 <Card
                   key={product._id}
                   className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer opacity-75 hover:opacity-100 transition-opacity"
-                  onClick={() => navigate(`/products/${product._id}/reviews`)}
+                  onClick={() => navigate(`/products/${product._id}`)}
                 >
                   <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
                     <ImageWithFallback
@@ -272,6 +272,8 @@ export function ProfilePage() {
             </div>
           )}
         </div>
+
+
 
         {isOwnProfile && (
           <div className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">

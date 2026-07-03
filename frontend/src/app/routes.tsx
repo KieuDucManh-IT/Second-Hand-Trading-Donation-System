@@ -12,6 +12,7 @@ import { ProductListingPage } from "./pages/ProductListingPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { CreateProductPage } from "./pages/CreateProductPage";
 import { ProductReviewsPage } from "./pages/ProductReviewsPage";
+import { FavoriteProductsPage } from "./pages/FavoriteProductsPage";
 
 import { MessagesPage } from "./pages/MessagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: "products/:id", element: <ProductDetailPage /> },
       { path: "products/:id/reviews", element: <ProductReviewsPage /> },
       { path: "create-product", element: <CreateProductPage /> },
+      { path: "favorites", element: <FavoriteProductsPage /> },
 
       { path: "donations", element: <DonationPage /> },
       { path: "donation-requests", element: <DonationRequestsPage /> },

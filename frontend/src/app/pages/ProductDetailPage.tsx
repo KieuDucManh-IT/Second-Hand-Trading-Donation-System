@@ -38,6 +38,8 @@ import {
   fetchProducts,
   ApiProduct,
   CONDITION_LABELS,
+  toggleProductFavorite,
+  fetchFavoriteProducts,
 } from "../api/productApi";
 import { getOrCreateConversation } from "../api/chatApi";
 import { BuyNowModal } from "../components/BuyNowModal";
@@ -116,6 +118,7 @@ export function ProductDetailPage() {
   const isManager = user?.role === "manager" || routeState?.from === "manager";
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<ApiProduct[]>([]);
   const [selectedImage, setSelectedImage] = useState(0);
   const [reportReason, setReportReason] = useState("");
@@ -146,6 +149,18 @@ export function ProductDetailPage() {
         if (cancelled) return;
 
         setProduct(res.data);
+
+        if (isAuthenticated) {
+          try {
+            const favRes = await fetchFavoriteProducts();
+            if (favRes.success && Array.isArray(favRes.data)) {
+              const isFav = favRes.data.some((p: any) => p._id === id);
+              setIsFavorite(isFav);
+            }
+          } catch (favErr) {
+            console.error("Lỗi khi tải danh sách yêu thích:", favErr);
+          }
+        }
 
         if (res.data.categoryId?._id) {
           const relRes = await fetchProducts({
@@ -401,6 +416,27 @@ export function ProductDetailPage() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated) {
+      toast.error("Vui lòng đăng nhập để yêu thích sản phẩm");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      if (!id) return;
+      const res = await toggleProductFavorite(id);
+      if (res.success) {
+        setIsFavorite(res.isFavorite);
+        toast.success(res.message);
+      } else {
+        toast.error(res.message || "Không thể thực hiện");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Có lỗi xảy ra");
+    }
+  };
+
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -520,8 +556,8 @@ export function ProductDetailPage() {
 
               {!isManager && (
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="rounded-full">
-                    <Heart className="w-5 h-5" />
+                  <Button size="sm" variant={isFavorite ? "default" : "outline"} className={`rounded-full ${isFavorite ? "bg-red-500 hover:bg-red-600 text-white border-red-500" : ""}`} onClick={handleToggleFavorite}>
+                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-white text-white" : ""}`} />
                   </Button>
                   <Button
                     size="sm"
