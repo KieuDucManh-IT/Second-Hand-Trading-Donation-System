@@ -132,7 +132,7 @@ export function ProfilePage() {
                 <h1 className="text-3xl font-bold mb-2">{profileUser.fullName}</h1>
                 <div className="flex items-center space-x-1 mb-4">
                   <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold">{profileUser.rating || 0}</span>
+                  <span className="font-semibold">{profileUser.rating || 5}</span>
                   <span className="text-gray-600 dark:text-gray-400"> đánh giá</span>
                 </div>
 

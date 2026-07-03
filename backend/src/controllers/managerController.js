@@ -62,7 +62,7 @@ const buildUserResponse = (user) => ({
   phone: user.phone || "",
   role: user.role,
   status: user.status,
-  rating: user.rating || 0,
+  rating: user.rating || 5,
   warningsCount: user.warningsCount || 0,
   createdAt: user.createdAt,
 });

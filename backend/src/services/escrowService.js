@@ -656,6 +656,8 @@ async function rateSeller(orderId, buyerId, rating, comment) {
   if (ratedOrders.length > 0) {
     const avg = ratedOrders.reduce((sum, o) => sum + (o.sellerRating?.rating || 0), 0) / ratedOrders.length;
     await User.findByIdAndUpdate(order.sellerId, { rating: Math.round(avg * 10) / 10 });
+  } else {
+    await User.findByIdAndUpdate(order.sellerId, { rating: 5 });
   }
   return order;
 }
