@@ -111,7 +111,7 @@ function NotificationCard({
             {/* Số tiền */}
             {noti.data?.amount != null && (
               <p className="text-sm font-semibold text-emerald-600 mt-1">
-                +{noti.data.amount.toLocaleString("vi-VN")}₫
+                +{noti.data.amount.toLocaleString("vi-VN")} VND
               </p>
             )}
           </div>

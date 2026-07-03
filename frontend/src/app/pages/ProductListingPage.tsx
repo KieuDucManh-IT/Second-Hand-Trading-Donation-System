@@ -240,7 +240,7 @@ export function ProductListingPage() {
       {/* Price Range */}
       <div>
         <Label className="text-sm font-medium mb-3 block">
-          Khoảng giá: {priceRange[0].toLocaleString('vi-VN')}₫ – {priceRange[1].toLocaleString('vi-VN')}₫
+           Khoảng giá: {priceRange[0].toLocaleString('vi-VN')} VND – {priceRange[1].toLocaleString('vi-VN')} VND
         </Label>
         <Slider
           min={0}
@@ -472,7 +472,7 @@ export function ProductListingPage() {
                               <span className="text-xl font-bold text-green-600">MIỄN PHÍ</span>
                             ) : (
                               <span className="text-xl font-bold text-gray-900 dark:text-white">
-                                {product.price.toLocaleString('vi-VN')}₫
+                                {product.price.toLocaleString('vi-VN')} VND
                               </span>
                             )}
                           </div>

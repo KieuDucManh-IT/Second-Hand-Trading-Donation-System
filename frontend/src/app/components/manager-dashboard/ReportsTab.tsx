@@ -43,8 +43,15 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
 
   const groupedReportsList = Object.values(groupedReportsMap);
 
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem('reports_tab_current_page');
+    return saved ? Number(saved) : 1;
+  });
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    sessionStorage.setItem('reports_tab_current_page', String(currentPage));
+  }, [currentPage]);
 
   const totalPages = Math.ceil(groupedReportsList.length / itemsPerPage);
   const paginatedGroupedReports = groupedReportsList.slice(

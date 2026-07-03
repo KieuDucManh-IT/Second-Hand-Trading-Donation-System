@@ -327,7 +327,7 @@ export function HomePage() {
                           <span className="text-2xl font-bold text-emerald-600">MIỄN PHÍ</span>
                         ) : (
                           <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {product.price.toLocaleString('vi-VN')}₫
+                            {product.price.toLocaleString('vi-VN')} VND
                           </span>
                         )}
                       </div>

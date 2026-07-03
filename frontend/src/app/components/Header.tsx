@@ -235,7 +235,7 @@ export function Header() {
                         type="button"
                         className="inline-flex items-center justify-center rounded-full p-0.5 hover:ring-2 hover:ring-primary/20 transition-all focus:outline-none"
                       >
-                        <Avatar className="w-8 h-8 border border-border">
+                        <Avatar className="w-11 h-11 border border-border">
                           <AvatarImage key={user?.avatar} src={user?.avatar} />
                           <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{user?.name?.[0] || 'U'}</AvatarFallback>
                         </Avatar>

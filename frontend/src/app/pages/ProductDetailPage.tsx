@@ -578,7 +578,7 @@ export function ProductDetailPage() {
                 <div className="text-4xl font-bold text-green-600">MIỄN PHÍ</div>
               ) : (
                 <div className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {product.price.toLocaleString("vi-VN")}₫
+                  {product.price.toLocaleString("vi-VN")} VND
                 </div>
               )}
             </div>
@@ -876,7 +876,7 @@ export function ProductDetailPage() {
                           </span>
                         ) : (
                           <span className="text-xl font-bold">
-                            {relatedProduct.price.toLocaleString("vi-VN")}₫
+                            {relatedProduct.price.toLocaleString("vi-VN")} VND
                           </span>
                         )}
 

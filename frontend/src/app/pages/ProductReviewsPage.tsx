@@ -155,7 +155,7 @@ export function ProductReviewsPage() {
                   <div className="flex items-center gap-1.5">
                     <Tag className="w-5 h-5 text-slate-400" />
                     <span className="text-2xl font-black text-slate-900 dark:text-white">
-                      {product.type === 'donate' ? 'Miễn phí' : `${product.price.toLocaleString('vi-VN')} đ`}
+                      {product.type === 'donate' ? 'Miễn phí' : `${product.price.toLocaleString('vi-VN')} VND`}
                     </span>
                   </div>
 

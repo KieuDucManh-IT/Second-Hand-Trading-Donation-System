@@ -86,7 +86,7 @@ function toNumber(value: any) {
 }
 
 function formatMoney(value: any) {
-    return new Intl.NumberFormat("vi-VN").format(toNumber(value)) + "đ";
+    return new Intl.NumberFormat("vi-VN").format(toNumber(value)) + " VND";
 }
 
 function getToken() {
@@ -317,7 +317,7 @@ export default function WalletPage() {
             const amount = Number(depositAmount);
 
             if (!amount || amount < 10000) {
-                alert("Số tiền nạp tối thiểu là 10.000đ");
+                alert("Số tiền nạp tối thiểu là 10.000 VND");
                 return;
             }
 
@@ -384,7 +384,7 @@ export default function WalletPage() {
             const amount = Number(withdrawForm.amount);
 
             if (!amount || amount < 10000) {
-                alert("Số tiền rút tối thiểu là 10.000đ");
+                alert("Số tiền rút tối thiểu là 10.000 VND");
                 return;
             }
 
