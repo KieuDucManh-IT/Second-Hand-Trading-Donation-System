@@ -41,7 +41,7 @@ type DashboardViewProps = {
   resolveDispute: (
     disputeId: string,
     type: 'order' | 'exchange',
-    resolution: 'accept' | 'reject',
+    resolution: 'accept' | 'reject' | 'refund_a' | 'refund_b' | 'continue_auto_release',
     hasReturnedGoods: boolean,
     resolutionNote: string
   ) => Promise<void>;
