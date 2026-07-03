@@ -590,7 +590,7 @@ exports.toggleFavorite = async (req, res, next) => {
       user.favorites = [];
     }
 
-    const index = user.favorites.indexOf(id);
+    const index = user.favorites.findIndex(favId => favId && favId.toString() === id.toString());
     let isFavorite = false;
     if (index === -1) {
       user.favorites.push(id);
