@@ -133,6 +133,8 @@ export function ProductDetailPage() {
   const [selectedOfferProductId, setSelectedOfferProductId] = useState("");
   const [exchangeLoading, setExchangeLoading] = useState(false);
 
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+
   useEffect(() => {
     if (!id) return;
 
@@ -272,6 +274,7 @@ export function ProductDetailPage() {
       setExchangeDialogOpen(true);
       setExchangeLoading(true);
       setSelectedOfferProductId("");
+      setSelectedLocationId("");
 
       const data = await api(
         `/products/my/exchange?excludeProductId=${encodeURIComponent(id)}`
@@ -301,6 +304,11 @@ export function ProductDetailPage() {
         return;
       }
 
+      if (!selectedLocationId) {
+        toast.error("Vui lòng chọn địa chỉ của bạn");
+        return;
+      }
+
       setExchangeLoading(true);
 
       const data = await api("/exchange-escrow/request", {
@@ -308,6 +316,7 @@ export function ProductDetailPage() {
         body: JSON.stringify({
           requesterProductId: selectedOfferProductId,
           receiverProductId: id,
+          locationId: selectedLocationId,
         }),
       });
 
@@ -315,6 +324,7 @@ export function ProductDetailPage() {
 
       setExchangeDialogOpen(false);
       setSelectedOfferProductId("");
+      setSelectedLocationId("");
 
       navigate("/exchanges");
     } catch (error: any) {
@@ -517,11 +527,10 @@ export function ProductDetailPage() {
                 {images.map((image, idx) => (
                   <div
                     key={idx}
-                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
-                      selectedImage === idx
-                        ? "border-green-500"
-                        : "border-transparent"
-                    }`}
+                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${selectedImage === idx
+                      ? "border-green-500"
+                      : "border-transparent"
+                      }`}
                     onClick={() => setSelectedImage(idx)}
                   >
                     <ImageWithFallback
@@ -816,12 +825,12 @@ export function ProductDetailPage() {
                       {product.status === "sold"
                         ? "Đã giao dịch"
                         : product.status === "reserved"
-                        ? "Đang giao dịch"
-                        : product.status === "available"
-                        ? "Đang hiển thị"
-                        : product.status === "hidden"
-                        ? "Đã ẩn"
-                        : product.status}
+                          ? "Đang giao dịch"
+                          : product.status === "available"
+                            ? "Đang hiển thị"
+                            : product.status === "hidden"
+                              ? "Đã ẩn"
+                              : product.status}
                     </dd>
                   </div>
                 </dl>
@@ -933,6 +942,34 @@ export function ProductDetailPage() {
               Giá trị: <b>{formatMoney(Number(product.price || 0))}</b>
             </div>
 
+            <div className="mt-3">
+              <b>Địa chỉ của bạn:</b>
+
+              {(user?.locations ?? []).length === 0 ? (
+                <div className="mt-2 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
+                  Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài khoản.
+                </div>
+              ) : (
+                (user?.locations ?? []).map((loc: any) => (
+                  <label
+                    key={loc._id}
+                    className="block mt-2 border p-2 rounded cursor-pointer"
+                  >
+                    <input
+                      type="radio"
+                      name="location"
+                      value={loc._id}
+                      checked={selectedLocationId === loc._id}
+                      onChange={() => setSelectedLocationId(loc._id)}
+                    />
+
+                    <div>📞 {loc.phoneNumber}</div>
+                    <div>📍 {loc.address}</div>
+                  </label>
+                ))
+              )}
+            </div>
+
             {exchangeLoading ? (
               <div className="py-10 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-green-500" />
@@ -952,11 +989,10 @@ export function ProductDetailPage() {
                       key={itemId}
                       type="button"
                       onClick={() => setSelectedOfferProductId(itemId)}
-                      className={`w-full rounded-xl border p-3 text-left transition ${
-                        selected
+                      className={`w-full rounded-xl border p-3 text-left transition ${selected
                           ? "border-green-500 bg-green-50"
                           : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                        }`}
                     >
                       <div className="flex gap-3">
                         <ImageWithFallback
@@ -999,6 +1035,7 @@ export function ProductDetailPage() {
               onClick={() => {
                 setExchangeDialogOpen(false);
                 setSelectedOfferProductId("");
+                setSelectedLocationId("");
               }}
               disabled={exchangeLoading}
             >
@@ -1007,7 +1044,11 @@ export function ProductDetailPage() {
 
             <Button
               onClick={submitExchangeRequest}
-              disabled={exchangeLoading || !selectedOfferProductId}
+              disabled={
+                exchangeLoading ||
+                !selectedOfferProductId ||
+                !selectedLocationId
+              }
             >
               {exchangeLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

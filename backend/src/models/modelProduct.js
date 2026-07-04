@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
- 
+
 const productSchema = new mongoose.Schema(
   {
     ownerId: {
@@ -12,9 +12,9 @@ const productSchema = new mongoose.Schema(
       ref: 'Category',
       required: true,
     },
-    title:       { type: String, required: true, trim: true },
+    title: { type: String, required: true, trim: true },
     description: { type: String, required: true },
-    price:       { type: Number, required: true, min: 0, default: 0 },
+    price: { type: Number, required: true, min: 0, default: 0 },
     condition: {
       type: String,
       enum: ['new', 'like_new', 'good', 'fair', 'poor'],
@@ -31,22 +31,27 @@ const productSchema = new mongoose.Schema(
       default: 'available',        // đăng công khai ngay (đã có lọc từ nhạy cảm)
     },
     location: {
-      type:        { type: String, enum: ['Point'], default: 'Point' },
+      type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [0, 0] },
-      address:     { type: String, default: '' },
+      address: { type: String, default: '' },
     },
-    isAvailable: { type: Boolean, default: true }, 
+    exchangeStatus: {
+      type: String,
+      enum: ["none", "pending", "locked"],
+      default: "none",
+    },
+    isAvailable: { type: Boolean, default: true },
     pendingApproval: { type: Boolean, default: false, index: true },
-    rejectReason:    { type: String, default: '' },
-    approvedAt:      { type: Date },
-    approvedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rejectReason: { type: String, default: '' },
+    approvedAt: { type: Date },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
- 
+
 productSchema.index({ location: '2dsphere' });
 productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ categoryId: 1, status: 1, isAvailable: 1 });
 productSchema.index({ ownerId: 1 });
-productSchema.index({ pendingApproval: 1, createdAt: -1 });  
+productSchema.index({ pendingApproval: 1, createdAt: -1 });
 module.exports = mongoose.model('Product', productSchema);

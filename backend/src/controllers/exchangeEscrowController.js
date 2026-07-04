@@ -75,7 +75,7 @@ exports.getMyExchangeInvoices = async (req, res) => {
       .populate("receiverProduct")
       .sort({ createdAt: -1 })
       .lean();
-      
+
     const invoicesWithImages = await attachProductImagesToInvoices(invoices);
 
     res.json({
@@ -97,19 +97,58 @@ exports.createExchangeRequest = async (req, res) => {
     const requesterId = getUserId(req);
     const { requesterProductId, receiverProductId } = req.body;
 
+    // 1. check product
+    const receiverProduct = await Product.findById(receiverProductId);
+
+    if (!receiverProduct) {
+      throw new Error("Không tìm thấy sản phẩm");
+    }
+
+    // 2. 🔥 ĐOẠN BẠN HỎI → ĐẶT Ở ĐÂY
+    const existing = await ExchangeInvoice.findOne({
+      receiverProduct: receiverProductId,
+      status: {
+        $in: ["pending_receiver_accept", "accepted"]
+      },
+    });
+
+    if (existing) {
+      throw new Error("Sản phẩm đang có yêu cầu trao đổi");
+    }
+
+    // 3. lock product
+    const update = await Product.updateOne(
+      {
+        _id: receiverProductId,
+        exchangeStatus: { $ne: "pending" }
+      },
+      {
+        $set: {
+          exchangeStatus: "pending",
+          isAvailable: false,
+        },
+      }
+    );
+
+    if (update.modifiedCount === 0) {
+      throw new Error("Sản phẩm vừa được người khác chọn");
+    }
+
+    // 4. create invoice
     const invoice = await exchangeEscrowService.createExchangeRequest({
       requesterId,
       requesterProductId,
       receiverProductId,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Đã gửi yêu cầu trao đổi",
       invoice,
     });
+
   } catch (error) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
       message: error.message || "Không thể gửi yêu cầu trao đổi",
     });
@@ -121,18 +160,65 @@ exports.acceptExchangeRequest = async (req, res) => {
     const receiverId = getUserId(req);
     const { invoiceId } = req.params;
 
-    const invoice = await exchangeEscrowService.acceptExchangeRequest(
+    const invoice = await exchangeEscrowService.getInvoiceById(invoiceId);
+
+    if (!invoice) {
+      throw new Error("Không tìm thấy yêu cầu trao đổi");
+    }
+
+    if (String(invoice.receiver) !== String(receiverId)) {
+      throw new Error("Bạn không có quyền thực hiện thao tác này");
+    }
+
+    if (invoice.status !== "pending_receiver_accept") {
+      throw new Error("Yêu cầu không hợp lệ hoặc đã được xử lý");
+    }
+
+    const receiverProduct = await Product.findById(invoice.receiverProduct);
+
+    if (!receiverProduct) {
+      throw new Error("Không tìm thấy sản phẩm");
+    }
+
+    if (receiverProduct.exchangeStatus !== "pending") {
+      throw new Error("Sản phẩm không ở trạng thái chờ trao đổi");
+    }
+
+    await Product.updateOne(
+      { _id: invoice.receiverProduct },
+      {
+        $set: {
+          exchangeStatus: "locked",
+          isAvailable: false,
+          status: "reserved",
+        },
+      }
+    );
+
+    await Product.updateOne(
+      { _id: invoice.requesterProduct },
+      {
+        $set: {
+          exchangeStatus: "locked",
+          isAvailable: false,
+          status: "reserved",
+        },
+      }
+    );
+
+    const updatedInvoice = await exchangeEscrowService.acceptExchangeRequest(
       invoiceId,
       receiverId
     );
 
-    res.json({
+    return res.json({
       success: true,
       message: "Đã đồng ý trao đổi. Vui lòng thanh toán tiền bảo hiểm.",
-      invoice,
+      invoice: updatedInvoice,
     });
+
   } catch (error) {
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
       message: error.message || "Không thể đồng ý trao đổi",
     });
@@ -452,6 +538,38 @@ exports.getExchangeInvoiceDetail = async (req, res) => {
       success: false,
       message: error.message || "Không thể lấy chi tiết hóa đơn trao đổi",
     });
+  }
+};
+
+exports.rejectExchangeRequest = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { invoiceId } = req.params;
+
+    const invoice = await ExchangeInvoice.findById(invoiceId);
+
+    if (!invoice) throw new Error("Không tìm thấy invoice");
+
+    if (String(invoice.receiver) !== String(userId)) {
+      throw new Error("Không có quyền");
+    }
+
+    await Product.updateOne(
+      { _id: invoice.receiverProduct },
+      {
+        $set: {
+          exchangeStatus: "none",
+          isAvailable: true,
+        },
+      }
+    );
+
+    invoice.status = "cancelled";
+    await invoice.save();
+
+    res.json({ success: true, message: "Đã từ chối yêu cầu" });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
