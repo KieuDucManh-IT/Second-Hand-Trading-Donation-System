@@ -892,21 +892,12 @@ export function ExchangeRequestsPage() {
                 {canAccept && (
                   <Button
                     size="sm"
-                    onClick={() =>
-                      runAction(
-                        invoiceId,
-                        "accept",
-                        `/exchange-escrow/${invoiceId}/accept`
-                      )
-                    }
-                    disabled={!!actionLoading}
+                    onClick={() => {
+                      navigate(`/exchanges/${invoiceId}`);
+                    }}
                     className="bg-green-600 hover:bg-green-700"
                   >
-                    {isLoading("accept") ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                    )}
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
                     Đồng ý trao đổi
                   </Button>
                 )}

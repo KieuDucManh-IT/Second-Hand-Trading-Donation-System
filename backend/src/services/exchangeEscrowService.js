@@ -31,6 +31,30 @@ function makeTransactionCode(prefix) {
   return `${prefix}${Date.now()}${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 }
 
+async function getUserLocationSnapshot(userId, locationId, errorPrefix = "Địa chỉ") {
+  if (!locationId) {
+    throw new Error(`${errorPrefix} chưa được chọn`);
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error("Không tìm thấy tài khoản");
+  }
+
+  const selectedLocation = user.locations.id(locationId);
+
+  if (!selectedLocation) {
+    throw new Error(`${errorPrefix} đã chọn không tồn tại trong tài khoản`);
+  }
+
+  return {
+    locationId: selectedLocation._id,
+    phoneNumber: selectedLocation.phoneNumber,
+    address: selectedLocation.address,
+  };
+}
+
 async function ensureWallet(userId, session) {
   let wallet = await Wallet.findOne({ user: userId }).session(session || null);
 
@@ -118,18 +142,17 @@ function getProductPrice(product) {
   return price;
 }
 
-/**
- * A gửi yêu cầu đổi sản phẩm A của mình lấy sản phẩm B của B.
- */
 async function createExchangeRequest({
   requesterId,
   requesterProductId,
   receiverProductId,
   locationId,
 }) {
-  if (!locationId) {
-    throw new Error("Vui lòng chọn địa chỉ của bạn");
-  }
+  const requesterLocationSnapshot = await getUserLocationSnapshot(
+    requesterId,
+    locationId,
+    "Địa chỉ người gửi yêu cầu"
+  );
 
   const requesterProduct = await Product.findById(requesterProductId);
   const receiverProduct = await Product.findById(receiverProductId);
@@ -153,27 +176,12 @@ async function createExchangeRequest({
     throw new Error("Không thể tự trao đổi với chính mình");
   }
 
-  if (receiverProduct.status !== "available" || receiverProduct.isAvailable === false) {
+  if (
+    receiverProduct.status !== "available" ||
+    receiverProduct.isAvailable === false
+  ) {
     throw new Error("Sản phẩm này hiện không thể trao đổi");
   }
-
-  const requesterUser = await User.findById(requesterId);
-
-  if (!requesterUser) {
-    throw new Error("Không tìm thấy tài khoản người gửi yêu cầu");
-  }
-
-  const selectedLocation = requesterUser.locations.id(locationId);
-
-  if (!selectedLocation) {
-    throw new Error("Địa chỉ đã chọn không tồn tại trong tài khoản của bạn");
-  }
-
-  const requesterLocationSnapshot = {
-    locationId: selectedLocation._id,
-    phoneNumber: selectedLocation.phoneNumber,
-    address: selectedLocation.address,
-  };
 
   const existingInvoice = await ExchangeInvoice.findOne({
     receiverProduct: receiverProductId,
@@ -218,6 +226,7 @@ async function createExchangeRequest({
     const invoice = await ExchangeInvoice.create({
       requester: requesterId,
       receiver: receiverOwner,
+
       requesterProduct: requesterProductId,
       receiverProduct: receiverProductId,
 
@@ -247,7 +256,6 @@ async function createExchangeRequest({
   }
 }
 
-
 async function rejectExchangeRequest(invoiceId, receiverId) {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
@@ -255,7 +263,7 @@ async function rejectExchangeRequest(invoiceId, receiverId) {
     throw new Error("Không tìm thấy yêu cầu trao đổi");
   }
 
-  if (String(invoice.receiver) !== String(receiverId)) {
+  if (!sameId(invoice.receiver, receiverId)) {
     throw new Error("Bạn không có quyền từ chối yêu cầu này");
   }
 
@@ -282,7 +290,7 @@ async function rejectExchangeRequest(invoiceId, receiverId) {
   return invoice;
 }
 
-async function acceptExchangeRequest(invoiceId, receiverId) {
+async function acceptExchangeRequest(invoiceId, receiverId, locationId) {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
   if (!invoice) {
@@ -297,6 +305,13 @@ async function acceptExchangeRequest(invoiceId, receiverId) {
     throw new Error("Chỉ có thể đồng ý yêu cầu đang chờ xử lý");
   }
 
+  const receiverLocationSnapshot = await getUserLocationSnapshot(
+    receiverId,
+    locationId,
+    "Địa chỉ người nhận yêu cầu"
+  );
+
+  invoice.receiverLocation = receiverLocationSnapshot;
   invoice.status = "waiting_deposits";
   invoice.acceptedAt = new Date();
 
@@ -431,9 +446,6 @@ async function payExchangeDeposit(invoiceId, userId) {
   }
 }
 
-/**
- * Một bên xác nhận đã hoàn tất trao đổi.
- */
 async function confirmExchangeCompleted(invoiceId, userId) {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
@@ -466,9 +478,6 @@ async function confirmExchangeCompleted(invoiceId, userId) {
   return invoice;
 }
 
-/**
- * Hoàn tiền bảo hiểm cho cả 2 bên, trừ phí trung gian 10%.
- */
 async function releaseExchangeDeposits(invoiceId, reason = "auto_after_7_days") {
   const session = await mongoose.startSession();
 
@@ -609,9 +618,6 @@ async function releaseExchangeDeposits(invoiceId, reason = "auto_after_7_days") 
   }
 }
 
-/**
- * Một bên khiếu nại, hệ thống dừng hoàn tiền tự động.
- */
 async function disputeExchange(invoiceId, userId, reason = "", evidences = []) {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
@@ -670,9 +676,6 @@ async function disputeExchange(invoiceId, userId, reason = "", evidences = []) {
   return invoice;
 }
 
-/**
- * Quá 7 ngày không khiếu nại thì tự động hoàn tiền cho 2 bên.
- */
 async function autoReleaseExpiredExchangeInvoices() {
   const now = new Date();
 
@@ -704,9 +707,6 @@ async function autoReleaseExpiredExchangeInvoices() {
   };
 }
 
-/**
- * Manager giải quyết tranh chấp trao đổi (Exchange)
- */
 async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = false, note = "") {
   const session = await mongoose.startSession();
 
@@ -1180,10 +1180,6 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
   }
 }
 
-/**
- * Repair: Đồng bộ lại product status dựa trên trạng thái invoice.
- * Dùng để fix data cũ bị inconsistent khi session abort giữa chừng.
- */
 async function repairExchangeProductStatuses() {
   const results = { fixed: 0, errors: 0, details: [] };
 

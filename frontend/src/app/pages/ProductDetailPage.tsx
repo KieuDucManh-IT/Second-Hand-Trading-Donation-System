@@ -484,6 +484,14 @@ export function ProductDetailPage() {
 
   const owner: any = product.ownerId || {};
 
+  const selectedLocation = ((user as any)?.locations ?? []).find(
+    (loc: any) => String(loc._id) === String(selectedLocationId)
+  );
+
+  const selectedOfferProduct = myProducts.find(
+    (item) => getProductId(item) === selectedOfferProductId
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -942,89 +950,103 @@ export function ProductDetailPage() {
               Giá trị: <b>{formatMoney(Number(product.price || 0))}</b>
             </div>
 
-            <div className="mt-3">
-              <b>Địa chỉ của bạn:</b>
+            <div>
+              <Label className="mb-2 block font-semibold">
+                Địa chỉ của bạn
+              </Label>
 
-              {(user?.locations ?? []).length === 0 ? (
-                <div className="mt-2 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
+              {((user as any)?.locations ?? []).length === 0 ? (
+                <div className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
                   Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài khoản.
                 </div>
               ) : (
-                (user?.locations ?? []).map((loc: any) => (
-                  <label
-                    key={loc._id}
-                    className="block mt-2 border p-2 rounded cursor-pointer"
+                <>
+                  <select
+                    value={selectedLocationId}
+                    onChange={(e) => setSelectedLocationId(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
                   >
-                    <input
-                      type="radio"
-                      name="location"
-                      value={loc._id}
-                      checked={selectedLocationId === loc._id}
-                      onChange={() => setSelectedLocationId(loc._id)}
-                    />
+                    <option value="">-- Chọn địa chỉ đã lưu --</option>
 
-                    <div>📞 {loc.phoneNumber}</div>
-                    <div>📍 {loc.address}</div>
-                  </label>
-                ))
+                    {((user as any)?.locations ?? []).map((loc: any) => (
+                      <option key={loc._id} value={loc._id}>
+                        {loc.address} — {loc.phoneNumber}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedLocation && (
+                    <div className="mt-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                      <div>📞 {selectedLocation.phoneNumber}</div>
+                      <div>📍 {selectedLocation.address}</div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {exchangeLoading ? (
-              <div className="py-10 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-green-500" />
-              </div>
-            ) : myProducts.length === 0 ? (
-              <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
-                Bạn chưa có sản phẩm nào để trao đổi. Hãy đăng sản phẩm trước.
-              </div>
-            ) : (
-              <div className="max-h-[360px] overflow-y-auto space-y-3 pr-2">
-                {myProducts.map((item) => {
-                  const itemId = getProductId(item);
-                  const selected = selectedOfferProductId === itemId;
+            <div>
+              <Label className="mb-2 block font-semibold">
+                Sản phẩm của bạn dùng để trao đổi
+              </Label>
 
-                  return (
-                    <button
-                      key={itemId}
-                      type="button"
-                      onClick={() => setSelectedOfferProductId(itemId)}
-                      className={`w-full rounded-xl border p-3 text-left transition ${selected
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                        }`}
-                    >
+              {exchangeLoading ? (
+                <div className="py-8 flex items-center justify-center rounded-lg border">
+                  <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+                </div>
+              ) : myProducts.length === 0 ? (
+                <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
+                  Bạn chưa có sản phẩm nào để trao đổi. Hãy đăng sản phẩm trước.
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedOfferProductId}
+                    onChange={(e) => setSelectedOfferProductId(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  >
+                    <option value="">-- Chọn sản phẩm của bạn --</option>
+
+                    {myProducts.map((item) => {
+                      const itemId = getProductId(item);
+
+                      return (
+                        <option key={itemId} value={itemId}>
+                          {getProductTitle(item)} — {formatMoney(getProductPrice(item))}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {selectedOfferProduct && (
+                    <div className="mt-3 rounded-lg border bg-gray-50 p-3">
                       <div className="flex gap-3">
                         <ImageWithFallback
-                          src={getProductImage(item)}
-                          alt={getProductTitle(item)}
-                          className="w-20 h-20 rounded-lg object-cover bg-gray-100"
+                          src={getProductImage(selectedOfferProduct)}
+                          alt={getProductTitle(selectedOfferProduct)}
+                          className="w-16 h-16 rounded-lg object-cover bg-gray-100"
                         />
 
                         <div className="flex-1">
-                          <h4 className="font-semibold line-clamp-2">
-                            {getProductTitle(item)}
-                          </h4>
-
-                          <p className="mt-1 text-sm text-gray-500">
-                            Giá trị: {formatMoney(getProductPrice(item))}
+                          <p className="font-semibold line-clamp-2">
+                            {getProductTitle(selectedOfferProduct)}
                           </p>
 
-                          {selected && (
-                            <Badge className="mt-2 bg-green-500">Đã chọn</Badge>
-                          )}
+                          <p className="mt-1 text-sm text-gray-500">
+                            Giá trị: {formatMoney(getProductPrice(selectedOfferProduct))}
+                          </p>
                         </div>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
-            {selectedOfferProductId && (
+            {selectedOfferProductId && selectedLocationId && (
               <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-                Sau khi đối phương đồng ý, bạn sẽ cần thanh toán tiền bảo hiểm
-                tương ứng với giá trị sản phẩm bạn đem trao đổi.
+                Sau khi đối phương đồng ý, bạn sẽ cần thanh toán tiền bảo hiểm tương
+                ứng với giá trị sản phẩm bạn đem trao đổi.
               </div>
             )}
           </div>

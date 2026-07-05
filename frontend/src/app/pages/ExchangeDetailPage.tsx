@@ -121,6 +121,18 @@ type ExchangeInvoice = {
   requester?: string | UserMini;
   receiver?: string | UserMini;
 
+  requesterLocation?: {
+    locationId?: string;
+    phoneNumber?: string;
+    address?: string;
+  };
+
+  receiverLocation?: {
+    locationId?: string;
+    phoneNumber?: string;
+    address?: string;
+  };
+
   requesterProduct?: string | ProductMini;
   receiverProduct?: string | ProductMini;
 
@@ -623,6 +635,7 @@ export function ExchangeDetailPage() {
   const [loading, setLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [acceptLocationId, setAcceptLocationId] = useState("");
 
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
@@ -1076,6 +1089,41 @@ export function ExchangeDetailPage() {
                       </div>
                     </div>
                   </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+                      <p className="font-semibold">Địa chỉ người gửi yêu cầu</p>
+
+                      {invoice.requesterLocation ? (
+                        <>
+                          <p className="mt-1">
+                            📞 {invoice.requesterLocation.phoneNumber || "Chưa có số điện thoại"}
+                          </p>
+                          <p className="mt-1">
+                            📍 {invoice.requesterLocation.address || "Chưa có địa chỉ"}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1">Chưa có thông tin địa chỉ</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
+                      <p className="font-semibold">Địa chỉ người nhận yêu cầu</p>
+
+                      {invoice.receiverLocation ? (
+                        <>
+                          <p className="mt-1">
+                            Số Điện Thoại: {invoice.receiverLocation.phoneNumber || "Chưa có số điện thoại"}
+                          </p>
+                          <p className="mt-1">
+                            Địa Chỉ: {invoice.receiverLocation.address || "Chưa có địa chỉ"}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1">Người nhận chưa đồng ý hoặc chưa chọn địa chỉ</p>
+                      )}
+                    </div>
+                  </div>
 
                   <Separator />
 
@@ -1297,14 +1345,49 @@ export function ExchangeDetailPage() {
 
               <CardContent className="space-y-3">
                 {canAccept && (
+                  <div className="rounded-lg border p-3">
+                    <p className="mb-2 font-medium">Chọn địa chỉ của bạn</p>
+
+                    {((user as any)?.locations ?? []).length === 0 ? (
+                      <p className="text-sm text-red-600">
+                        Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài khoản.
+                      </p>
+                    ) : (
+                      ((user as any)?.locations ?? []).map((loc: any) => (
+                        <label
+                          key={loc._id}
+                          className="block mt-2 rounded border p-2 cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="acceptLocation"
+                            value={loc._id}
+                            checked={acceptLocationId === loc._id}
+                            onChange={() => setAcceptLocationId(loc._id)}
+                          />
+
+                          <div>Số điện Thoại: {loc.phoneNumber}</div>
+                          <div>Địa chỉ: {loc.address}</div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+                {canAccept && (
                   <Button
-                    onClick={() =>
+                    onClick={() => {
+                      if (!acceptLocationId) {
+                        toast.error("Vui lòng chọn địa chỉ của bạn");
+                        return;
+                      }
+
                       runAction(
                         "accept",
-                        `/exchange-escrow/${invoiceId}/accept`
-                      )
-                    }
-                    disabled={!!actionLoading}
+                        `/exchange-escrow/${invoiceId}/accept`,
+                        { locationId: acceptLocationId }
+                      );
+                    }}
+                    disabled={!!actionLoading || !acceptLocationId}
                     className="w-full bg-green-600 hover:bg-green-700"
                     size="lg"
                   >
@@ -1316,7 +1399,6 @@ export function ExchangeDetailPage() {
                     Đồng ý trao đổi
                   </Button>
                 )}
-
                 {canReject && (
                   <Button
                     variant="outline"
@@ -1604,6 +1686,7 @@ export function ExchangeDetailPage() {
                 )}
 
                 {!canAccept &&
+                  !canReject &&
                   !canPayDeposit &&
                   !canUploadDeliveryVideo &&
                   !canConfirmCompleted &&

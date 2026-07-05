@@ -123,6 +123,20 @@ const exchangeInvoiceSchema = new mongoose.Schema(
       },
     },
 
+    receiverLocation: {
+      locationId: {
+        type: mongoose.Schema.Types.ObjectId,
+      },
+      phoneNumber: {
+        type: String,
+        trim: true,
+      },
+      address: {
+        type: String,
+        trim: true,
+      },
+    },
+
     requesterProduct: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
