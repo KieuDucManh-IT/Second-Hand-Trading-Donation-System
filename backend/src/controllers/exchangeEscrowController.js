@@ -468,34 +468,26 @@ exports.getExchangeInvoiceDetail = async (req, res) => {
 
 exports.rejectExchangeRequest = async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const receiverId = req.user?._id || req.user?.id || req.account?._id || req.account?.id;
     const { invoiceId } = req.params;
 
-    const invoice = await ExchangeInvoice.findById(invoiceId);
-
-    if (!invoice) throw new Error("Không tìm thấy invoice");
-
-    if (String(invoice.receiver) !== String(userId)) {
-      throw new Error("Không có quyền");
-    }
-
-    await Product.updateOne(
-      { _id: invoice.receiverProduct },
-      {
-        $set: {
-          exchangeStatus: "none",
-          isAvailable: true,
-        },
-      }
+    const invoice = await exchangeEscrowService.rejectExchangeRequest(
+      invoiceId,
+      receiverId
     );
 
-    invoice.status = "cancelled";
-    await invoice.save();
-
-    res.json({ success: true, message: "Đã từ chối yêu cầu" });
-  } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.json({
+      success: true,
+      message: "Đã từ chối yêu cầu trao đổi và mở khóa sản phẩm",
+      invoice,
+      unlockDebug: invoice.unlockDebug,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Không thể từ chối yêu cầu trao đổi",
+      unlockDebug: error.unlockDebug || null,
+    });
   }
 };
-
 

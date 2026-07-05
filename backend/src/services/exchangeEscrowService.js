@@ -150,6 +150,47 @@ function getProductPrice(product) {
   return price;
 }
 
+function uniqueIds(ids = []) {
+  return [
+    ...new Set(
+      ids
+        .filter(Boolean)
+        .map((id) => String(id))
+    ),
+  ];
+}
+
+async function setProductsState(productIds, patch) {
+  const ids = uniqueIds(productIds);
+
+  if (ids.length === 0) {
+    return {
+      matchedCount: 0,
+      modifiedCount: 0,
+      products: [],
+    };
+  }
+
+  const updateResult = await Product.updateMany(
+    {
+      _id: { $in: ids },
+    },
+    {
+      $set: patch,
+    }
+  );
+
+  const products = await Product.find({
+    _id: { $in: ids },
+  }).select("_id title status isAvailable exchangeStatus");
+
+  return {
+    matchedCount: updateResult.matchedCount ?? updateResult.n ?? 0,
+    modifiedCount: updateResult.modifiedCount ?? updateResult.nModified ?? 0,
+    products,
+  };
+}
+
 async function createExchangeRequest({
   requesterId,
   requesterProductId,
@@ -161,6 +202,10 @@ async function createExchangeRequest({
     locationId,
     "Địa chỉ người gửi yêu cầu"
   );
+
+  if (String(requesterProductId) === String(receiverProductId)) {
+    throw new Error("Không thể trao đổi cùng một sản phẩm");
+  }
 
   const requesterProduct = await Product.findById(requesterProductId);
   const receiverProduct = await Product.findById(receiverProductId);
@@ -184,10 +229,10 @@ async function createExchangeRequest({
     throw new Error("Không thể tự trao đổi với chính mình");
   }
 
-  const exchangeProductIds = [
+  const exchangeProductIds = uniqueIds([
     requesterProductId,
     receiverProductId,
-  ].filter(Boolean);
+  ]);
 
   const existingInvoice = await ExchangeInvoice.findOne({
     status: { $in: OPEN_EXCHANGE_STATUSES },
@@ -201,47 +246,44 @@ async function createExchangeRequest({
     throw new Error("Một trong hai sản phẩm đang có yêu cầu trao đổi khác");
   }
 
-  const lockableProductCount = await Product.countDocuments({
-    _id: { $in: exchangeProductIds },
-    status: "available",
-    isAvailable: { $ne: false },
-  });
-
-  if (lockableProductCount !== exchangeProductIds.length) {
-    throw new Error("Một trong hai sản phẩm hiện không thể trao đổi");
-  }
-
-  const lockResult = await Product.updateMany(
-    {
-      _id: { $in: exchangeProductIds },
-      status: "available",
-      isAvailable: { $ne: false },
-    },
-    {
-      $set: {
-        status: "reserved",
-        isAvailable: false,
-        exchangeStatus: "pending",
-      },
-    }
-  );
-
-  if (lockResult.modifiedCount !== exchangeProductIds.length) {
-    await Product.updateMany(
-      { _id: { $in: exchangeProductIds } },
-      {
-        $set: {
-          status: "available",
-          isAvailable: true,
-          exchangeStatus: "none",
-        },
-      }
-    );
-
-    throw new Error("Sản phẩm vừa được người khác yêu cầu trao đổi");
-  }
+  const lockedProductIds = [];
 
   try {
+    for (const productId of exchangeProductIds) {
+      const lockResult = await Product.updateOne(
+        {
+          _id: productId,
+          status: "available",
+          isAvailable: { $ne: false },
+          exchangeStatus: { $in: ["none", null] },
+        },
+        {
+          $set: {
+            status: "reserved",
+            isAvailable: false,
+            exchangeStatus: "pending",
+          },
+        }
+      );
+
+      const modifiedCount =
+        lockResult.modifiedCount ?? lockResult.nModified ?? 0;
+
+      if (modifiedCount !== 1) {
+        if (lockedProductIds.length > 0) {
+          await setProductsState(lockedProductIds, {
+            status: "available",
+            isAvailable: true,
+            exchangeStatus: "none",
+          });
+        }
+
+        throw new Error("Một trong hai sản phẩm hiện không thể trao đổi");
+      }
+
+      lockedProductIds.push(productId);
+    }
+
     const requesterDepositAmount = getProductPrice(requesterProduct);
     const receiverDepositAmount = getProductPrice(receiverProduct);
 
@@ -264,16 +306,13 @@ async function createExchangeRequest({
 
     return invoice;
   } catch (error) {
-    await Product.updateMany(
-      { _id: { $in: exchangeProductIds } },
-      {
-        $set: {
-          status: "available",
-          isAvailable: true,
-          exchangeStatus: "none",
-        },
-      }
-    );
+    if (lockedProductIds.length > 0) {
+      await setProductsState(lockedProductIds, {
+        status: "available",
+        isAvailable: true,
+        exchangeStatus: "none",
+      });
+    }
 
     throw error;
   }
@@ -294,60 +333,79 @@ async function rejectExchangeRequest(invoiceId, receiverId) {
     throw new Error("Chỉ có thể từ chối yêu cầu đang chờ đồng ý");
   }
 
+  const productIds = [
+    invoice.requesterProduct,
+    invoice.receiverProduct,
+  ]
+    .filter(Boolean)
+    .map((id) => new mongoose.Types.ObjectId(String(id)));
+
+  if (productIds.length !== 2) {
+    throw new Error("Hóa đơn trao đổi thiếu sản phẩm requesterProduct hoặc receiverProduct");
+  }
+
   invoice.status = "cancelled";
   invoice.cancelledAt = new Date();
   invoice.cancelReason = "Người nhận từ chối yêu cầu trao đổi";
 
   await invoice.save();
 
-  const productIds = [
-    invoice.requesterProduct,
-    invoice.receiverProduct,
-  ].filter(Boolean);
-
-  for (const productId of productIds) {
-    const stillUsedByOtherExchange = await ExchangeInvoice.exists({
-      _id: { $ne: invoice._id },
-      status: { $in: OPEN_EXCHANGE_STATUSES },
-      $or: [
-        { requesterProduct: productId },
-        { receiverProduct: productId },
-      ],
-    });
-
-    if (stillUsedByOtherExchange) {
-      console.log("SKIP UNLOCK PRODUCT - STILL USED BY OTHER EXCHANGE:", {
-        invoiceId: String(invoice._id),
-        productId: String(productId),
-      });
-      continue;
-    }
-
-    await Product.findByIdAndUpdate(productId, {
+  const updateResult = await Product.updateMany(
+    {
+      _id: { $in: productIds },
+    },
+    {
       $set: {
-        status: targetStatus,
-        isAvailable: targetAvailable,
+        status: "available",
+        isAvailable: true,
         exchangeStatus: "none",
       },
-    });
-  }
+    }
+  );
 
-  const updatedProducts = await Product.find({
+  const afterProducts = await Product.find({
     _id: { $in: productIds },
   }).select("_id title status isAvailable exchangeStatus");
 
-  console.log("REJECT EXCHANGE UNLOCK PRODUCTS:", {
+  const unlockDebug = {
     invoiceId: String(invoice._id),
-    products: updatedProducts.map((p) => ({
+    productIds: productIds.map(String),
+    matchedCount: updateResult.matchedCount ?? updateResult.n ?? 0,
+    modifiedCount: updateResult.modifiedCount ?? updateResult.nModified ?? 0,
+    products: afterProducts.map((p) => ({
       productId: String(p._id),
       title: p.title,
       status: p.status,
       isAvailable: p.isAvailable,
       exchangeStatus: p.exchangeStatus,
     })),
-  });
+  };
 
-  return invoice;
+  console.log("REJECT EXCHANGE FINAL CHECK:", JSON.stringify(unlockDebug, null, 2));
+
+  const stillLockedProducts = afterProducts.filter(
+    (p) =>
+      p.status !== "available" ||
+      p.isAvailable !== true ||
+      p.exchangeStatus !== "none"
+  );
+
+  if (afterProducts.length !== productIds.length) {
+    const err = new Error("Không tìm thấy đủ 2 sản phẩm sau khi từ chối");
+    err.unlockDebug = unlockDebug;
+    throw err;
+  }
+
+  if (stillLockedProducts.length > 0) {
+    const err = new Error("Từ chối thất bại: sản phẩm vẫn chưa được mở khóa trong DB");
+    err.unlockDebug = unlockDebug;
+    throw err;
+  }
+
+  return {
+    ...invoice.toObject(),
+    unlockDebug,
+  };
 }
 
 async function acceptExchangeRequest(invoiceId, receiverId, locationId) {
@@ -594,16 +652,13 @@ async function releaseExchangeDeposits(invoiceId, reason = "auto_after_7_days") 
 
     await invoice.save({ session });
 
-    // Mark both products as sold — cập nhật NGAY sau khi lưu invoice
-    // Không dùng session cho product update để tránh trường hợp
-    // session abort (do lỗi ví) khiến product bị kẹt ở trạng thái "reserved"
-    await Product.findByIdAndUpdate(
-      invoice.requesterProduct,
-      { status: "sold", isAvailable: false }
-    );
-    await Product.findByIdAndUpdate(
-      invoice.receiverProduct,
-      { status: "sold", isAvailable: false }
+    await setProductsState(
+      [invoice.requesterProduct, invoice.receiverProduct],
+      {
+        status: "sold",
+        isAvailable: false,
+        exchangeStatus: "none",
+      }
     );
 
     await createWalletTransaction({
@@ -697,7 +752,6 @@ async function disputeExchange(invoiceId, userId, reason = "", evidences = []) {
   };
 
   if (invoice.status === "disputed") {
-    // Invoice đang disputed — kiểm tra bên nào đã gửi rồi
     const alreadyDisputed =
       sameId(invoice.disputeBy, userId) ||
       sameId(invoice.counterDisputeBy, userId);
@@ -710,7 +764,6 @@ async function disputeExchange(invoiceId, userId, reason = "", evidences = []) {
       throw new Error("Giao dịch này đã có đủ 2 khiếu nại");
     }
 
-    // Cho phép bên còn lại gửi counterComplaint
     invoice.counterDisputeBy = userId;
     invoice.counterComplaint = newComplaint;
 
@@ -721,8 +774,6 @@ async function disputeExchange(invoiceId, userId, reason = "", evidences = []) {
   if (invoice.status !== "active") {
     throw new Error("Chỉ có thể khiếu nại giao dịch đang hoạt động");
   }
-
-  // Lần đầu dispute — gửi complaint chính
   invoice.status = "disputed";
   invoice.disputedAt = new Date();
   invoice.disputeReason = finalReason;
@@ -828,11 +879,6 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       }
     };
 
-    /*
-      refund_a:
-      A = người khiếu nại.
-      Manager hoàn toàn bộ tiền cọc/giá trị escrow cho A.
-    */
     if (resolution === "refund_a") {
       disputerWallet.balance += netRefundAmount;
       await disputerWallet.save({ session });
@@ -910,19 +956,16 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       await Product.findByIdAndUpdate(invoice.requesterProduct, {
         status: "sold",
         isAvailable: false,
+        exchangeStatus: "none",
       });
 
       await Product.findByIdAndUpdate(invoice.receiverProduct, {
         status: "sold",
         isAvailable: false,
+        exchangeStatus: "none",
       });
     }
 
-    /*
-      refund_b:
-      B = bên bị khiếu nại.
-      Manager hoàn toàn bộ tiền cọc/giá trị escrow cho B.
-    */
     else if (resolution === "refund_b") {
       opponentWallet.balance += netRefundAmount;
       await opponentWallet.save({ session });
@@ -1252,6 +1295,7 @@ async function repairExchangeProductStatuses() {
     productId,
     targetStatus,
     targetAvailable,
+    targetExchangeStatus = "none",
     reason,
     allowStatuses = [],
   }) {
@@ -1272,6 +1316,7 @@ async function repairExchangeProductStatuses() {
 
     const currentStatus = product.status;
     const currentAvailable = product.isAvailable;
+    const currentExchangeStatus = product.exchangeStatus;
 
     if (
       allowStatuses.length > 0 &&
@@ -1285,21 +1330,26 @@ async function repairExchangeProductStatuses() {
         reason: "status_not_allowed_to_repair",
         currentStatus,
         currentAvailable,
+        currentExchangeStatus,
       });
       return;
     }
 
     if (
       currentStatus === targetStatus &&
-      currentAvailable === targetAvailable
+      currentAvailable === targetAvailable &&
+      currentExchangeStatus === targetExchangeStatus
     ) {
       results.skipped++;
       return;
     }
 
     await Product.findByIdAndUpdate(productId, {
-      status: targetStatus,
-      isAvailable: targetAvailable,
+      $set: {
+        status: targetStatus,
+        isAvailable: targetAvailable,
+        exchangeStatus: targetExchangeStatus,
+      },
     });
 
     results.fixed++;
@@ -1311,10 +1361,12 @@ async function repairExchangeProductStatuses() {
       from: {
         status: currentStatus,
         isAvailable: currentAvailable,
+        exchangeStatus: currentExchangeStatus,
       },
       to: {
         status: targetStatus,
         isAvailable: targetAvailable,
+        exchangeStatus: targetExchangeStatus,
       },
     });
   }
@@ -1349,6 +1401,7 @@ async function repairExchangeProductStatuses() {
         productId: invoice.requesterProduct,
         targetStatus,
         targetAvailable,
+        targetExchangeStatus: "none",
         reason: "completed_invoice_repair",
         allowStatuses: ["available", "reserved", "sold"],
       });
@@ -1358,6 +1411,7 @@ async function repairExchangeProductStatuses() {
         productId: invoice.receiverProduct,
         targetStatus,
         targetAvailable,
+        targetExchangeStatus: "none",
         reason: "completed_invoice_repair",
         allowStatuses: ["available", "reserved", "sold"],
       });
@@ -1377,95 +1431,68 @@ async function repairExchangeProductStatuses() {
 
   for (const invoice of cancelledInvoices) {
     try {
-      const productIds = [
+      const productIds = uniqueIds([
         invoice.requesterProduct,
         invoice.receiverProduct,
-      ].filter(Boolean);
+      ]);
 
-      for (const productId of productIds) {
-        const product = await Product.findById(productId);
-
-        if (!product) {
-          results.skipped++;
-          results.details.push({
-            invoiceId: invoice._id,
-            productId,
-            action: "skipped",
-            reason: "product_not_found",
-          });
-          continue;
-        }
-
-        const stillUsedByOtherExchange = await ExchangeInvoice.exists({
-          _id: { $ne: invoice._id },
-          status: { $in: OPEN_EXCHANGE_STATUSES },
-          $or: [
-            { requesterProduct: productId },
-            { receiverProduct: productId },
-          ],
+      if (productIds.length === 0) {
+        results.skipped++;
+        results.details.push({
+          invoiceId: invoice._id,
+          action: "skipped",
+          reason: "cancelled_invoice_has_no_products",
         });
+        continue;
+      }
 
-        if (stillUsedByOtherExchange) {
-          results.skipped++;
-          results.details.push({
-            invoiceId: invoice._id,
-            productId,
-            action: "skipped",
-            reason: "product_used_by_other_open_exchange",
-            currentStatus: product.status,
-            currentAvailable: product.isAvailable,
-            currentExchangeStatus: product.exchangeStatus,
-          });
-          continue;
-        }
+      const beforeProducts = await Product.find({
+        _id: { $in: productIds },
+      }).select("_id title status isAvailable exchangeStatus");
 
-        const shouldUnlock =
-          product.status === "reserved" ||
-          product.status === "available" ||
-          product.isAvailable === false ||
-          product.exchangeStatus === "pending" ||
-          product.exchangeStatus === "locked";
-
-        if (!shouldUnlock) {
-          results.skipped++;
-          results.details.push({
-            invoiceId: invoice._id,
-            productId,
-            action: "skipped",
-            reason: "not_unlockable_status",
-            currentStatus: product.status,
-            currentAvailable: product.isAvailable,
-            currentExchangeStatus: product.exchangeStatus,
-          });
-          continue;
-        }
-
-        await Product.findByIdAndUpdate(productId, {
+      const updateResult = await Product.updateMany(
+        {
+          _id: { $in: productIds },
+          status: { $ne: "sold" },
+        },
+        {
           $set: {
             status: "available",
             isAvailable: true,
             exchangeStatus: "none",
           },
-        });
+        }
+      );
 
-        results.fixed++;
-        results.details.push({
-          invoiceId: invoice._id,
-          productId,
-          action: "fixed",
-          reason: "cancelled_invoice_unlock_product",
-          from: {
-            status: product.status,
-            isAvailable: product.isAvailable,
-            exchangeStatus: product.exchangeStatus,
-          },
-          to: {
-            status: "available",
-            isAvailable: true,
-            exchangeStatus: "none",
-          },
-        });
-      }
+      const afterProducts = await Product.find({
+        _id: { $in: productIds },
+      }).select("_id title status isAvailable exchangeStatus");
+
+      const modifiedCount =
+        updateResult.modifiedCount ?? updateResult.nModified ?? 0;
+
+      results.fixed += modifiedCount;
+
+      results.details.push({
+        invoiceId: invoice._id,
+        action: "force_unlock_cancelled_invoice_products",
+        matchedCount: updateResult.matchedCount ?? updateResult.n ?? 0,
+        modifiedCount,
+        before: beforeProducts.map((p) => ({
+          productId: String(p._id),
+          title: p.title,
+          status: p.status,
+          isAvailable: p.isAvailable,
+          exchangeStatus: p.exchangeStatus,
+        })),
+        after: afterProducts.map((p) => ({
+          productId: String(p._id),
+          title: p.title,
+          status: p.status,
+          isAvailable: p.isAvailable,
+          exchangeStatus: p.exchangeStatus,
+        })),
+      });
     } catch (err) {
       results.errors++;
       console.error(
