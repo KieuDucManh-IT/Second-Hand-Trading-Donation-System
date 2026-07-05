@@ -256,6 +256,14 @@ function getProductTitle(product: any) {
   return product.title || product.name || product.productTitle || "Sản phẩm";
 }
 
+function getShortProductTitle(product: any, maxLength = 36) {
+  const title = getProductTitle(product);
+
+  if (title.length <= maxLength) return title;
+
+  return `${title.slice(0, maxLength)}...`;
+}
+
 function getProductImage(product: any) {
   if (!product || typeof product === "string") return "";
 
@@ -1044,8 +1052,8 @@ export function ExchangeDetailPage() {
           Quay lại Yêu cầu trao đổi
         </Button>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid gap-6 overflow-hidden lg:grid-cols-3">
+          <div className="lg:col-span-2 min-w-0 space-y-6 overflow-hidden">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between gap-3">
@@ -1091,15 +1099,19 @@ export function ExchangeDetailPage() {
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
-                      <p className="font-semibold">Địa chỉ người gửi yêu cầu</p>
+                      <p className="font-semibold">Người gửi yêu cầu</p>
+
+                      <p className="mt-1">
+                        👤 {getUsername(invoice.requester)}
+                      </p>
 
                       {invoice.requesterLocation ? (
                         <>
-                          <p className="mt-1">
-                            📞 {invoice.requesterLocation.phoneNumber || "Chưa có số điện thoại"}
+                          <p className="mt-1 break-words">
+                            Số Điện Thoại: {invoice.requesterLocation.phoneNumber || "Chưa có số điện thoại"}
                           </p>
-                          <p className="mt-1">
-                            📍 {invoice.requesterLocation.address || "Chưa có địa chỉ"}
+                          <p className="mt-1 break-words">
+                            Địa Chỉ: {invoice.requesterLocation.address || "Chưa có địa chỉ"}
                           </p>
                         </>
                       ) : (
@@ -1108,66 +1120,82 @@ export function ExchangeDetailPage() {
                     </div>
 
                     <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
-                      <p className="font-semibold">Địa chỉ người nhận yêu cầu</p>
+                      <p className="font-semibold">Người nhận yêu cầu</p>
+
+                      <p className="mt-1">
+                        👤 {getUsername(invoice.receiver)}
+                      </p>
 
                       {invoice.receiverLocation ? (
                         <>
-                          <p className="mt-1">
+                          <p className="mt-1 break-words">
                             Số Điện Thoại: {invoice.receiverLocation.phoneNumber || "Chưa có số điện thoại"}
                           </p>
-                          <p className="mt-1">
+                          <p className="mt-1 break-words">
                             Địa Chỉ: {invoice.receiverLocation.address || "Chưa có địa chỉ"}
                           </p>
                         </>
                       ) : (
-                        <p className="mt-1">Người nhận chưa đồng ý hoặc chưa chọn địa chỉ</p>
+                        <p className="mt-1">
+                          Người nhận chưa đồng ý hoặc chưa chọn địa chỉ
+                        </p>
                       )}
                     </div>
                   </div>
 
                   <Separator />
 
-                  <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                    <div className="rounded-xl border bg-white p-4 dark:bg-gray-800">
-                      <ImageWithFallback
-                        src={getProductImage(myProduct)}
-                        alt={getProductTitle(myProduct)}
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
+                  <div className="grid gap-4 overflow-hidden md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                    <div className="min-w-0 overflow-hidden rounded-xl border bg-white p-4 dark:bg-gray-800">
+                      <div className="h-48 w-full overflow-hidden rounded-lg bg-gray-100">
+                        <ImageWithFallback
+                          src={getProductImage(myProduct)}
+                          alt={getProductTitle(myProduct)}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      </div>
 
-                      <h4 className="mt-3 font-semibold">
-                        {getProductTitle(myProduct)}
+                      <h4
+                        className="mt-3 truncate font-semibold"
+                        title={getProductTitle(myProduct)}
+                      >
+                        {getShortProductTitle(myProduct)}
                       </h4>
 
-                      <p className="text-lg font-bold text-blue-600">
+                      <p className="truncate text-lg font-bold text-blue-600">
                         {formatMoney(getProductValue(myProduct))}
                       </p>
 
-                      <Badge variant="outline" className="mt-2">
+                      <Badge variant="outline" className="mt-2 max-w-full truncate">
                         Sản phẩm của tôi
                       </Badge>
                     </div>
 
-                    <div className="mx-auto rounded-full bg-blue-50 p-3 text-blue-600">
+                    <div className="mx-auto flex-shrink-0 rounded-full bg-blue-50 p-3 text-blue-600">
                       <ArrowLeftRight className="w-6 h-6" />
                     </div>
 
-                    <div className="rounded-xl border bg-white p-4 dark:bg-gray-800">
-                      <ImageWithFallback
-                        src={getProductImage(partnerProduct)}
-                        alt={getProductTitle(partnerProduct)}
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
+                    <div className="min-w-0 overflow-hidden rounded-xl border bg-white p-4 dark:bg-gray-800">
+                      <div className="h-48 w-full overflow-hidden rounded-lg bg-gray-100">
+                        <ImageWithFallback
+                          src={getProductImage(partnerProduct)}
+                          alt={getProductTitle(partnerProduct)}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      </div>
 
-                      <h4 className="mt-3 font-semibold">
-                        {getProductTitle(partnerProduct)}
+                      <h4
+                        className="mt-3 truncate font-semibold"
+                        title={getProductTitle(partnerProduct)}
+                      >
+                        {getShortProductTitle(partnerProduct)}
                       </h4>
 
-                      <p className="text-lg font-bold text-blue-600">
+                      <p className="truncate text-lg font-bold text-blue-600">
                         {formatMoney(getProductValue(partnerProduct))}
                       </p>
 
-                      <Badge variant="outline" className="mt-2">
+                      <Badge variant="outline" className="mt-2 max-w-full truncate">
                         Sản phẩm đối phương
                       </Badge>
                     </div>
@@ -1353,23 +1381,38 @@ export function ExchangeDetailPage() {
                         Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài khoản.
                       </p>
                     ) : (
-                      ((user as any)?.locations ?? []).map((loc: any) => (
-                        <label
-                          key={loc._id}
-                          className="block mt-2 rounded border p-2 cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name="acceptLocation"
-                            value={loc._id}
-                            checked={acceptLocationId === loc._id}
-                            onChange={() => setAcceptLocationId(loc._id)}
-                          />
+                      <div className="max-h-[230px] overflow-y-auto pr-2 space-y-2 overscroll-contain">
+                        {((user as any)?.locations ?? []).map((loc: any) => (
+                          <label
+                            key={loc._id}
+                            className={`block rounded border p-3 cursor-pointer transition ${acceptLocationId === loc._id
+                                ? "border-green-500 bg-green-50"
+                                : "border-gray-200 hover:bg-gray-50"
+                              }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="radio"
+                                name="acceptLocation"
+                                value={loc._id}
+                                checked={acceptLocationId === loc._id}
+                                onChange={() => setAcceptLocationId(loc._id)}
+                                className="mt-1"
+                              />
 
-                          <div>Số điện Thoại: {loc.phoneNumber}</div>
-                          <div>Địa chỉ: {loc.address}</div>
-                        </label>
-                      ))
+                              <div className="min-w-0 flex-1 text-sm">
+                                <div className="break-words">
+                                  Số điện thoại: {loc.phoneNumber || "Chưa có số điện thoại"}
+                                </div>
+
+                                <div className="mt-1 break-words">
+                                  Địa chỉ: {loc.address || "Chưa có địa chỉ"}
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}

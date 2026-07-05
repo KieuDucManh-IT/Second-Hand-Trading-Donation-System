@@ -181,6 +181,14 @@ function getProductTitle(product: any) {
   return product.title || product.name || product.productTitle || "Sản phẩm";
 }
 
+function getShortProductTitle(product: any, maxLength = 28) {
+  const title = getProductTitle(product);
+
+  if (title.length <= maxLength) return title;
+
+  return `${title.slice(0, maxLength)}...`;
+}
+
 function normalizeImageUrl(url?: string) {
   if (!url) return "";
 
@@ -658,51 +666,67 @@ export function ExchangeRequestsPage() {
     return (
       <Card className="hover:shadow-lg transition-shadow">
         <CardContent className="p-6">
-          <div className="flex flex-col gap-6 lg:flex-row">
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 lg:w-[420px]">
-              <div className="rounded-xl border bg-white p-3 dark:bg-gray-800">
-                <ImageWithFallback
-                  src={getProductImage(myProduct)}
-                  alt={getProductTitle(myProduct)}
-                  className="w-full h-28 object-cover rounded-lg"
-                />
-                <p className="mt-2 line-clamp-1 text-sm font-semibold">
-                  {getProductTitle(myProduct)}
+          <div className="flex flex-col gap-6 overflow-hidden lg:flex-row">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 lg:w-[430px] lg:flex-shrink-0 overflow-hidden">
+              <div className="min-w-0 overflow-hidden rounded-xl border bg-white p-3 dark:bg-gray-800">
+                <div className="h-28 w-full overflow-hidden rounded-lg bg-gray-100">
+                  <ImageWithFallback
+                    src={getProductImage(myProduct)}
+                    alt={getProductTitle(myProduct)}
+                    className="h-full w-full object-cover object-center"
+                  />
+                </div>
+
+                <p
+                  className="mt-2 truncate text-sm font-semibold"
+                  title={getProductTitle(myProduct)}
+                >
+                  {getShortProductTitle(myProduct)}
                 </p>
-                <p className="text-xs text-gray-500">
+
+                <p className="truncate text-xs text-gray-500">
                   {formatMoney(getProductValue(myProduct))}
                 </p>
-                <Badge variant="outline" className="mt-2">
+
+                <Badge variant="outline" className="mt-2 max-w-full truncate">
                   Sản phẩm của tôi
                 </Badge>
               </div>
 
-              <div className="rounded-full bg-blue-50 p-2 text-blue-600">
+              <div className="flex-shrink-0 rounded-full bg-blue-50 p-2 text-blue-600">
                 <ArrowLeftRight className="w-5 h-5" />
               </div>
 
-              <div className="rounded-xl border bg-white p-3 dark:bg-gray-800">
-                <ImageWithFallback
-                  src={getProductImage(partnerProduct)}
-                  alt={getProductTitle(partnerProduct)}
-                  className="w-full h-28 object-cover rounded-lg"
-                />
-                <p className="mt-2 line-clamp-1 text-sm font-semibold">
-                  {getProductTitle(partnerProduct)}
+              <div className="min-w-0 overflow-hidden rounded-xl border bg-white p-3 dark:bg-gray-800">
+                <div className="h-28 w-full overflow-hidden rounded-lg bg-gray-100">
+                  <ImageWithFallback
+                    src={getProductImage(partnerProduct)}
+                    alt={getProductTitle(partnerProduct)}
+                    className="h-full w-full object-cover object-center"
+                  />
+                </div>
+
+                <p
+                  className="mt-2 truncate text-sm font-semibold"
+                  title={getProductTitle(partnerProduct)}
+                >
+                  {getShortProductTitle(partnerProduct)}
                 </p>
-                <p className="text-xs text-gray-500">
+
+                <p className="truncate text-xs text-gray-500">
                   {formatMoney(getProductValue(partnerProduct))}
                 </p>
-                <Badge variant="outline" className="mt-2">
+
+                <Badge variant="outline" className="mt-2 max-w-full truncate">
                   Sản phẩm muốn đổi
                 </Badge>
               </div>
             </div>
 
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">
+                  <h3 className="truncate text-lg font-semibold">
                     Hóa đơn trao đổi #{invoiceId.slice(-8)}
                   </h3>
 
@@ -713,7 +737,9 @@ export function ExchangeRequestsPage() {
                         {getName(partner).charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span>Đối tác: {getName(partner)}</span>
+                    <span className="min-w-0 truncate">
+                      Đối tác: {getName(partner)}
+                    </span>
                   </div>
                 </div>
 
