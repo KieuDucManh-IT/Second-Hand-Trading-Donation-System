@@ -643,6 +643,7 @@ export function ExchangeRequestsPage() {
       actionLoading === `${invoiceId}-${action}`;
 
     const canAccept = receiverSide && status === "pending_receiver_accept";
+    const canReject = receiverSide && status === "pending_receiver_accept";
 
     const canPayDeposit =
       ["waiting_deposits", "active"].includes(status) &&
@@ -907,6 +908,35 @@ export function ExchangeRequestsPage() {
                       <CheckCircle2 className="w-4 h-4 mr-2" />
                     )}
                     Đồng ý trao đổi
+                  </Button>
+                )}
+
+                {canReject && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Bạn chắc chắn muốn từ chối yêu cầu trao đổi này?"
+                      );
+
+                      if (!ok) return;
+
+                      runAction(
+                        invoiceId,
+                        "reject",
+                        `/exchange-escrow/${invoiceId}/reject`
+                      );
+                    }}
+                    disabled={!!actionLoading}
+                    className="border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    {isLoading("reject") ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Từ chối
                   </Button>
                 )}
 

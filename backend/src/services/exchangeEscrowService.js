@@ -167,35 +167,42 @@ async function createExchangeRequest({
   return invoice;
 }
 
-/**
- * B đồng ý request.
- */
-async function acceptExchangeRequest(invoiceId, receiverId) {
+
+exports.rejectExchangeRequest = async (invoiceId, receiverId) => {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
   if (!invoice) {
-    throw new Error("Không tìm thấy hóa đơn trao đổi");
+    throw new Error("Không tìm thấy yêu cầu trao đổi");
   }
 
-  if (!sameId(invoice.receiver, receiverId)) {
-    throw new Error("Bạn không có quyền xác nhận yêu cầu trao đổi này");
+  if (String(invoice.receiver) !== String(receiverId)) {
+    throw new Error("Bạn không có quyền từ chối yêu cầu này");
   }
 
   if (invoice.status !== "pending_receiver_accept") {
-    throw new Error("Yêu cầu trao đổi này không còn chờ xác nhận");
+    throw new Error("Chỉ có thể từ chối yêu cầu đang chờ đồng ý");
   }
 
-  invoice.status = "waiting_deposits";
-  invoice.acceptedAt = new Date();
+  invoice.status = "cancelled";
+  invoice.cancelledAt = new Date();
+  invoice.cancelReason = "Người nhận từ chối yêu cầu trao đổi";
 
   await invoice.save();
 
-  return invoice;
-}
+  await Product.updateOne(
+    { _id: invoice.receiverProduct },
+    {
+      $set: {
+        status: "available",
+        isAvailable: true,
+        exchangeStatus: "none",
+      },
+    }
+  );
 
-/**
- * Một bên thanh toán tiền bảo hiểm từ ví.
- */
+  return invoice;
+};
+
 async function payExchangeDeposit(invoiceId, userId) {
   const session = await mongoose.startSession();
 

@@ -2,6 +2,7 @@ const exchangeEscrowService = require("../services/exchangeEscrowService");
 const ExchangeInvoice = require("../models/modelExchangeInvoice");
 const ProductImage = require("../models/modelProductImage");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
+const Product = require("../models/modelProduct");
 
 function getUserId(req) {
   return req.user?._id || req.user?.id || req.userId;
@@ -95,7 +96,7 @@ exports.getMyExchangeInvoices = async (req, res) => {
 exports.createExchangeRequest = async (req, res) => {
   try {
     const requesterId = getUserId(req);
-    const { requesterProductId, receiverProductId } = req.body;
+    const { requesterProductId, receiverProductId, locationId } = req.body;
 
     // 1. check product
     const receiverProduct = await Product.findById(receiverProductId);
@@ -134,11 +135,11 @@ exports.createExchangeRequest = async (req, res) => {
       throw new Error("Sản phẩm vừa được người khác chọn");
     }
 
-    // 4. create invoice
     const invoice = await exchangeEscrowService.createExchangeRequest({
       requesterId,
       requesterProductId,
       receiverProductId,
+      locationId,
     });
 
     return res.status(201).json({

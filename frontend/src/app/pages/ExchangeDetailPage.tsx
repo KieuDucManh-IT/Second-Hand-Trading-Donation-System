@@ -994,6 +994,7 @@ export function ExchangeDetailPage() {
         : Math.max(myDepositAmount - myFee, 0);
 
   const canAccept = isReceiver && status === "pending_receiver_accept";
+  const canReject = isReceiver && status === "pending_receiver_accept";
 
   const canPayDeposit =
     ["waiting_deposits", "active"].includes(status) &&
@@ -1313,6 +1314,34 @@ export function ExchangeDetailPage() {
                       <Check className="w-4 h-4 mr-2" />
                     )}
                     Đồng ý trao đổi
+                  </Button>
+                )}
+
+                {canReject && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Bạn chắc chắn muốn từ chối yêu cầu trao đổi này?"
+                      );
+
+                      if (!ok) return;
+
+                      runAction(
+                        "reject",
+                        `/exchange-escrow/${invoiceId}/reject`
+                      );
+                    }}
+                    disabled={!!actionLoading}
+                    className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                    size="lg"
+                  >
+                    {actionLoading === "reject" ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Từ chối trao đổi
                   </Button>
                 )}
 
