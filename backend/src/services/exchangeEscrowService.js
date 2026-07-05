@@ -5,6 +5,7 @@ const ExchangeInvoice = require("../models/modelExchangeInvoice");
 const Wallet = require("../models/modelWallet");
 const WalletTransaction = require("../models/modelWalletTransaction");
 const Product = require("../models/modelProduct");
+const User = require("../models/modelUser");
 
 const EXCHANGE_FEE_RATE = Number(process.env.EXCHANGE_FEE_RATE || 0.1);
 
@@ -124,7 +125,12 @@ async function createExchangeRequest({
   requesterId,
   requesterProductId,
   receiverProductId,
+  locationId,
 }) {
+  if (!locationId) {
+    throw new Error("Vui lòng chọn địa chỉ của bạn");
+  }
+
   const requesterProduct = await Product.findById(requesterProductId);
   const receiverProduct = await Product.findById(receiverProductId);
 
@@ -147,28 +153,102 @@ async function createExchangeRequest({
     throw new Error("Không thể tự trao đổi với chính mình");
   }
 
-  const requesterDepositAmount = getProductPrice(requesterProduct);
-  const receiverDepositAmount = getProductPrice(receiverProduct);
+  if (receiverProduct.status !== "available" || receiverProduct.isAvailable === false) {
+    throw new Error("Sản phẩm này hiện không thể trao đổi");
+  }
 
-  const invoice = await ExchangeInvoice.create({
-    requester: requesterId,
-    receiver: receiverOwner,
-    requesterProduct: requesterProductId,
+  const requesterUser = await User.findById(requesterId);
+
+  if (!requesterUser) {
+    throw new Error("Không tìm thấy tài khoản người gửi yêu cầu");
+  }
+
+  const selectedLocation = requesterUser.locations.id(locationId);
+
+  if (!selectedLocation) {
+    throw new Error("Địa chỉ đã chọn không tồn tại trong tài khoản của bạn");
+  }
+
+  const requesterLocationSnapshot = {
+    locationId: selectedLocation._id,
+    phoneNumber: selectedLocation.phoneNumber,
+    address: selectedLocation.address,
+  };
+
+  const existingInvoice = await ExchangeInvoice.findOne({
     receiverProduct: receiverProductId,
-
-    requesterDepositAmount,
-    receiverDepositAmount,
-    totalInvoiceAmount: requesterDepositAmount + receiverDepositAmount,
-
-    feeRate: EXCHANGE_FEE_RATE,
-    status: "pending_receiver_accept",
+    status: {
+      $in: [
+        "pending_receiver_accept",
+        "accepted",
+        "waiting_deposits",
+        "active",
+        "both_confirmed",
+        "disputed",
+      ],
+    },
   });
 
-  return invoice;
+  if (existingInvoice) {
+    throw new Error("Sản phẩm đang có yêu cầu trao đổi khác");
+  }
+
+  const lockResult = await Product.updateOne(
+    {
+      _id: receiverProductId,
+      status: "available",
+      isAvailable: { $ne: false },
+    },
+    {
+      $set: {
+        status: "reserved",
+        isAvailable: false,
+      },
+    }
+  );
+
+  if (lockResult.modifiedCount === 0) {
+    throw new Error("Sản phẩm vừa được người khác yêu cầu trao đổi");
+  }
+
+  try {
+    const requesterDepositAmount = getProductPrice(requesterProduct);
+    const receiverDepositAmount = getProductPrice(receiverProduct);
+
+    const invoice = await ExchangeInvoice.create({
+      requester: requesterId,
+      receiver: receiverOwner,
+      requesterProduct: requesterProductId,
+      receiverProduct: receiverProductId,
+
+      requesterLocation: requesterLocationSnapshot,
+
+      requesterDepositAmount,
+      receiverDepositAmount,
+      totalInvoiceAmount: requesterDepositAmount + receiverDepositAmount,
+
+      feeRate: EXCHANGE_FEE_RATE,
+      status: "pending_receiver_accept",
+    });
+
+    return invoice;
+  } catch (error) {
+    await Product.updateOne(
+      { _id: receiverProductId },
+      {
+        $set: {
+          status: "available",
+          isAvailable: true,
+        },
+      }
+    );
+
+    throw error;
+  }
 }
 
 
-exports.rejectExchangeRequest = async (invoiceId, receiverId) => {
+async function rejectExchangeRequest(invoiceId, receiverId) {
   const invoice = await ExchangeInvoice.findById(invoiceId);
 
   if (!invoice) {
@@ -195,13 +275,55 @@ exports.rejectExchangeRequest = async (invoiceId, receiverId) => {
       $set: {
         status: "available",
         isAvailable: true,
-        exchangeStatus: "none",
       },
     }
   );
 
   return invoice;
-};
+}
+
+async function acceptExchangeRequest(invoiceId, receiverId) {
+  const invoice = await ExchangeInvoice.findById(invoiceId);
+
+  if (!invoice) {
+    throw new Error("Không tìm thấy yêu cầu trao đổi");
+  }
+
+  if (!sameId(invoice.receiver, receiverId)) {
+    throw new Error("Bạn không có quyền đồng ý yêu cầu này");
+  }
+
+  if (invoice.status !== "pending_receiver_accept") {
+    throw new Error("Chỉ có thể đồng ý yêu cầu đang chờ xử lý");
+  }
+
+  invoice.status = "waiting_deposits";
+  invoice.acceptedAt = new Date();
+
+  await invoice.save();
+
+  await Product.updateOne(
+    { _id: invoice.requesterProduct },
+    {
+      $set: {
+        status: "reserved",
+        isAvailable: false,
+      },
+    }
+  );
+
+  await Product.updateOne(
+    { _id: invoice.receiverProduct },
+    {
+      $set: {
+        status: "reserved",
+        isAvailable: false,
+      },
+    }
+  );
+
+  return invoice;
+}
 
 async function payExchangeDeposit(invoiceId, userId) {
   const session = await mongoose.startSession();
@@ -1173,6 +1295,7 @@ async function repairExchangeProductStatuses() {
 module.exports = {
   createExchangeRequest,
   acceptExchangeRequest,
+  rejectExchangeRequest,
   payExchangeDeposit,
   confirmExchangeCompleted,
   releaseExchangeDeposits,

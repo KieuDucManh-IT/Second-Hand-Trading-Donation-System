@@ -98,41 +98,11 @@ exports.createExchangeRequest = async (req, res) => {
     const requesterId = getUserId(req);
     const { requesterProductId, receiverProductId, locationId } = req.body;
 
-    // 1. check product
-    const receiverProduct = await Product.findById(receiverProductId);
-
-    if (!receiverProduct) {
-      throw new Error("Không tìm thấy sản phẩm");
-    }
-
-    // 2. 🔥 ĐOẠN BẠN HỎI → ĐẶT Ở ĐÂY
-    const existing = await ExchangeInvoice.findOne({
-      receiverProduct: receiverProductId,
-      status: {
-        $in: ["pending_receiver_accept", "accepted"]
-      },
-    });
-
-    if (existing) {
-      throw new Error("Sản phẩm đang có yêu cầu trao đổi");
-    }
-
-    // 3. lock product
-    const update = await Product.updateOne(
-      {
-        _id: receiverProductId,
-        exchangeStatus: { $ne: "pending" }
-      },
-      {
-        $set: {
-          exchangeStatus: "pending",
-          isAvailable: false,
-        },
-      }
-    );
-
-    if (update.modifiedCount === 0) {
-      throw new Error("Sản phẩm vừa được người khác chọn");
+    if (!locationId) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng chọn địa chỉ của bạn",
+      });
     }
 
     const invoice = await exchangeEscrowService.createExchangeRequest({
@@ -142,14 +112,13 @@ exports.createExchangeRequest = async (req, res) => {
       locationId,
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Đã gửi yêu cầu trao đổi",
       invoice,
     });
-
   } catch (error) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: error.message || "Không thể gửi yêu cầu trao đổi",
     });

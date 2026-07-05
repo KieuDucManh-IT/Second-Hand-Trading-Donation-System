@@ -109,6 +109,20 @@ const exchangeInvoiceSchema = new mongoose.Schema(
       index: true,
     },
 
+    requesterLocation: {
+      locationId: {
+        type: mongoose.Schema.Types.ObjectId,
+      },
+      phoneNumber: {
+        type: String,
+        trim: true,
+      },
+      address: {
+        type: String,
+        trim: true,
+      },
+    },
+
     requesterProduct: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
@@ -240,7 +254,6 @@ const exchangeInvoiceSchema = new mongoose.Schema(
       default: undefined,
     },
 
-    // Bên còn lại cũng có thể gửi khiếu nại phản hồi
     counterDisputeBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
