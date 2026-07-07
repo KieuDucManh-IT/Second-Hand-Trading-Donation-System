@@ -480,8 +480,8 @@ const updateDeliveryStatus = async (
                       Delivery Status:
                       <span className="font-semibold ml-2">
                         {donation.deliveryStatus === "shipping"
-                          ? "🚚 Shipping"
-                          : "✅ Delivered"}
+                          ? " Shipping"
+                          : " Delivered"}
                       </span>
                     </p>
                   )}
@@ -527,38 +527,40 @@ const updateDeliveryStatus = async (
                     <div className="flex gap-2">
 
                       <Button
-                        size="sm"
-                        className={
-                          donation.deliveryStatus === "shipping"
-                            ? "bg-blue-600 text-white"
-                            : ""
-                        }
-                        onClick={() =>
-                          updateDeliveryStatus(
-                            donation._id,
-                            "shipping"
-                          )
-                        }
-                      >
-                        🚚 Shipping
-                      </Button>
+  size="sm"
+  disabled={donation.deliveryStatus === "delivered"}
+  className={
+    donation.deliveryStatus === "shipping"
+      ? "bg-blue-600 text-white"
+      : ""
+  }
+  onClick={() =>
+    updateDeliveryStatus(
+      donation._id,
+      "shipping"
+    )
+  }
+>
+   Shipping
+</Button>
 
-                      <Button
-                        size="sm"
-                        className={
-                          donation.deliveryStatus === "delivered"
-                            ? "bg-green-600 text-white"
-                            : ""
-                        }
-                        onClick={() =>
-                          updateDeliveryStatus(
-                            donation._id,
-                            "delivered"
-                          )
-                        }
-                      >
-                        ✅ Delivered
-                      </Button>
+<Button
+  size="sm"
+  disabled={donation.deliveryStatus === "delivered"}
+  className={
+    donation.deliveryStatus === "delivered"
+      ? "bg-green-600 text-white"
+      : ""
+  }
+  onClick={() =>
+    updateDeliveryStatus(
+      donation._id,
+      "delivered"
+    )
+  }
+>
+   Delivered
+</Button>
 
                     </div>
                   )}
@@ -621,8 +623,8 @@ const updateDeliveryStatus = async (
               {donation.status === "accepted" && (
                 <p className="text-green-600 mt-2">
                   {donation.deliveryStatus === "shipping"
-                    ? "🚚 Shipping"
-                    : "✅ Delivered"}
+                    ? " Shipping"
+                    : " Delivered"}
                 </p>
               )}
 
