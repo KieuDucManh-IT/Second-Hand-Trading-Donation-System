@@ -998,9 +998,9 @@ function OrderCard({
  
 // ── Main Page ───────────────────────────────────────────────────────────────
 export function OrderHistoryPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { user, isAuthenticated, isAuthReady } = useAuth();
   const navigate = useNavigate();
- 
+
   const [buyingOrders, setBuyingOrders] = useState<any[]>([]);
   const [sellingOrders, setSellingOrders] = useState<any[]>([]);
   const [donations, setDonations] = useState<any[]>([]);
@@ -1057,13 +1057,13 @@ export function OrderHistoryPage() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthReady) return;
     if (!isAuthenticated) {
       navigate("/login");
       return;
     }
     fetchOrders();
-    fetchDonations();
-  }, [isAuthenticated, navigate, fetchOrders, fetchDonations]);
+  }, [isAuthReady, isAuthenticated, navigate, fetchOrders]);
  
   const handleAction = async (orderId: string, action: string, data?: any) => {
     try {
@@ -1589,15 +1589,15 @@ export function OrderHistoryPage() {
 
                               {donation.status === "pending" && (
                                 <p className="text-yellow-600 mt-2 text-sm">
-                                  ⏳ Đang chờ người tặng xác nhận...
+                                   Đang chờ người tặng xác nhận...
                                 </p>
                               )}
 
                               {donation.status === "accepted" && (
                                 <p className="text-green-600 mt-2 text-sm">
                                   {donation.deliveryStatus === "shipping"
-                                    ? "🚚 Người tặng đang giao"
-                                    : "✅ Đã giao"}
+                                    ? " Người tặng đang giao"
+                                    : " Đã giao"}
                                 </p>
                               )}
 
