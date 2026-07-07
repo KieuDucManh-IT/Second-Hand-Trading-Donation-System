@@ -25,7 +25,8 @@ const cartSchema = new mongoose.Schema(
 );
  
 // Index để tìm nhanh
-cartSchema.index({ userId: 1 });
+// Lưu ý: userId đã có unique: true ở trên -> Mongoose tự tạo index rồi,
+// không cần khai báo cartSchema.index({ userId: 1 }) nữa (tránh warning duplicate index)
 cartSchema.index({ 'items.productId': 1 });
  
 module.exports = mongoose.model('Cart', cartSchema);
