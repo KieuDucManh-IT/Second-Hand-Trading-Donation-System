@@ -4,6 +4,9 @@ const Conversation = require('../models/modelConversation');
 const Message      = require('../models/modelMessage');
 const Product      = require('../models/modelProduct');
 const ProductImage = require('../models/modelProductImage');
+const { containsProfanity } = require('../utils/profanityFilter');
+ 
+const MAX_MESSAGE_LENGTH = 2000;
  
 // ── Helper: format 1 conversation cho response (kèm tên/avatar người còn lại) ──
 const formatConversation = async (conv, currentUserId) => {
@@ -144,7 +147,23 @@ exports.sendMessage = async (req, res) => {
     if (!content || !content.trim()) {
       return res.status(400).json({ success: false, message: 'Nội dung tin nhắn không được để trống' });
     }
- 
+
+    const trimmedContent = content.trim();
+
+    if (trimmedContent.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `Tin nhắn quá dài (tối đa ${MAX_MESSAGE_LENGTH} ký tự)`,
+      });
+    }
+
+    if (containsProfanity(trimmedContent)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tin nhắn chứa từ ngữ không phù hợp, vui lòng chỉnh sửa lại nội dung',
+      });
+    }
+
     const conv = await Conversation.findById(id);
     if (!conv) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy cuộc trò chuyện' });
@@ -156,10 +175,10 @@ exports.sendMessage = async (req, res) => {
     const message = await Message.create({
       conversationId: id,
       senderId: userId,
-      content: content.trim(),
+      content: trimmedContent,
     });
  
-    conv.lastMessage = content.trim();
+    conv.lastMessage = trimmedContent;
     conv.lastMessageAt = message.createdAt;
     conv.lastMessageSender = userId;
  

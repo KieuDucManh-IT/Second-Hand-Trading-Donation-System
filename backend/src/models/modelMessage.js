@@ -19,6 +19,7 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: [2000, "Tin nhắn không được vượt quá 2000 ký tự"],
     },
 
     isRead: {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
 import { Button } from '../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
@@ -16,6 +17,7 @@ import {
   type ApiMessage,
 } from '../api/chatApi';
 import { connectSocket } from '../lib/socket';
+import { MAX_MESSAGE_LENGTH, containsProfanity } from '../lib/chatValidation';
 import type { Socket } from 'socket.io-client';
  
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -264,12 +266,24 @@ export function MessagesPage() {
     if (!messageText.trim() || !selectedConvId || sending) return;
  
     const content = messageText.trim();
+
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      toast.error(`Tin nhắn quá dài (tối đa ${MAX_MESSAGE_LENGTH} ký tự)`);
+      return;
+    }
+
+    if (containsProfanity(content)) {
+      toast.error('Tin nhắn chứa từ ngữ không phù hợp, vui lòng chỉnh sửa lại nội dung');
+      return;
+    }
+
     setMessageText('');
     setSending(true);
  
     // Optimistic update — dùng temp id, server sẽ gửi lại message thật qua socket
+    const tempId = `temp-${Date.now()}`;
     const tempMsg: ApiMessage = {
-      _id: `temp-${Date.now()}`,
+      _id: tempId,
       conversationId: selectedConvId,
       senderId: user!.id,
       content,
@@ -280,18 +294,30 @@ export function MessagesPage() {
     setMessages((prev) => sortByTime([...prev, tempMsg]));
  
     try {
-      socketRef.current?.emit('send_message', { conversationId: selectedConvId, content });
+      socketRef.current?.emit(
+        'send_message',
+        { conversationId: selectedConvId, content },
+        (response?: { success: boolean; message?: string }) => {
+          setSending(false);
+          if (response && response.success === false) {
+            // Server từ chối (quá dài / chứa từ nhạy cảm / lỗi khác) → gỡ bong bóng tạm
+            setMessages((prev) => prev.filter((m) => m._id !== tempId));
+            toast.error(response.message || 'Không thể gửi tin nhắn');
+          }
+        }
+      );
     } catch {
-      setMessages((prev) => prev.filter((m) => m._id !== tempMsg._id));
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
       toast.error('Không thể gửi tin nhắn');
-    } finally {
       setSending(false);
     }
   };
  
   /* ── Typing indicator ────────────────────────────────────────────────── */
   const handleInputChange = (val: string) => {
-    setMessageText(val);
+    // Chặn ngay từ lúc gõ/dán, không cho vượt quá giới hạn ký tự
+    const capped = val.length > MAX_MESSAGE_LENGTH ? val.slice(0, MAX_MESSAGE_LENGTH) : val;
+    setMessageText(capped);
     if (!selectedConvId) return;
  
     socketRef.current?.emit('typing', { conversationId: selectedConvId, isTyping: true });
@@ -481,23 +507,36 @@ export function MessagesPage() {
  
                 {/* Input */}
                 <div className="p-4 border-t bg-white dark:bg-gray-900 flex-shrink-0">
-                  <div className="flex gap-2">
-                    <Input
-                      value={messageText}
-                      onChange={(e) => handleInputChange(e.target.value)}
-                      placeholder="Nhập tin nhắn..."
-                      className="flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
-                        }
-                      }}
-                    />
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 min-w-0">
+                      <Textarea
+                        value={messageText}
+                        onChange={(e) => handleInputChange(e.target.value)}
+                        placeholder="Nhập tin nhắn..."
+                        maxLength={MAX_MESSAGE_LENGTH}
+                        rows={1}
+                        className="max-h-32 overflow-y-auto min-h-9 py-2 resize-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                      />
+                      {messageText.length > MAX_MESSAGE_LENGTH * 0.8 && (
+                        <p
+                          className={`text-xs mt-1 text-right ${
+                            messageText.length >= MAX_MESSAGE_LENGTH ? 'text-red-500' : 'text-gray-400'
+                          }`}
+                        >
+                          {messageText.length}/{MAX_MESSAGE_LENGTH}
+                        </p>
+                      )}
+                    </div>
                     <Button
                       onClick={handleSend}
                       disabled={!messageText.trim() || sending}
-                      className="bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                      className="bg-linear-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 flex-shrink-0"
                     >
                       {sending ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
