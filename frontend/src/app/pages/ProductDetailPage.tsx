@@ -422,25 +422,25 @@ export function ProductDetailPage() {
     }
   };
 
-  const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
-      navigate("/login");
-      return;
-    }
+  // const handleAddToCart = async () => {
+  //   if (!isAuthenticated) {
+  //     toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
+  //     navigate("/login");
+  //     return;
+  //   }
 
-    if (!product?._id) {
-      toast.error("Không tìm thấy sản phẩm");
-      return;
-    }
+  //   if (!product?._id) {
+  //     toast.error("Không tìm thấy sản phẩm");
+  //     return;
+  //   }
 
-    try {
-      await addToCart(product._id);
-      toast.success("Đã thêm vào giỏ hàng!");
-    } catch (error: any) {
-      toast.error(error.message || "Không thể thêm vào giỏ hàng");
-    }
-  };
+  //   try {
+  //     await addToCart(product._id);
+  //     toast.success("Đã thêm vào giỏ hàng!");
+  //   } catch (error: any) {
+  //     toast.error(error.message || "Không thể thêm vào giỏ hàng");
+  //   }
+  // };
 
   const handleReport = async () => {
     if (!isAuthenticated) {
@@ -689,8 +689,8 @@ export function ProductDetailPage() {
                   })()}
 
                   {product.type === "sell" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
+                    <div className="grid  gap-3">
+                      {/* <Button
                         onClick={handleAddToCart}
                         disabled={cartLoading}
                         variant="outline"
@@ -702,7 +702,7 @@ export function ProductDetailPage() {
                           <ShoppingCart className="w-4 h-4 mr-2" />
                         )}
                         {cartLoading ? "Đang thêm..." : "Thêm vào giỏ"}
-                      </Button>
+                      </Button> */}
 
                       <Button
                         onClick={openExchangeDialog}
@@ -1097,10 +1097,10 @@ export function ProductDetailPage() {
 
       {/* ── Donation Request Dialog ── */}
       <Dialog open={donationDialogOpen} onOpenChange={(v) => { setDonationDialogOpen(v); if (!v) setDonationMessage(""); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+              {/* <Heart className="w-5 h-5 text-rose-500 fill-rose-500" /> */}
               Yêu cầu nhận đồ quyên góp
             </DialogTitle>
             <DialogDescription>
@@ -1166,43 +1166,45 @@ export function ProductDetailPage() {
                 </div>
               </div>
  
-              <div className="space-y-1">
-                <Label htmlFor="donation-email" className="text-xs text-gray-500">
-                  Email (tuỳ chọn)
-                </Label>
-                <Input
-                  id="donation-email"
-                  type="email"
-                  value={donationEmail}
-                  onChange={(e) => setDonationEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  className="bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
-                />
-              </div>
- 
-              {user?.locations && user.locations.length > 1 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Chọn địa chỉ đã lưu</Label>
-                  <select
-                    className="w-full appearance-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                    value={donationAddress}
-                    onChange={(e) => {
-                      const selected = user.locations.find((l) => l.address === e.target.value);
-                      if (selected) {
-                        setDonationAddress(selected.address);
-                        if (selected.phoneNumber) setDonationPhone(selected.phoneNumber);
-                      }
-                    }}
-                  >
-                    <option value="">-- Chọn địa chỉ đã lưu --</option>
-                    {user.locations.map((loc, idx) => (
-                      <option key={idx} value={loc.address}>
-                        {loc.address}{loc.phoneNumber ? ` — ${loc.phoneNumber}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <Label htmlFor="donation-email" className="text-xs text-gray-500">
+                    Email (tuỳ chọn)
+                  </Label>
+                  <Input
+                    id="donation-email"
+                    type="email"
+                    value={donationEmail}
+                    onChange={(e) => setDonationEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                  />
                 </div>
-              )}
+ 
+                {user?.locations && user.locations.length > 1 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Chọn địa chỉ đã lưu</Label>
+                    <select
+                      className="w-full appearance-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer h-9"
+                      value={donationAddress}
+                      onChange={(e) => {
+                        const selected = user.locations.find((l) => l.address === e.target.value);
+                        if (selected) {
+                          setDonationAddress(selected.address);
+                          if (selected.phoneNumber) setDonationPhone(selected.phoneNumber);
+                        }
+                      }}
+                    >
+                      <option value="">-- Chọn địa chỉ đã lưu --</option>
+                      {user.locations.map((loc, idx) => (
+                        <option key={idx} value={loc.address}>
+                          {loc.address}{loc.phoneNumber ? ` — ${loc.phoneNumber}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
  
               <div className="space-y-1">
                 <Label htmlFor="donation-address" className="text-xs text-gray-500">

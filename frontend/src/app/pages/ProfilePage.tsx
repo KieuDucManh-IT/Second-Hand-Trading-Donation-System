@@ -5,10 +5,21 @@ import { Card, CardContent } from '../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Star, MapPin, Calendar, MessageCircle, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { Star, MapPin, Calendar, MessageCircle, Settings, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiProduct } from '../api/productApi';
+import { toast } from 'sonner';
  
 interface ProfileUser {
   id: string;
@@ -50,6 +61,10 @@ export function ProfilePage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [reviewsPage, setReviewsPage] = useState(1);
   const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
+
+  // Xóa sản phẩm
+  const [deleteTarget, setDeleteTarget] = useState<ApiProduct | null>(null);
+  const [deleting, setDeleting] = useState(false);
  
   const API_BASE = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000';
  
@@ -122,6 +137,30 @@ export function ProfilePage() {
  
     fetchReviews();
   }, [userId, API_BASE, reviewsPage]);
+
+  const handleDeleteProduct = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/products/${deleteTarget._id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Không thể xóa sản phẩm');
+      }
+      setProducts((prev) => prev.filter((p) => p._id !== deleteTarget._id));
+      toast.success('Đã xóa sản phẩm');
+    } catch (err: any) {
+      toast.error(err.message || 'Có lỗi xảy ra khi xóa sản phẩm');
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
  
   if (loading) {
     return (
@@ -276,6 +315,19 @@ export function ProfilePage() {
                             </Badge>
                           </div>
                         )}
+                        {isOwnProfile && (
+                          <button
+                            type="button"
+                            title="Xóa sản phẩm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(product);
+                            }}
+                            className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/90 dark:bg-gray-900/90 text-red-600 hover:bg-red-600 hover:text-white shadow-md transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                       <CardContent className="p-4">
                         <h3 className="font-semibold mb-2 line-clamp-1">{product.title}</h3>
@@ -385,6 +437,17 @@ export function ProfilePage() {
                               </Badge>
                             )}
                           </div>
+                          <button
+                            type="button"
+                            title="Xóa sản phẩm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(product);
+                            }}
+                            className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/90 dark:bg-gray-900/90 text-red-600 hover:bg-red-600 hover:text-white shadow-md transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                         <CardContent className="p-4">
                           <h3 className="font-semibold mb-1 line-clamp-1">{product.title}</h3>
@@ -507,7 +570,38 @@ export function ProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa sản phẩm?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc muốn xóa tin đăng{deleteTarget ? ` "${deleteTarget.title}"` : ''} không?
+              Hành động này không thể hoàn tác, toàn bộ ảnh và thông tin sản phẩm sẽ bị xóa vĩnh viễn.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteProduct();
+              }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xóa...
+                </>
+              ) : (
+                'Xóa sản phẩm'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
- 

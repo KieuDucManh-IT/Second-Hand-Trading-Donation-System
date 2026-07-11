@@ -17,7 +17,6 @@ import {
   type ApiMessage,
 } from '../api/chatApi';
 import { connectSocket } from '../lib/socket';
-import { MAX_MESSAGE_LENGTH, containsProfanity } from '../lib/chatValidation';
 import type { Socket } from 'socket.io-client';
  
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -91,20 +90,6 @@ export function MessagesPage() {
       setMessages((prev) => {
         if (conversationId !== selectedConvIdRef.current) return prev;
         if (prev.some((m) => m._id === message._id)) return prev;
- 
-        // Tin nhắn của chính mình → thay thế bản "optimistic" (temp) thay vì thêm mới,
-        // tránh hiện trùng 2 bong bóng cho 1 tin nhắn vừa gửi.
-        if (message.senderId === user?.id) {
-          const tempIndex = prev.findIndex(
-            (m) => m._id.startsWith('temp-') && m.content === message.content
-          );
-          if (tempIndex !== -1) {
-            const next = [...prev];
-            next[tempIndex] = message;
-            return sortByTime(next);
-          }
-        }
- 
         return sortByTime([...prev, message]);
       });
  
@@ -258,66 +243,60 @@ export function MessagesPage() {
  
   /* ── Auto scroll ─────────────────────────────────────────────────────── */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
  
   /* ── Gửi tin nhắn ────────────────────────────────────────────────────── */
   const handleSend = () => {
     if (!messageText.trim() || !selectedConvId || sending) return;
- 
+
     const content = messageText.trim();
-
-    if (content.length > MAX_MESSAGE_LENGTH) {
-      toast.error(`Tin nhắn quá dài (tối đa ${MAX_MESSAGE_LENGTH} ký tự)`);
-      return;
-    }
-
-    if (containsProfanity(content)) {
-      toast.error('Tin nhắn chứa từ ngữ không phù hợp, vui lòng chỉnh sửa lại nội dung');
-      return;
-    }
-
+    const convId = selectedConvId;
     setMessageText('');
     setSending(true);
- 
-    // Optimistic update — dùng temp id, server sẽ gửi lại message thật qua socket
-    const tempId = `temp-${Date.now()}`;
-    const tempMsg: ApiMessage = {
-      _id: tempId,
-      conversationId: selectedConvId,
-      senderId: user!.id,
-      content,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setMessages((prev) => sortByTime([...prev, tempMsg]));
- 
-    try {
-      socketRef.current?.emit(
-        'send_message',
-        { conversationId: selectedConvId, content },
-        (response?: { success: boolean; message?: string }) => {
-          setSending(false);
-          if (response && response.success === false) {
-            // Server từ chối (quá dài / chứa từ nhạy cảm / lỗi khác) → gỡ bong bóng tạm
-            setMessages((prev) => prev.filter((m) => m._id !== tempId));
-            toast.error(response.message || 'Không thể gửi tin nhắn');
-          }
-        }
-      );
-    } catch {
-      setMessages((prev) => prev.filter((m) => m._id !== tempId));
-      toast.error('Không thể gửi tin nhắn');
+
+    const socket = socketRef.current;
+    if (!socket) {
       setSending(false);
+      toast.error('Mất kết nối, vui lòng thử lại');
+      setMessageText(content);
+      return;
     }
+
+    let acked = false;
+    const timeoutId = setTimeout(() => {
+      if (acked) return;
+      acked = true;
+      setSending(false);
+      toast.error('Gửi tin nhắn quá lâu, vui lòng thử lại');
+      setMessageText(content);
+    }, 8000);
+
+    // Không hiển thị tin nhắn ngay (optimistic) nữa — chờ server xác nhận.
+    // Nếu server từ chối (VD: chứa từ ngữ nhạy cảm), tin nhắn sẽ KHÔNG xuất
+    // hiện ở đâu cả, chỉ báo lỗi, tránh tạo cảm giác "đã gửi" giả.
+    socket.emit(
+      'send_message',
+      { conversationId: convId, content },
+      (res?: { success: boolean; message?: string }) => {
+        if (acked) return;
+        acked = true;
+        clearTimeout(timeoutId);
+        setSending(false);
+        if (!res) return; // server không hỗ trợ ack (fallback cũ) — bỏ qua
+        if (!res.success) {
+          toast.error(res.message || 'Không thể gửi tin nhắn');
+          setMessageText(content); // trả lại nội dung để người dùng sửa
+        }
+        // Nếu thành công: message thật sẽ được thêm vào qua sự kiện
+        // socket 'new_message' (server emit cho cả người gửi lẫn người nhận).
+      }
+    );
   };
  
   /* ── Typing indicator ────────────────────────────────────────────────── */
   const handleInputChange = (val: string) => {
-    // Chặn ngay từ lúc gõ/dán, không cho vượt quá giới hạn ký tự
-    const capped = val.length > MAX_MESSAGE_LENGTH ? val.slice(0, MAX_MESSAGE_LENGTH) : val;
-    setMessageText(capped);
+    setMessageText(val);
     if (!selectedConvId) return;
  
     socketRef.current?.emit('typing', { conversationId: selectedConvId, isTyping: true });
@@ -342,13 +321,13 @@ export function MessagesPage() {
  
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
-    <div className="h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900">
+    <div className="h-[calc(100vh-4rem)] overflow-hidden bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-full">
         <Card className="h-full overflow-hidden">
-          <div className="grid md:grid-cols-[340px_1fr] h-full">
+          <div className="grid md:grid-cols-[340px_1fr] h-full min-h-0">
  
             {/* ── Danh sách cuộc trò chuyện ──────────────────────────── */}
-            <div className="border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
+            <div className="border-r border-gray-200 dark:border-gray-700 flex flex-col h-full min-h-0">
               <div className="p-4 border-b flex-shrink-0">
                 <h2 className="text-xl font-bold mb-3">Tin nhắn</h2>
                 <div className="relative">
@@ -362,7 +341,7 @@ export function MessagesPage() {
                 </div>
               </div>
  
-              <div className="overflow-y-auto flex-1">
+              <div className="overflow-y-auto overflow-x-hidden flex-1 min-h-0 [overflow-anchor:none]">
                 {loadingConvs ? (
                   <div className="flex justify-center items-center h-32">
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -392,7 +371,7 @@ export function MessagesPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline mb-0.5">
-                            <span className="font-semibold text-sm truncate">
+                            <span className="font-semibold text-sm truncate min-w-0">
                               {conv.participant?.name ?? 'Người dùng'}
                             </span>
                             <span className="text-xs text-gray-400 ml-2 flex-shrink-0">
@@ -405,7 +384,7 @@ export function MessagesPage() {
                             </p>
                           )}
                           <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500 truncate flex-1">
+                            <p className="text-sm text-gray-500 truncate min-w-0 flex-1">
                               {conv.lastMessage || 'Chưa có tin nhắn'}
                             </p>
                             {conv.unreadCount > 0 && (
@@ -424,7 +403,7 @@ export function MessagesPage() {
  
             {/* ── Khu vực chat ───────────────────────────────────────── */}
             {selectedConv ? (
-              <div className="flex flex-col h-full">
+              <div className="flex flex-col h-full min-h-0">
                 {/* Header */}
                 <div className="p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white dark:bg-gray-900">
                   <Avatar className="w-10 h-10">
@@ -442,7 +421,7 @@ export function MessagesPage() {
                 </div>
  
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-950">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-gray-50 dark:bg-gray-950 [overflow-anchor:none]">
                   {loadingMsgs ? (
                     <div className="flex justify-center items-center h-full">
                       <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -464,13 +443,13 @@ export function MessagesPage() {
                             </Avatar>
                           )}
                           <div
-                            className={`max-w-[65%] px-4 py-2 rounded-2xl shadow-sm ${
+                            className={`max-w-[65%] min-w-0 px-4 py-2 rounded-2xl shadow-sm ${
                               isMine
                                 ? 'bg-linear-to-r from-green-500 to-blue-500 text-white rounded-tr-none'
                                 : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-none'
                             }`}
                           >
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words wrap-anywhere">
                               {msg.content}
                             </p>
                             <p className={`text-xs mt-1 text-right ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
@@ -508,31 +487,24 @@ export function MessagesPage() {
                 {/* Input */}
                 <div className="p-4 border-t bg-white dark:bg-gray-900 flex-shrink-0">
                   <div className="flex gap-2 items-end">
-                    <div className="flex-1 min-w-0">
-                      <Textarea
-                        value={messageText}
-                        onChange={(e) => handleInputChange(e.target.value)}
-                        placeholder="Nhập tin nhắn..."
-                        maxLength={MAX_MESSAGE_LENGTH}
-                        rows={1}
-                        className="max-h-32 overflow-y-auto min-h-9 py-2 resize-none"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSend();
-                          }
-                        }}
-                      />
-                      {messageText.length > MAX_MESSAGE_LENGTH * 0.8 && (
-                        <p
-                          className={`text-xs mt-1 text-right ${
-                            messageText.length >= MAX_MESSAGE_LENGTH ? 'text-red-500' : 'text-gray-400'
-                          }`}
-                        >
-                          {messageText.length}/{MAX_MESSAGE_LENGTH}
-                        </p>
-                      )}
-                    </div>
+                    <Textarea
+                      value={messageText}
+                      onChange={(e) => {
+                        if (e.target.value.length > 2000) return;
+                        handleInputChange(e.target.value);
+                      }}
+                      placeholder="Nhập tin nhắn..."
+                      rows={1}
+                      maxLength={2000}
+                      spellCheck={false}
+                      className="flex-1 min-w-0 field-sizing-fixed resize-none max-h-32 overflow-y-auto whitespace-pre-wrap break-words wrap-anywhere rounded-2xl min-h-11 px-4 py-2.5 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                    />
                     <Button
                       onClick={handleSend}
                       disabled={!messageText.trim() || sending}

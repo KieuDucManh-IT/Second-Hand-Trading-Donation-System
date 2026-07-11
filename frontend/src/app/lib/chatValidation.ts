@@ -1,10 +1,6 @@
-// Giới hạn độ dài tin nhắn (phải khớp với backend: MAX_MESSAGE_LENGTH trong
-// chatSocket.js / chatController.js) để tránh tin nhắn quá dài làm vỡ giao diện.
+
 export const MAX_MESSAGE_LENGTH = 2000;
- 
-// Danh sách rút gọn từ nhạy cảm / chửi bậy dùng để kiểm tra nhanh phía client
-// trước khi gửi (UX). Backend vẫn là nơi kiểm tra chính thức, danh sách này
-// chỉ giúp phản hồi sớm cho người dùng.
+
 const BAD_WORDS = [
   "đm", "dm", "đjt", "djt", "địt", "dit",
   "cc", "clm", "cml", "cmm", "cmnr",
