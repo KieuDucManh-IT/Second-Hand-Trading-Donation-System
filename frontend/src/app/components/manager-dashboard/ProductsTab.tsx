@@ -5,18 +5,16 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Input } from '../ui/input';
-import { Check, Eye, EyeOff, X, Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { Pagination } from './Pagination';
 
 type ProductsTabProps = {
   productViewList: Array<any>;
-  updateProductStatus: (productId: string, status: 'available' | 'hidden') => Promise<void>;
 };
 
 export function ProductsTab({
   productViewList,
-  updateProductStatus,
 }: ProductsTabProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -229,28 +227,6 @@ export function ProductsTab({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {product.status !== 'sold' && (
-                        product.status === 'hidden' ? (
-                          <Button
-                            size="icon"
-                            className="bg-emerald-600 text-white hover:bg-emerald-700"
-                            onClick={() => updateProductStatus(product.id, 'available')}
-                            title="Hiển thị/Duyệt sản phẩm"
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="border-amber-300 text-amber-600 hover:bg-amber-50"
-                            onClick={() => updateProductStatus(product.id, 'hidden')}
-                            title="Ẩn sản phẩm"
-                          >
-                            <EyeOff className="h-4 w-4" />
-                          </Button>
-                        )
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>
