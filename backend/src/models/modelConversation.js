@@ -31,8 +31,6 @@ const conversationSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
-
-    // Số lượng tin chưa đọc theo từng user, key = userId (string)
     unreadCounts: {
       type: Map,
       of: Number,

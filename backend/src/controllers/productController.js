@@ -17,10 +17,7 @@ const getSensitiveWords = async () => {
   return [];
 };
  
-/**
- * Kiểm tra văn bản có chứa từ nhạy cảm không
- * @returns {Promise<string|null>} từ vi phạm đầu tiên, hoặc null nếu sạch
- */
+//kiểm tra từ nhạy cảm
 const findSensitiveWord = async (text) => {
   if (!text) return null;
   const lower = text.toLowerCase();
@@ -77,7 +74,7 @@ exports.createProduct = async (req, res, next) => {
   try {
     const { title, description, price, condition, type, categoryId, address, longitude, latitude } = req.body;
  
-    // ── Validate bắt buộc ────────────────────────────────────────────────────
+    // ── Validate bắt buộc ───────────────
     if (!title || !description || !condition || !type || !categoryId) {
       return res.status(400).json({
         success: false,

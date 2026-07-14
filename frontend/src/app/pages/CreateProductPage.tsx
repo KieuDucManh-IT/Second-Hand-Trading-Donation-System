@@ -58,7 +58,6 @@ export function CreateProductPage() {
         const data = await res.json();
         if (data.success) setCategories(data.data);
       } catch {
-        // fallback nếu API chưa chạy
         setCategories([
           { _id: 'electronics', name: 'Điện tử' },
           { _id: 'fashion',     name: 'Thời trang' },
@@ -96,7 +95,7 @@ export function CreateProductPage() {
     return forbiddenKeywords.find((w) => lower.includes(w.toLowerCase())) || null;
   };
  
-  // ── Validate ─────────────────────────────────────────────────────────────────
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
  
@@ -130,7 +129,7 @@ export function CreateProductPage() {
     return Object.keys(newErrors).length === 0;
   };
  
-  // ── Xử lý chọn ảnh ───────────────────────────────────────────────────────────
+// Xử Lý ảnh
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = 8 - imageFiles.length;
@@ -173,7 +172,7 @@ export function CreateProductPage() {
  
       const headers = { Authorization: `Bearer ${token}` };
  
-      // 1) Tạo sản phẩm
+    
       const productRes = await fetch(`${API_URL}/products`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -191,7 +190,7 @@ export function CreateProductPage() {
       const productData = await productRes.json();
  
       if (!productRes.ok) {
-        // Backend cũng validate từ nhạy cảm — hiển thị lỗi đúng field
+        
         if (productData.field) {
           setErrors((prev) => ({ ...prev, [productData.field]: productData.message }));
         } else {
@@ -202,7 +201,7 @@ export function CreateProductPage() {
  
       const productId = productData.data._id;
  
-      // 2) Upload ảnh
+     
       const formDataImg = new FormData();
       imageFiles.forEach((f) => formDataImg.append('images', f));
  
@@ -226,7 +225,7 @@ export function CreateProductPage() {
     }
   };
  
-  // ── Màn hình thành công ───────────────────────────────────────────────────────
+  // ── Màn hình thành công ────────
   if (submitted) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4">
