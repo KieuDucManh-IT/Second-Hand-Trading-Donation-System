@@ -56,10 +56,34 @@ export function useManagerDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
     const stateTab = (location.state as any)?.tab;
     if (stateTab) return stateTab;
-    const savedTab = sessionStorage.getItem('manager_dashboard_active_tab') as DashboardTab;
-    if (savedTab && ['products', 'reports', 'users', 'categories', 'config', 'disputes'].includes(savedTab)) {
-      return savedTab;
+
+    // Check if the page is reloaded
+    const isPageReload = performance.navigation?.type === 1;
+
+    if (isPageReload) {
+      const savedTab = sessionStorage.getItem('manager_dashboard_active_tab') as DashboardTab;
+      if (savedTab && ['products', 'reports', 'users', 'categories', 'config', 'disputes'].includes(savedTab)) {
+        return savedTab;
+      }
+    } else {
+      // Clear dashboard session keys for a fresh navigation
+      const keys = [
+        'manager_dashboard_active_tab',
+        'manager_dashboard_show_all_products',
+        'products_tab_search_query',
+        'products_tab_selected_price_range',
+        'products_tab_current_page',
+        'users_tab_search_query',
+        'users_tab_status_filter',
+        'users_tab_current_page',
+        'reports_tab_current_page',
+        'disputes_tab_selected_status',
+        'disputes_tab_show_history',
+        'disputes_tab_current_page',
+      ];
+      keys.forEach((key) => sessionStorage.removeItem(key));
     }
+
     return 'products';
   });
 
