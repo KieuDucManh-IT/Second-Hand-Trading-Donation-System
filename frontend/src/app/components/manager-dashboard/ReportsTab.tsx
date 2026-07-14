@@ -206,7 +206,7 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
       </Card>
 
       <Dialog open={isDetailsOpen} onOpenChange={(open) => !open && setSelectedTargetId(null)}>
-        <DialogContent className="max-w-2xl rounded-3xl border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95 max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-full sm:max-w-[90vw] md:max-w-5xl lg:max-w-6xl rounded-3xl border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95 max-h-[90vh] overflow-y-auto">
           <DialogHeader className="text-left">
             <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-50">
               Chi tiết báo cáo được nhóm
@@ -217,57 +217,66 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
           </DialogHeader>
 
           {selectedGroup && (
-            <div className="mt-3 space-y-6">
-            
-              <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 space-y-2 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Đối tượng bị báo cáo</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${selectedGroup.targetType === 'product'
-                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
-                      : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
-                    }`}>
-                    {selectedGroup.targetType === 'product' ? 'Sản phẩm' : 'Người dùng'}
-                  </span>
-                </div>
-                <div className="text-base font-bold text-slate-900 dark:text-slate-50">
-                  {selectedGroup.targetName === 'Unknown Target' ? 'Không rõ' : selectedGroup.targetName}
-                </div>
-                <div className="text-xs text-slate-400">ID: {selectedGroup.targetId}</div>
-                <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center mt-1">
-                  <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-                  Tổng số cảnh cáo của đối tượng này: {selectedGroup.targetWarnings}
-                </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+              {/* Cột trái: Đối tượng bị báo cáo */}
+              <div className="md:col-span-5 space-y-4 md:sticky md:top-0">
+                <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-5 space-y-3 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Đối tượng bị báo cáo</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${selectedGroup.targetType === 'product'
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                        : 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400'
+                      }`}>
+                      {selectedGroup.targetType === 'product' ? 'Sản phẩm' : 'Người dùng'}
+                    </span>
+                  </div>
+                  <div className="text-base font-bold text-slate-900 dark:text-slate-50">
+                    {selectedGroup.targetName === 'Unknown Target' ? 'Không rõ' : selectedGroup.targetName}
+                  </div>
+                  <div className="text-xs text-slate-400">ID: {selectedGroup.targetId}</div>
+                  <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center mt-1">
+                    <AlertTriangle className="w-3.5 h-3.5 mr-1" />
+                    Tổng số cảnh cáo của đối tượng này: {selectedGroup.targetWarnings}
+                  </div>
 
-                {selectedGroup.targetType === 'product' && (() => {
-                  const productStatus = selectedGroup.reports[0]?.targetDetail?.status;
-                  if (!productStatus) return null;
-                  return (
-                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <span className="text-xs text-slate-500">Trạng thái sản phẩm:</span>
-                      <span className={`text-xs font-semibold ${productStatus === 'hidden' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {productStatus === 'hidden' ? 'Đang ẩn' : productStatus === 'available' ? 'Đang hiển thị' : productStatus}
-                      </span>
-                      {productStatus !== 'sold' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs px-2.5 rounded-lg border-slate-200 ml-auto"
-                          onClick={async () => {
-                            const newStatus = productStatus === 'hidden' ? 'available' : 'hidden';
-                            await updateProductStatus(selectedGroup.targetId, newStatus);
-                            setSelectedTargetId(null);
-                          }}
-                        >
-                          {productStatus === 'hidden' ? 'Hiển thị lại' : 'Ẩn sản phẩm'}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })()}
+                  {selectedGroup.targetType === 'product' && (() => {
+                    const productStatus = selectedGroup.reports[0]?.targetDetail?.status;
+                    if (!productStatus) return null;
+                    return (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <span className="text-xs text-slate-500">Trạng thái sản phẩm:</span>
+                        <span className={`text-xs font-semibold ${productStatus === 'hidden' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {productStatus === 'hidden' ? 'Đang ẩn' : productStatus === 'available' ? 'Đang hiển thị' : productStatus}
+                        </span>
+                        {productStatus !== 'sold' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2.5 rounded-lg border-slate-200 ml-auto"
+                            onClick={async () => {
+                              const newStatus = productStatus === 'hidden' ? 'available' : 'hidden';
+                              await updateProductStatus(selectedGroup.targetId, newStatus);
+                              setSelectedTargetId(null);
+                            }}
+                          >
+                            {productStatus === 'hidden' ? 'Hiển thị lại' : 'Ẩn sản phẩm'}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                
+                <div className="flex justify-end pt-3">
+                  <Button variant="outline" type="button" className="w-full rounded-xl" onClick={() => setSelectedTargetId(null)}>
+                    Đóng cửa sổ
+                  </Button>
+                </div>
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center">
+              {/* Cột phải: Danh sách báo cáo chi tiết */}
+              <div className="md:col-span-7 space-y-4">
+                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center">
                   Danh sách báo cáo ({selectedGroup.reports.length})
                 </h4>
                 <div className="space-y-3">
@@ -303,7 +312,7 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
                         <div className="flex justify-end gap-2 pt-1">
                           <Button
                             size="sm"
-                            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
                             onClick={() => updateReportStatus(report.id, 'accept')}
                           >
                             Chấp nhận (Cảnh cáo)
@@ -311,7 +320,7 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
                           <Button
                             size="sm"
                             variant="destructive"
-                            className="h-8"
+                            className="h-8 rounded-xl"
                             onClick={() => updateReportStatus(report.id, 'reject')}
                           >
                             Từ chối
@@ -321,12 +330,6 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="outline" type="button" onClick={() => setSelectedTargetId(null)}>
-                  Đóng
-                </Button>
               </div>
             </div>
           )}

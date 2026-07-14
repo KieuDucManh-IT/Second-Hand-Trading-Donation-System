@@ -4,6 +4,11 @@ const Product = require("../models/modelProduct");
 const Report = require("../models/modelReport");
 const Order = require("../models/modelOrder");
 const SystemConfig = require("../models/modelSystemConfig");
+const { sendNotification } = require("../utils/notificationHelper");
+
+function getIO(req) {
+  return (req && req.app && req.app.get("io")) || global.__io || null;
+}
 
 const validateInput = (value, fieldName, isDescription = false) => {
   if (!value || typeof value !== "string" || !value.trim()) {
@@ -170,6 +175,21 @@ const updateUserStatus = async (req, res) => {
     user.status = status;
     await user.save();
 
+    try {
+      const isBanned = status === "banned" || status === "suspended";
+      sendNotification(getIO(req), {
+        userId: String(user._id),
+        type: "user_status_changed",
+        title: isBanned ? "Tài khoản của bạn đã bị khóa" : "Tài khoản của bạn đã được kích hoạt",
+        message: isBanned 
+          ? "Tài khoản của bạn đã bị khóa/đình chỉ bởi người điều hành."
+          : "Tài khoản của bạn đã hoạt động trở lại.",
+        data: { status }
+      });
+    } catch (notiErr) {
+      console.error("[Notification] Lỗi gửi thông báo đổi trạng thái user:", notiErr.message);
+    }
+
     res.status(200).json({ message: "Cập nhật trạng thái thành công", user: buildUserResponse(user) });
   } catch (error) {
     res.status(500).json({ message: "Không thể cập nhật trạng thái người dùng", error: error.message });
@@ -190,10 +210,25 @@ const warnUser = async (req, res) => {
 
     user.warningsCount = (user.warningsCount || 0) + 1;
     user.lastWarningAt = new Date();
-    if (user.warningsCount >= 12 && user.status === "active") {
+    const isBanned = user.warningsCount >= 12 && user.status === "active";
+    if (isBanned) {
       user.status = "banned";
     }
     await user.save();
+
+    try {
+      sendNotification(getIO(req), {
+        userId: String(user._id),
+        type: "user_warning",
+        title: "Cảnh cáo tài khoản từ quản trị viên",
+        message: isBanned
+          ? `Bạn nhận 1 cảnh cáo và tài khoản đã bị khóa do tích lũy đủ 12 điểm cảnh cáo. Lý do: ${reason}.`
+          : `Tài khoản của bạn đã bị cảnh cáo bởi quản trị viên. Lý do: ${reason}. Hiện tại bạn có ${user.warningsCount}/12 điểm cảnh cáo.`,
+        data: { warningsCount: user.warningsCount, status: user.status }
+      });
+    } catch (notiErr) {
+      console.error("[Notification] Lỗi gửi thông báo cảnh cáo user:", notiErr.message);
+    }
 
     res.status(200).json({
       message: reason ? `Đã cảnh báo người dùng: ${reason}` : "Đã cảnh báo người dùng",
@@ -337,6 +372,24 @@ const updateProductStatus = async (req, res) => {
       product.pendingApproval = false;
     }
     await product.save();
+
+    if (product.ownerId) {
+      try {
+        const isHidden = status === "hidden";
+        sendNotification(getIO(req), {
+          userId: String(product.ownerId._id),
+          type: "product_status_changed",
+          title: isHidden ? "Tin đăng đã bị ẩn" : "Tin đăng đã được duyệt",
+          message: isHidden
+            ? `Tin đăng "${product.title}" của bạn đã bị ẩn bởi người điều hành.`
+            : `Tin đăng "${product.title}" của bạn đã được duyệt và đang hiển thị.`,
+          data: { productId: product._id, status }
+        });
+      } catch (notiErr) {
+        console.error("[Notification] Lỗi gửi thông báo đổi trạng thái sản phẩm:", notiErr.message);
+      }
+    }
+
     res.status(200).json({ message: "Cập nhật trạng thái sản phẩm thành công", product: buildProductResponse(product) });
   } catch (error) {
     res.status(500).json({ message: "Không thể cập nhật trạng thái sản phẩm", error: error.message });
@@ -386,16 +439,47 @@ const acceptReport = async (req, res) => {
       if (user) {
         user.warningsCount = (user.warningsCount || 0) + 1;
         user.lastWarningAt = new Date();
-        if (user.warningsCount >= 12 && user.status === "active") {
+        const isBanned = user.warningsCount >= 12 && user.status === "active";
+        if (isBanned) {
           user.status = "banned";
         }
         await user.save();
+
+        try {
+          sendNotification(getIO(req), {
+            userId: String(user._id),
+            type: "user_warning",
+            title: "Cảnh cáo từ báo cáo vi phạm",
+            message: isBanned
+              ? `Tài khoản của bạn đã bị khóa do nhận cảnh cáo từ báo cáo vi phạm (tích lũy đủ 12 điểm). Lý do: ${reason}.`
+              : `Tài khoản của bạn đã nhận 1 điểm cảnh cáo từ báo cáo vi phạm. Lý do: ${reason}. Hiện tại bạn có ${user.warningsCount}/12 điểm cảnh cáo.`,
+            data: { warningsCount: user.warningsCount, status: user.status }
+          });
+        } catch (notiErr) {
+          console.error("[Notification] Lỗi gửi thông báo cảnh cáo cho user bị báo cáo:", notiErr.message);
+        }
       }
     }
 
     report.status = "accept";
     report.adminReason = reason;
     await report.save();
+
+    if (report.reporterId) {
+      try {
+        const targetLabel = report.targetType === "product" ? "bài đăng" : "người dùng";
+        sendNotification(getIO(req), {
+          userId: String(report.reporterId._id),
+          type: "report_resolved",
+          title: "Báo cáo của bạn đã được xử lý",
+          message: `Báo cáo của bạn về ${targetLabel} đã được quản trị viên phê duyệt và xử lý.`,
+          data: { reportId: report._id }
+        });
+      } catch (notiErr) {
+        console.error("[Notification] Lỗi gửi thông báo cho người báo cáo:", notiErr.message);
+      }
+    }
+
     res.status(200).json({ message: "Đã chấp nhận báo cáo và cộng điểm cảnh cáo cho người dùng", report: buildReportResponse(report) });
   } catch (error) {
     res.status(500).json({ message: "Không thể chấp nhận báo cáo", error: error.message });
@@ -409,6 +493,22 @@ const rejectReport = async (req, res) => {
 
     report.status = "reject";
     await report.save();
+
+    if (report.reporterId) {
+      try {
+        const targetLabel = report.targetType === "product" ? "bài đăng" : "người dùng";
+        sendNotification(getIO(req), {
+          userId: String(report.reporterId._id),
+          type: "report_rejected",
+          title: "Báo cáo của bạn đã được xử lý",
+          message: `Báo cáo của bạn về ${targetLabel} đã bị từ chối do không vi phạm quy chuẩn cộng đồng.`,
+          data: { reportId: report._id }
+        });
+      } catch (notiErr) {
+        console.error("[Notification] Lỗi gửi thông báo từ chối báo cáo:", notiErr.message);
+      }
+    }
+
     res.status(200).json({ message: "Đã từ chối báo cáo", report: buildReportResponse(report) });
   } catch (error) {
     res.status(500).json({ message: "Không thể từ chối báo cáo", error: error.message });
@@ -513,8 +613,6 @@ const getDisputes = async (req, res) => {
     const ExchangeInvoice = require("../models/modelExchangeInvoice");
     const Order = require("../models/modelOrder");
 
-    // Lấy TẤT CẢ orders có trường complaint (bao gồm cả đã resolved/rejected)
-    // Frontend tự phân loại theo complaint.status để hiển thị "Cần xử lý" vs "Lịch sử"
     const orders = await Order.find({
       complaint: { $exists: true, $ne: null },
     })
@@ -523,7 +621,6 @@ const getDisputes = async (req, res) => {
       .populate("productId", "title price thumbnail description")
       .sort({ updatedAt: -1 });
 
-    // Lấy TẤT CẢ exchanges có trường complaint (bao gồm cả đã resolved/rejected)
     const exchanges = await ExchangeInvoice.find({
       complaint: { $exists: true, $ne: null },
     })
@@ -570,6 +667,31 @@ const resolveDispute = async (req, res) => {
     if (type === "order") {
       const escrowService = require("../services/escrowService");
       const order = await escrowService.resolveOrderDispute(disputeId, resolution, resolutionNote);
+
+      try {
+        const msg = resolution === "accept" 
+          ? `Tranh chấp đơn hàng #${String(order._id).slice(-6)} đã được giải quyết: Hoàn tiền cho Người mua. Lý do: ${resolutionNote}`
+          : `Tranh chấp đơn hàng #${String(order._id).slice(-6)} đã được giải quyết: Chuyển tiền cho Người bán. Lý do: ${resolutionNote}`;
+        
+        sendNotification(getIO(req), {
+          userId: String(order.buyerId),
+          type: "dispute_resolved",
+          title: "Kết quả giải quyết tranh chấp đơn hàng",
+          message: msg,
+          data: { orderId: order._id }
+        });
+
+        sendNotification(getIO(req), {
+          userId: String(order.sellerId),
+          type: "dispute_resolved",
+          title: "Kết quả giải quyết tranh chấp đơn hàng",
+          message: msg,
+          data: { orderId: order._id }
+        });
+      } catch (notiErr) {
+        console.error("[Notification] Lỗi gửi thông báo giải quyết tranh chấp đơn hàng:", notiErr.message);
+      }
+
       return res.status(200).json({ success: true, message: "Giải quyết tranh chấp đơn hàng thành công", data: order });
     } else if (type === "exchange") {
       const exchangeEscrowService = require("../services/exchangeEscrowService");
@@ -579,6 +701,32 @@ const resolveDispute = async (req, res) => {
         hasReturnedGoods === true,
         resolutionNote
       );
+
+      try {
+        const msg = `Tranh chấp giao dịch trao đổi đã được giải quyết bởi người điều hành. Quyết định: ${
+          resolution === "refund_a" ? "Hoàn cọc cho bên A" :
+          resolution === "refund_b" ? "Hoàn cọc cho bên B" : "Từ chối giải quyết (tiếp tục tự động hoàn)"
+        }. Lý do: ${resolutionNote}`;
+
+        sendNotification(getIO(req), {
+          userId: String(invoice.requester),
+          type: "dispute_resolved",
+          title: "Kết quả giải quyết tranh chấp trao đổi",
+          message: msg,
+          data: { exchangeId: invoice._id }
+        });
+
+        sendNotification(getIO(req), {
+          userId: String(invoice.receiver),
+          type: "dispute_resolved",
+          title: "Kết quả giải quyết tranh chấp trao đổi",
+          message: msg,
+          data: { exchangeId: invoice._id }
+        });
+      } catch (notiErr) {
+        console.error("[Notification] Lỗi gửi thông báo giải quyết tranh chấp trao đổi:", notiErr.message);
+      }
+
       return res.status(200).json({ success: true, message: "Giải quyết tranh chấp trao đổi thành công", data: invoice });
     } else {
       return res.status(400).json({ success: false, message: "Loại giao dịch không hợp lệ" });

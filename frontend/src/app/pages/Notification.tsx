@@ -164,6 +164,8 @@ export default function NotificationPage() {
   const handleNavigate = (noti: INotification) => {
     if (noti.data?.orderId) {
       navigate(`/orders`);
+    } else if (noti.data?.productId) {
+      navigate(`/products/${noti.data.productId}`);
     }
   };
  
