@@ -1,42 +1,151 @@
-const Donation = require("../models/modelDonation");
+const Product = require("../models/modelProduct");
 
+const Donation = require("../models/modelDonation");
+const { sendNotification } = require("../utils/notificationHelper");
+ 
+function getIO() {
+  return global.__io || null;
+}
+ 
 exports.requestDonation = async (req, res) => {
   try {
-    const donation = await Donation.create({
-      productId: req.body.productId,
-      donorId: req.body.donorId,
-      requesterId: req.body.requesterId,
-      message: req.body.message,
+    const {
+      productId,
+      donorId,
+      requesterId,
+      message,
+    } = req.body;
+
+    const existed = await Donation.findOne({
+      productId,
+      requesterId,
     });
 
+    if (existed) {
+      return res.status(400).json({
+        message: "Bạn đã gửi yêu cầu nhận sản phẩm này rồi."
+      });
+    }
+
+    const accepted = await Donation.findOne({
+      productId,
+      status: "accepted",
+    });
+
+    if (accepted) {
+      return res.status(400).json({
+        message: "Sản phẩm này đã được quyên tặng."
+      });
+    }
+
+    const donation = await Donation.create({
+      productId,
+      donorId,
+      requesterId,
+      message,
+    });
+ 
+    // Gửi thông báo đến donor (người đăng đồ)
+    try {
+      const Product = require("../models/modelProduct");
+      const User = require("../models/modelUser");
+      
+      const [product, requester] = await Promise.all([
+        Product.findById(productId),
+        User.findById(requesterId)
+      ]);
+ 
+      const productTitle = product ? product.title : "sản phẩm";
+      const requesterName = requester ? (requester.fullName || requester.userName) : "Một người dùng";
+ 
+      await sendNotification(getIO(), {
+        userId: String(donorId),
+        type: "donation_created",
+        title: "Yêu cầu quyên góp mới",
+        message: `${requesterName} muốn nhận sản phẩm "${productTitle}" từ bạn.`,
+        data: { orderId: donation._id },
+      });
+    } catch (notiErr) {
+      console.error("[Donation Noti Error]", notiErr.message);
+    }
+ 
     res.status(201).json(donation);
-  } catch (error) {
+
+  } catch (err) {
     res.status(500).json({
-      message: error.message,
+      message: err.message,
     });
   }
 };
-
+ 
 exports.acceptDonation = async (req, res) => {
   try {
-    const donation = await Donation.findByIdAndUpdate(
-      req.params.id,
+    const donation = await Donation.findById(req.params.id);
+
+    if (!donation) {
+      return res.status(404).json({
+        message: "Donation not found",
+      });
+    }
+
+    // Accept request này
+    donation.status = "accepted";
+    donation.deliveryStatus = "shipping";
+    donation.acceptedAt = new Date();
+
+    await donation.save();
+
+    // Ẩn sản phẩm khỏi Marketplace
+    await Product.findByIdAndUpdate(
+      donation.productId,
       {
-        status: "accepted",
-        deliveryStatus: "shipping",
-        acceptedAt: new Date(),
-      },
-      { new: true }
+        isAvailable: false,
+        status: "hidden",
+      }
     );
 
+    // Reject toàn bộ request khác
+    await Donation.updateMany(
+      {
+        productId: donation.productId,
+        _id: { $ne: donation._id },
+        status: "pending",
+      },
+      {
+        status: "rejected",
+        rejectReason: "Sản phẩm này đã được quyên tặng.",
+        rejectedAt: new Date(),
+      }
+    );
+ 
     if (donation) {
       const Product = require("../models/modelProduct");
       await Product.findByIdAndUpdate(donation.productId, {
         status: "sold",
         isAvailable: false,
       });
+ 
+      // Gửi thông báo đến requester (người xin)
+      try {
+        const User = require("../models/modelUser");
+        const product = await Product.findById(donation.productId);
+        const donor = await User.findById(donation.donorId);
+ 
+        const productTitle = product ? product.title : "sản phẩm";
+        const donorName = donor ? (donor.fullName || donor.userName) : "Người tặng";
+ 
+        await sendNotification(getIO(), {
+          userId: String(donation.requesterId),
+          type: "donation_accepted",
+          title: "Yêu cầu quyên góp được chấp nhận",
+          message: `${donorName} đã đồng ý tặng sản phẩm "${productTitle}" cho bạn.`,
+          data: { orderId: donation._id },
+        });
+      } catch (notiErr) {
+        console.error("[Donation Accept Noti Error]", notiErr.message);
+      }
     }
-
+ 
     res.json(donation);
   } catch (error) {
     res.status(500).json({
@@ -44,7 +153,7 @@ exports.acceptDonation = async (req, res) => {
     });
   }
 };
-
+ 
 exports.rejectDonation = async (req, res) => {
   try {
     const donation = await Donation.findByIdAndUpdate(
@@ -56,7 +165,31 @@ exports.rejectDonation = async (req, res) => {
       },
       { new: true }
     );
-
+ 
+    if (donation) {
+      // Gửi thông báo đến requester (người xin)
+      try {
+        const Product = require("../models/modelProduct");
+        const User = require("../models/modelUser");
+        const product = await Product.findById(donation.productId);
+        const donor = await User.findById(donation.donorId);
+ 
+        const productTitle = product ? product.title : "sản phẩm";
+        const donorName = donor ? (donor.fullName || donor.userName) : "Người tặng";
+        const reasonStr = req.body.reason ? ` Lý do: ${req.body.reason}` : "";
+ 
+        await sendNotification(getIO(), {
+          userId: String(donation.requesterId),
+          type: "donation_rejected",
+          title: "Yêu cầu quyên góp bị từ chối",
+          message: `${donorName} đã từ chối yêu cầu nhận sản phẩm "${productTitle}" của bạn.${reasonStr}`,
+          data: { orderId: donation._id },
+        });
+      } catch (notiErr) {
+        console.error("[Donation Reject Noti Error]", notiErr.message);
+      }
+    }
+ 
     res.json(donation);
   } catch (error) {
     res.status(500).json({
@@ -64,21 +197,59 @@ exports.rejectDonation = async (req, res) => {
     });
   }
 };
-
+ 
 exports.getMyDonations = async (req, res) => {
   try {
     const userId = req.user.id;
-
+ 
+    // Phân trang tùy chọn (nếu có page/limit query params)
+    if (req.query.page || req.query.limit) {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, parseInt(req.query.limit) || 10);
+      const skip = (page - 1) * limit;
+ 
+      const query = {
+        $or: [
+          { donorId: userId },
+          { requesterId: userId }
+        ]
+      };
+ 
+      const [donations, total] = await Promise.all([
+        Donation.find(query)
+          .sort({ createdAt: -1 })
+          .populate("productId")
+          .populate("donorId")
+          .populate("requesterId")
+          .skip(skip)
+          .limit(limit),
+        Donation.countDocuments(query)
+      ]);
+ 
+      return res.json({
+        success: true,
+        donations,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    }
+ 
+    // Mặc định trả về toàn bộ danh sách được sắp xếp mới nhất
     const donations = await Donation.find({
       $or: [
         { donorId: userId },
         { requesterId: userId }
       ]
     })
+      .sort({ createdAt: -1 })   // Thêm dòng này
       .populate("productId")
       .populate("donorId")
       .populate("requesterId");
-
+ 
     res.json(donations);
   } catch (err) {
     res.status(500).json({
@@ -86,7 +257,7 @@ exports.getMyDonations = async (req, res) => {
     });
   }
 };
-
+ 
 exports.updateDeliveryStatus = async (req, res) => {
   try {
     const donation = await Donation.findByIdAndUpdate(
@@ -96,7 +267,38 @@ exports.updateDeliveryStatus = async (req, res) => {
       },
       { new: true }
     );
-
+ 
+    if (donation) {
+      // Gửi thông báo đến requester (người xin)
+      try {
+        const Product = require("../models/modelProduct");
+        const User = require("../models/modelUser");
+        
+        const [product, donor] = await Promise.all([
+          Product.findById(donation.productId),
+          User.findById(donation.donorId)
+        ]);
+ 
+        const productTitle = product ? product.title : "sản phẩm";
+        const donorName = donor ? (donor.fullName || donor.userName) : "Người tặng";
+ 
+        let statusText = "Đang giao";
+        if (req.body.deliveryStatus === "delivered") {
+          statusText = "Đã giao";
+        }
+ 
+        await sendNotification(getIO(), {
+          userId: String(donation.requesterId),
+          type: "donation_delivery_updated",
+          title: "Trạng thái vận chuyển quyên góp",
+          message: `${donorName} đã chuyển trạng thái đơn quyên góp sản phẩm "${productTitle}" sang "${statusText}".`,
+          data: { orderId: donation._id },
+        });
+      } catch (notiErr) {
+        console.error("[Donation Delivery Update Noti Error]", notiErr.message);
+      }
+    }
+ 
     res.status(200).json(donation);
   } catch (error) {
     res.status(500).json({

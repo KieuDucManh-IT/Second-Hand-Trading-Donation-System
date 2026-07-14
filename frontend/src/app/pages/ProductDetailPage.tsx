@@ -32,6 +32,7 @@ import {
   DialogFooter,
 } from "../components/ui/dialog";
 import { Textarea } from "../components/ui/textarea";
+import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
   fetchProductById,
@@ -104,7 +105,7 @@ function getProductImage(item: any) {
 }
 
 function formatMoney(value: number) {
-  return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + " VND";
+  return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + "đ";
 }
 
 export function ProductDetailPage() {
@@ -133,7 +134,13 @@ export function ProductDetailPage() {
   const [selectedOfferProductId, setSelectedOfferProductId] = useState("");
   const [exchangeLoading, setExchangeLoading] = useState(false);
 
-  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [donationDialogOpen, setDonationDialogOpen] = useState(false);
+  const [donationMessage, setDonationMessage] = useState("");
+  const [donationLoading, setDonationLoading] = useState(false);
+  const [donationName, setDonationName] = useState("");
+  const [donationEmail, setDonationEmail] = useState("");
+  const [donationPhone, setDonationPhone] = useState("");
+  const [donationAddress, setDonationAddress] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -274,7 +281,6 @@ export function ProductDetailPage() {
       setExchangeDialogOpen(true);
       setExchangeLoading(true);
       setSelectedOfferProductId("");
-      setSelectedLocationId("");
 
       const data = await api(
         `/products/my/exchange?excludeProductId=${encodeURIComponent(id)}`
@@ -304,11 +310,6 @@ export function ProductDetailPage() {
         return;
       }
 
-      if (!selectedLocationId) {
-        toast.error("Vui lòng chọn địa chỉ của bạn");
-        return;
-      }
-
       setExchangeLoading(true);
 
       const data = await api("/exchange-escrow/request", {
@@ -316,7 +317,6 @@ export function ProductDetailPage() {
         body: JSON.stringify({
           requesterProductId: selectedOfferProductId,
           receiverProductId: id,
-          locationId: selectedLocationId,
         }),
       });
 
@@ -324,7 +324,6 @@ export function ProductDetailPage() {
 
       setExchangeDialogOpen(false);
       setSelectedOfferProductId("");
-      setSelectedLocationId("");
 
       navigate("/exchanges");
     } catch (error: any) {
@@ -347,55 +346,101 @@ export function ProductDetailPage() {
     }
 
     if (product.type === "donate") {
-      try {
-        const donorId =
-          typeof product.ownerId === "object"
-            ? product.ownerId?._id
-            : product.ownerId;
+      // Kiểm tra không cho tự gửi yêu cầu nhận đồ của chính mình
+      const donorId =
+        typeof product.ownerId === "object"
+          ? product.ownerId?._id
+          : product.ownerId;
+      const currentUserId = (user as any).id || (user as any)._id;
 
-        const requesterId = (user as any).id || (user as any)._id;
-
-        const data = await api("/donations/request", {
-          method: "POST",
-          body: JSON.stringify({
-            productId: product._id,
-            donorId,
-            requesterId,
-            message: "Tôi muốn nhận vật phẩm này",
-          }),
-        });
-
-        toast.success(data.message || "Gửi yêu cầu nhận đồ thành công");
-      } catch (error: any) {
-        console.error("DONATION REQUEST ERROR:", error);
-        toast.error(error.message || "Có lỗi xảy ra");
+      if (String(donorId) === String(currentUserId)) {
+        toast.error("Bạn không thể yêu cầu nhận đồ từ chính mình!");
+        return;
       }
 
+      // Mở dialog nhập lý do + thông tin nhận hàng
+      setDonationMessage("");
+      // Chỉ điền sẵn họ tên nếu đó là tên thật, tránh trường hợp AuthContext
+      // fallback về email khi tài khoản chưa đặt tên hiển thị
+      setDonationName(user.name && user.name !== user.email ? user.name : "");
+      setDonationEmail(user.email || "");
+      const firstLocation = user.locations && user.locations.length > 0 ? user.locations[0] : null;
+      setDonationPhone(firstLocation?.phoneNumber || "");
+      setDonationAddress(firstLocation?.address || "");
+      setDonationDialogOpen(true);
       return;
     }
 
     setShowBuyModal(true);
   };
 
-  const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
-      navigate("/login");
+  const submitDonationRequest = async () => {
+    if (!product || !user) return;
+
+    if (!donationMessage.trim()) {
+      toast.error("Vui lòng nhập lý do bạn muốn nhận đồ");
       return;
     }
 
-    if (!product?._id) {
-      toast.error("Không tìm thấy sản phẩm");
+    if (!donationName.trim() || !donationPhone.trim() || !donationAddress.trim()) {
+      toast.error("Vui lòng điền đầy đủ thông tin nhận hàng (họ tên, số điện thoại, địa chỉ)");
       return;
     }
 
     try {
-      await addToCart(product._id);
-      toast.success("Đã thêm vào giỏ hàng!");
+      setDonationLoading(true);
+
+      const donorId =
+        typeof product.ownerId === "object"
+          ? product.ownerId?._id
+          : product.ownerId;
+
+      const data = await api("/donations/request", {
+        method: "POST",
+        body: JSON.stringify({
+          productId: product._id,
+          donorId,
+          message: donationMessage.trim(),
+          shippingInfo: {
+            name: donationName.trim(),
+            email: donationEmail.trim(),
+            phone: donationPhone.trim(),
+            address: donationAddress.trim(),
+          },
+        }),
+      });
+
+      toast.success(data.message || "Gửi yêu cầu nhận đồ thành công!");
+      setDonationDialogOpen(false);
+      setDonationMessage("");
+      navigate("/orders");
     } catch (error: any) {
-      toast.error(error.message || "Không thể thêm vào giỏ hàng");
+      console.error("DONATION REQUEST ERROR:", error);
+      toast.error(error.message || "Có lỗi xảy ra");
+    } finally {
+      setDonationLoading(false);
     }
   };
+
+  // const handleAddToCart = async () => {
+  //   if (!isAuthenticated) {
+  //     toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
+  //     navigate("/login");
+  //     return;
+  //   }
+
+  //   if (!product?._id) {
+  //     toast.error("Không tìm thấy sản phẩm");
+  //     return;
+  //   }
+
+  //   try {
+  //     await addToCart(product._id);
+  //     toast.success("Đã thêm vào giỏ hàng!");
+  //   } catch (error: any) {
+  //     toast.error(error.message || "Không thể thêm vào giỏ hàng");
+  //   }
+  // };
 
   const handleReport = async () => {
     if (!isAuthenticated) {
@@ -484,14 +529,6 @@ export function ProductDetailPage() {
 
   const owner: any = product.ownerId || {};
 
-  const selectedLocation = ((user as any)?.locations ?? []).find(
-    (loc: any) => String(loc._id) === String(selectedLocationId)
-  );
-
-  const selectedOfferProduct = myProducts.find(
-    (item) => getProductId(item) === selectedOfferProductId
-  );
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -535,10 +572,11 @@ export function ProductDetailPage() {
                 {images.map((image, idx) => (
                   <div
                     key={idx}
-                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${selectedImage === idx
-                      ? "border-green-500"
-                      : "border-transparent"
-                      }`}
+                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
+                      selectedImage === idx
+                        ? "border-green-500"
+                        : "border-transparent"
+                    }`}
                     onClick={() => setSelectedImage(idx)}
                   >
                     <ImageWithFallback
@@ -623,16 +661,36 @@ export function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-3 mb-6">
-                  <Button
-                    onClick={handleOrder}
-                    className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
-                  >
-                    {product.type === "donate" ? "Yêu cầu nhận đồ" : "Mua ngay"}
-                  </Button>
+                  {(() => {
+                    const donorId =
+                      typeof product.ownerId === "object"
+                        ? (product.ownerId as any)?._id
+                        : product.ownerId;
+                    const currentUserId = (user as any)?.id || (user as any)?._id;
+                    const isOwner = isAuthenticated && String(donorId) === String(currentUserId);
+
+                    if (product.type === "donate" && isOwner) {
+                      return (
+                        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-center font-medium text-sm">
+                          Đây là sản phẩm của bạn — bạn không thể tự yêu cầu nhận đồ.
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Button
+                        onClick={handleOrder}
+                        className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
+                      >
+                        <Heart className="w-5 h-5 mr-2" />
+                        {product.type === "donate" ? "Yêu cầu nhận đồ" : "Mua ngay"}
+                      </Button>
+                    );
+                  })()}
 
                   {product.type === "sell" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
+                    <div className="grid  gap-3">
+                      {/* <Button
                         onClick={handleAddToCart}
                         disabled={cartLoading}
                         variant="outline"
@@ -644,7 +702,7 @@ export function ProductDetailPage() {
                           <ShoppingCart className="w-4 h-4 mr-2" />
                         )}
                         {cartLoading ? "Đang thêm..." : "Thêm vào giỏ"}
-                      </Button>
+                      </Button> */}
 
                       <Button
                         onClick={openExchangeDialog}
@@ -833,12 +891,12 @@ export function ProductDetailPage() {
                       {product.status === "sold"
                         ? "Đã giao dịch"
                         : product.status === "reserved"
-                          ? "Đang giao dịch"
-                          : product.status === "available"
-                            ? "Đang hiển thị"
-                            : product.status === "hidden"
-                              ? "Đã ẩn"
-                              : product.status}
+                        ? "Đang giao dịch"
+                        : product.status === "available"
+                        ? "Đang hiển thị"
+                        : product.status === "hidden"
+                        ? "Đã ẩn"
+                        : product.status}
                     </dd>
                   </div>
                 </dl>
@@ -950,103 +1008,62 @@ export function ProductDetailPage() {
               Giá trị: <b>{formatMoney(Number(product.price || 0))}</b>
             </div>
 
-            <div>
-              <Label className="mb-2 block font-semibold">
-                Địa chỉ của bạn
-              </Label>
+            {exchangeLoading ? (
+              <div className="py-10 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+              </div>
+            ) : myProducts.length === 0 ? (
+              <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
+                Bạn chưa có sản phẩm nào để trao đổi. Hãy đăng sản phẩm trước.
+              </div>
+            ) : (
+              <div className="max-h-[360px] overflow-y-auto space-y-3 pr-2">
+                {myProducts.map((item) => {
+                  const itemId = getProductId(item);
+                  const selected = selectedOfferProductId === itemId;
 
-              {((user as any)?.locations ?? []).length === 0 ? (
-                <div className="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
-                  Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài khoản.
-                </div>
-              ) : (
-                <>
-                  <select
-                    value={selectedLocationId}
-                    onChange={(e) => setSelectedLocationId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-                  >
-                    <option value="">-- Chọn địa chỉ đã lưu --</option>
-
-                    {((user as any)?.locations ?? []).map((loc: any) => (
-                      <option key={loc._id} value={loc._id}>
-                        {loc.address} — {loc.phoneNumber}
-                      </option>
-                    ))}
-                  </select>
-
-                  {selectedLocation && (
-                    <div className="mt-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
-                      <div>📞 {selectedLocation.phoneNumber}</div>
-                      <div>📍 {selectedLocation.address}</div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div>
-              <Label className="mb-2 block font-semibold">
-                Sản phẩm của bạn dùng để trao đổi
-              </Label>
-
-              {exchangeLoading ? (
-                <div className="py-8 flex items-center justify-center rounded-lg border">
-                  <Loader2 className="w-8 h-8 animate-spin text-green-500" />
-                </div>
-              ) : myProducts.length === 0 ? (
-                <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-800">
-                  Bạn chưa có sản phẩm nào để trao đổi. Hãy đăng sản phẩm trước.
-                </div>
-              ) : (
-                <>
-                  <select
-                    value={selectedOfferProductId}
-                    onChange={(e) => setSelectedOfferProductId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-green-600 focus:ring-2 focus:ring-green-100"
-                  >
-                    <option value="">-- Chọn sản phẩm của bạn --</option>
-
-                    {myProducts.map((item) => {
-                      const itemId = getProductId(item);
-
-                      return (
-                        <option key={itemId} value={itemId}>
-                          {getProductTitle(item)} — {formatMoney(getProductPrice(item))}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  {selectedOfferProduct && (
-                    <div className="mt-3 rounded-lg border bg-gray-50 p-3">
+                  return (
+                    <button
+                      key={itemId}
+                      type="button"
+                      onClick={() => setSelectedOfferProductId(itemId)}
+                      className={`w-full rounded-xl border p-3 text-left transition ${
+                        selected
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
                       <div className="flex gap-3">
                         <ImageWithFallback
-                          src={getProductImage(selectedOfferProduct)}
-                          alt={getProductTitle(selectedOfferProduct)}
-                          className="w-16 h-16 rounded-lg object-cover bg-gray-100"
+                          src={getProductImage(item)}
+                          alt={getProductTitle(item)}
+                          className="w-20 h-20 rounded-lg object-cover bg-gray-100"
                         />
 
                         <div className="flex-1">
-                          <p className="font-semibold line-clamp-2">
-                            {getProductTitle(selectedOfferProduct)}
-                          </p>
+                          <h4 className="font-semibold line-clamp-2">
+                            {getProductTitle(item)}
+                          </h4>
 
                           <p className="mt-1 text-sm text-gray-500">
-                            Giá trị: {formatMoney(getProductPrice(selectedOfferProduct))}
+                            Giá trị: {formatMoney(getProductPrice(item))}
                           </p>
+
+                          {selected && (
+                            <Badge className="mt-2 bg-green-500">Đã chọn</Badge>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            {selectedOfferProductId && selectedLocationId && (
+            {selectedOfferProductId && (
               <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-                Sau khi đối phương đồng ý, bạn sẽ cần thanh toán tiền bảo hiểm tương
-                ứng với giá trị sản phẩm bạn đem trao đổi.
+                Sau khi đối phương đồng ý, bạn sẽ cần thanh toán tiền bảo hiểm
+                tương ứng với giá trị sản phẩm bạn đem trao đổi.
               </div>
             )}
           </div>
@@ -1057,7 +1074,6 @@ export function ProductDetailPage() {
               onClick={() => {
                 setExchangeDialogOpen(false);
                 setSelectedOfferProductId("");
-                setSelectedLocationId("");
               }}
               disabled={exchangeLoading}
             >
@@ -1066,11 +1082,7 @@ export function ProductDetailPage() {
 
             <Button
               onClick={submitExchangeRequest}
-              disabled={
-                exchangeLoading ||
-                !selectedOfferProductId ||
-                !selectedLocationId
-              }
+              disabled={exchangeLoading || !selectedOfferProductId}
             >
               {exchangeLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1078,6 +1090,183 @@ export function ProductDetailPage() {
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
               )}
               Gửi yêu cầu trao đổi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Donation Request Dialog ── */}
+      <Dialog open={donationDialogOpen} onOpenChange={(v) => { setDonationDialogOpen(v); if (!v) setDonationMessage(""); }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {/* <Heart className="w-5 h-5 text-rose-500 fill-rose-500" /> */}
+              Yêu cầu nhận đồ quyên góp
+            </DialogTitle>
+            <DialogDescription>
+              Hãy chia sẻ lý do bạn muốn nhận món đồ này để người tặng có thể xem xét và quyết định.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Product preview */}
+            {product && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                <ImageWithFallback
+                  src={images[0]}
+                  alt={product.title}
+                  className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm line-clamp-2">{product.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Người tặng:{" "}
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {(product.ownerId as any)?.fullName || (product.ownerId as any)?.userName || "Ẩn danh"}
+                    </span>
+                  </p>
+                  <Badge className="mt-1 bg-green-500 text-white text-xs">TẶNG MIỄN PHÍ</Badge>
+                </div>
+              </div>
+            )}
+
+            {/* Shipping info inputs */}
+            <div className="space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              <Label className="text-sm font-medium">
+                Thông tin nhận hàng <span className="text-red-500">*</span>
+              </Label>
+              <p className="text-xs text-gray-400 -mt-2">
+                Để người tặng biết gửi đồ đi đâu.
+              </p>
+ 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="donation-name" className="text-xs text-gray-500">
+                    Họ và tên
+                  </Label>
+                  <Input
+                    id="donation-name"
+                    value={donationName}
+                    onChange={(e) => setDonationName(e.target.value)}
+                    placeholder="Nguyễn Văn A"
+                    className="bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="donation-phone" className="text-xs text-gray-500">
+                    Số điện thoại
+                  </Label>
+                  <Input
+                    id="donation-phone"
+                    value={donationPhone}
+                    onChange={(e) => setDonationPhone(e.target.value)}
+                    placeholder="0912 345 678"
+                    className="bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                  />
+                </div>
+              </div>
+ 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="donation-email" className="text-xs text-gray-500">
+                    Email (tuỳ chọn)
+                  </Label>
+                  <Input
+                    id="donation-email"
+                    type="email"
+                    value={donationEmail}
+                    onChange={(e) => setDonationEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                  />
+                </div>
+ 
+                {user?.locations && user.locations.length > 1 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">Chọn địa chỉ đã lưu</Label>
+                    <select
+                      className="w-full appearance-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer h-9"
+                      value={donationAddress}
+                      onChange={(e) => {
+                        const selected = user.locations.find((l) => l.address === e.target.value);
+                        if (selected) {
+                          setDonationAddress(selected.address);
+                          if (selected.phoneNumber) setDonationPhone(selected.phoneNumber);
+                        }
+                      }}
+                    >
+                      <option value="">-- Chọn địa chỉ đã lưu --</option>
+                      {user.locations.map((loc, idx) => (
+                        <option key={idx} value={loc.address}>
+                          {loc.address}{loc.phoneNumber ? ` — ${loc.phoneNumber}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+ 
+              <div className="space-y-1">
+                <Label htmlFor="donation-address" className="text-xs text-gray-500">
+                  Địa chỉ nhận hàng
+                </Label>
+                <Input
+                  id="donation-address"
+                  value={donationAddress}
+                  onChange={(e) => setDonationAddress(e.target.value)}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện"
+                  className="bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                />
+              </div>
+            </div>
+ 
+            {/* Message input */}
+            <div>
+              <Label htmlFor="donation-reason" className="text-sm font-medium">
+                Lý do bạn muốn nhận đồ <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="donation-reason"
+                value={donationMessage}
+                onChange={(e) => setDonationMessage(e.target.value)}
+                placeholder="Ví dụ: Tôi đang cần dùng sản phẩm này vì... / Tôi sẽ sử dụng nó để..."
+                className="mt-2 resize-none"
+                rows={4}
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-400 mt-1 text-right">{donationMessage.length}/500</p>
+            </div>
+
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-400">
+              💡 Lý do rõ ràng và chân thành sẽ giúp tăng cơ hội được người tặng chấp nhận.
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setDonationDialogOpen(false); setDonationMessage(""); }}
+              disabled={donationLoading}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={submitDonationRequest}
+              disabled={
+                donationLoading ||
+                !donationMessage.trim() ||
+                !donationName.trim() ||
+                !donationPhone.trim() ||
+                !donationAddress.trim()
+              }
+              className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white"
+            >
+              {donationLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Heart className="w-4 h-4 mr-2" />
+              )}
+              Gửi yêu cầu
             </Button>
           </DialogFooter>
         </DialogContent>

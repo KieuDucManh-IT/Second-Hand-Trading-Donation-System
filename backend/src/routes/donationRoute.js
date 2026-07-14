@@ -15,6 +15,7 @@ router.get(
 // Tạo request nhận đồ
 router.post(
   "/request",
+  protect,
   donationController.requestDonation
 );
 

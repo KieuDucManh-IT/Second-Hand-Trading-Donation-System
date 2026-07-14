@@ -4,6 +4,9 @@ const jwt = require('jsonwebtoken');
 const User         = require('../models/modelUser');
 const Conversation = require('../models/modelConversation');
 const Message      = require('../models/modelMessage');
+const { containsProfanity } = require('../utils/profanityFilter');
+ 
+const MAX_MESSAGE_LENGTH = 2000;
  
 // ── Theo dõi user online trong bộ nhớ ─────────────────────────────────────
 // userId -> số lượng kết nối (1 user có thể mở nhiều tab/thiết bị)
@@ -103,30 +106,51 @@ const initChatSocket = (httpServer) => {
     });
  
     // ── Gửi tin nhắn realtime ───────────────────────────────────────────────
-    socket.on('send_message', async ({ conversationId, content }) => {
+    socket.on('send_message', async ({ conversationId, content }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+
       try {
-        if (!content || !content.trim()) return;
- 
+        const trimmed = (content || '').trim();
+
+        if (!trimmed) {
+          return ack({ success: false, message: 'Nội dung tin nhắn không được để trống' });
+        }
+
+        if (trimmed.length > MAX_MESSAGE_LENGTH) {
+          const errMsg = `Tin nhắn quá dài (tối đa ${MAX_MESSAGE_LENGTH} ký tự)`;
+          socket.emit('error_message', { message: errMsg });
+          return ack({ success: false, message: errMsg });
+        }
+
+        if (containsProfanity(trimmed)) {
+          const errMsg = 'Tin nhắn chứa từ ngữ không phù hợp, vui lòng chỉnh sửa lại nội dung';
+          socket.emit('error_message', { message: errMsg });
+          return ack({ success: false, message: errMsg });
+        }
+
         const conv = await Conversation.findById(conversationId)
           .populate('participants', 'fullName avatar');
         if (!conv) {
-          return socket.emit('error_message', { message: 'Không tìm thấy cuộc trò chuyện' });
+          socket.emit('error_message', { message: 'Không tìm thấy cuộc trò chuyện' });
+          return ack({ success: false, message: 'Không tìm thấy cuộc trò chuyện' });
         }
         const isParticipant = conv.participants.some((p) => p._id.toString() === userId);
         if (!isParticipant) {
-          return socket.emit('error_message', { message: 'Bạn không có quyền gửi tin nhắn ở đây' });
+          const errMsg = 'Bạn không có quyền gửi tin nhắn ở đây';
+          socket.emit('error_message', { message: errMsg });
+          return ack({ success: false, message: errMsg });
         }
- 
+
         const message = await Message.create({
           conversationId,
           senderId: userId,
-          content: content.trim(),
+          content: trimmed,
         });
- 
-        conv.lastMessage = content.trim();
+
+        conv.lastMessage = trimmed;
         conv.lastMessageAt = message.createdAt;
         conv.lastMessageSender = userId;
- 
+
         conv.participants.forEach((p) => {
           const pid = p._id.toString();
           if (pid !== userId) {
@@ -134,9 +158,9 @@ const initChatSocket = (httpServer) => {
             conv.unreadCounts.set(pid, current + 1);
           }
         });
- 
+
         await conv.save();
- 
+
         // Gửi cho tất cả participant kèm thông tin participant để frontend hiển thị tên/avatar
         conv.participants.forEach((p) => {
           const receiverId = p._id.toString();
@@ -147,15 +171,18 @@ const initChatSocket = (httpServer) => {
           const participantInfo = otherParticipant
             ? { id: otherParticipant._id, name: otherParticipant.fullName || otherParticipant.userName || '', avatar: otherParticipant.avatar || '' }
             : null;
- 
+
           io.to(`user:${receiverId}`).emit('new_message', {
             conversationId,
             message,
             participant: participantInfo,
           });
         });
+
+        ack({ success: true, data: message });
       } catch (err) {
         socket.emit('error_message', { message: 'Không thể gửi tin nhắn', error: err.message });
+        ack({ success: false, message: 'Không thể gửi tin nhắn' });
       }
     });
  
