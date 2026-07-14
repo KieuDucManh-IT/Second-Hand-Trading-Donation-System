@@ -1,3 +1,5 @@
+const Product = require("../models/modelProduct");
+
 const Donation = require("../models/modelDonation");
 const { sendNotification } = require("../utils/notificationHelper");
  
@@ -7,40 +9,40 @@ function getIO() {
  
 exports.requestDonation = async (req, res) => {
   try {
-    // requesterId lấy từ token đăng nhập (req.user), không tin body do client gửi lên
-    const requesterId = req.user._id;
-    const { productId, donorId, message, shippingInfo } = req.body;
- 
-    // Không cho phép tự gửi yêu cầu nhận đồ do chính mình đăng (donorId === requesterId)
-    if (String(donorId) === String(requesterId)) {
+    const {
+      productId,
+      donorId,
+      requesterId,
+      message,
+    } = req.body;
+
+    const existed = await Donation.findOne({
+      productId,
+      requesterId,
+    });
+
+    if (existed) {
       return res.status(400).json({
-        message: "Bạn không thể tự gửi yêu cầu nhận đồ do chính mình đăng.",
+        message: "Bạn đã gửi yêu cầu nhận sản phẩm này rồi."
       });
     }
- 
-    // Bắt buộc phải có thông tin nhận hàng để người tặng biết gửi đi đâu
-    if (
-      !shippingInfo ||
-      !String(shippingInfo.name || "").trim() ||
-      !String(shippingInfo.phone || "").trim() ||
-      !String(shippingInfo.address || "").trim()
-    ) {
+
+    const accepted = await Donation.findOne({
+      productId,
+      status: "accepted",
+    });
+
+    if (accepted) {
       return res.status(400).json({
-        message: "Vui lòng điền đầy đủ thông tin nhận hàng (họ tên, số điện thoại, địa chỉ).",
+        message: "Sản phẩm này đã được quyên tặng."
       });
     }
- 
+
     const donation = await Donation.create({
       productId,
       donorId,
       requesterId,
       message,
-      shippingInfo: {
-        name: String(shippingInfo.name).trim(),
-        email: String(shippingInfo.email || "").trim(),
-        phone: String(shippingInfo.phone).trim(),
-        address: String(shippingInfo.address).trim(),
-      },
     });
  
     // Gửi thông báo đến donor (người đăng đồ)
@@ -68,23 +70,52 @@ exports.requestDonation = async (req, res) => {
     }
  
     res.status(201).json(donation);
-  } catch (error) {
+
+  } catch (err) {
     res.status(500).json({
-      message: error.message,
+      message: err.message,
     });
   }
 };
  
 exports.acceptDonation = async (req, res) => {
   try {
-    const donation = await Donation.findByIdAndUpdate(
-      req.params.id,
+    const donation = await Donation.findById(req.params.id);
+
+    if (!donation) {
+      return res.status(404).json({
+        message: "Donation not found",
+      });
+    }
+
+    // Accept request này
+    donation.status = "accepted";
+    donation.deliveryStatus = "shipping";
+    donation.acceptedAt = new Date();
+
+    await donation.save();
+
+    // Ẩn sản phẩm khỏi Marketplace
+    await Product.findByIdAndUpdate(
+      donation.productId,
       {
-        status: "accepted",
-        deliveryStatus: "shipping",
-        acceptedAt: new Date(),
+        isAvailable: false,
+        status: "hidden",
+      }
+    );
+
+    // Reject toàn bộ request khác
+    await Donation.updateMany(
+      {
+        productId: donation.productId,
+        _id: { $ne: donation._id },
+        status: "pending",
       },
-      { new: true }
+      {
+        status: "rejected",
+        rejectReason: "Sản phẩm này đã được quyên tặng.",
+        rejectedAt: new Date(),
+      }
     );
  
     if (donation) {
@@ -214,7 +245,7 @@ exports.getMyDonations = async (req, res) => {
         { requesterId: userId }
       ]
     })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 })   // Thêm dòng này
       .populate("productId")
       .populate("donorId")
       .populate("requesterId");
