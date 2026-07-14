@@ -28,6 +28,9 @@ export function ProductsTab({
   const [selectedStatus, setSelectedStatus] = useState(() => {
     return sessionStorage.getItem('products_tab_selected_status') || 'all';
   });
+  const [selectedPriceRange, setSelectedPriceRange] = useState(() => {
+    return sessionStorage.getItem('products_tab_selected_price_range') || 'all';
+  });
   const [currentPage, setCurrentPage] = useState<number>(() => {
     const saved = sessionStorage.getItem('products_tab_current_page');
     return saved ? Number(saved) : 1;
@@ -57,7 +60,19 @@ export function ProductsTab({
     const matchesStatus =
       selectedStatus === 'all' || product.status === selectedStatus;
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    const matchesPrice = (() => {
+      if (selectedPriceRange === 'all') return true;
+      if (selectedPriceRange === 'free') return product.isDonation || product.price === 0;
+      if (product.isDonation) return false;
+      const price = product.price || 0;
+      if (selectedPriceRange === 'under100k') return price < 100000;
+      if (selectedPriceRange === '100k-500k') return price >= 100000 && price <= 500000;
+      if (selectedPriceRange === '500k-2m') return price > 500000 && price <= 2000000;
+      if (selectedPriceRange === 'over2m') return price > 2000000;
+      return true;
+    })();
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesPrice;
   });
 
   const [isFirstRender, setIsFirstRender] = useState(true);
@@ -68,7 +83,7 @@ export function ProductsTab({
       return;
     }
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedStatus]);
+  }, [searchQuery, selectedCategory, selectedStatus, selectedPriceRange]);
 
   useEffect(() => {
     sessionStorage.setItem('products_tab_search_query', searchQuery);
@@ -81,6 +96,10 @@ export function ProductsTab({
   useEffect(() => {
     sessionStorage.setItem('products_tab_selected_status', selectedStatus);
   }, [selectedStatus]);
+
+  useEffect(() => {
+    sessionStorage.setItem('products_tab_selected_price_range', selectedPriceRange);
+  }, [selectedPriceRange]);
 
   useEffect(() => {
     sessionStorage.setItem('products_tab_current_page', String(currentPage));
@@ -124,6 +143,19 @@ export function ProductsTab({
 
           <select
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900/70"
+            value={selectedPriceRange}
+            onChange={(e) => setSelectedPriceRange(e.target.value)}
+          >
+            <option value="all">Tất cả mức giá</option>
+            <option value="free">Miễn phí</option>
+            <option value="under100k">Dưới 100k</option>
+            <option value="100k-500k">100k - 500k</option>
+            <option value="500k-2m">500k - 2M</option>
+            <option value="over2m">Trên 2M</option>
+          </select>
+
+          <select
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900/70"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
           >
@@ -152,10 +184,18 @@ export function ProductsTab({
             {paginatedProducts.length ? (
               paginatedProducts.map((product) => (
                 <TableRow key={product.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40">
-                  <TableCell className="pl-6 align-top">
-                    <div className="max-w-[320px]">
-                      <div className="font-medium text-slate-900 dark:text-slate-50">{product.title}</div>
-                      <div className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-muted-foreground">
+                  <TableCell className="pl-6 align-top whitespace-normal">
+                    <div className="max-w-[280px] md:max-w-[320px]">
+                      <div
+                        className="font-medium text-slate-900 dark:text-slate-50 truncate"
+                        title={product.title}
+                      >
+                        {product.title}
+                      </div>
+                      <div
+                        className="mt-1 text-sm leading-5 text-muted-foreground line-clamp-2"
+                        title={product.description || 'Không có mô tả'}
+                      >
                         {product.description || 'Không có mô tả'}
                       </div>
                     </div>
