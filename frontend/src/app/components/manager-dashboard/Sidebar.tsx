@@ -24,7 +24,7 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }: SidebarProps)
   const navigate = useNavigate();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-80 shrink-0 border-r border-white/60 bg-white/75 px-6 py-6 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/65 lg:flex lg:flex-col">
+    <aside className="sticky top-0 hidden h-screen w-80 shrink-0 border-r border-white/60 bg-white/75 px-6 py-6 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/65 lg:flex lg:flex-col overflow-y-auto">
       <div className="flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 text-white shadow-lg shadow-emerald-500/25">
           <ShieldCheck className="h-5 w-5" />
