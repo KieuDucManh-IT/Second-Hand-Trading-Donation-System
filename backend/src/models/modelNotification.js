@@ -25,17 +25,19 @@ const notificationSchema = new mongoose.Schema(
         "wallet_refunded",         // Hoàn tiền về ví
         // Report
         "report_received",         // Manager / người bị report
+        // Thao tác của Manager
+        "user_status_changed",     // Trạng thái tài khoản thay đổi
+        "user_warning",            // Nhận cảnh cáo từ manager
+        "product_status_changed",  // Trạng thái bài đăng thay đổi
+        "report_resolved",         // Báo cáo được chấp nhận
+        "report_rejected",         // Báo cáo bị từ chối
+        "dispute_resolved",        // Tranh chấp được giải quyết
       ],
       required: true,
     },
     title: { type: String, required: true },
     message: { type: String, required: true },
-    // Dữ liệu phụ để frontend điều hướng
-    data: {
-      orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
-      amount: Number,
-      currency: { type: String, default: "VND" },
-    },
+    data: { type: mongoose.Schema.Types.Mixed, default: {} },
     isRead: { type: Boolean, default: false },
     readAt: Date,
   },
