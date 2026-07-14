@@ -190,7 +190,7 @@ const warnUser = async (req, res) => {
 
     user.warningsCount = (user.warningsCount || 0) + 1;
     user.lastWarningAt = new Date();
-    if (user.warningsCount >= 3 && user.status === "active") {
+    if (user.warningsCount >= 12 && user.status === "active") {
       user.status = "banned";
     }
     await user.save();
@@ -386,7 +386,7 @@ const acceptReport = async (req, res) => {
       if (user) {
         user.warningsCount = (user.warningsCount || 0) + 1;
         user.lastWarningAt = new Date();
-        if (user.warningsCount >= 3 && user.status === "active") {
+        if (user.warningsCount >= 12 && user.status === "active") {
           user.status = "banned";
         }
         await user.save();

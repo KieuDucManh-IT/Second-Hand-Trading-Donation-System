@@ -136,12 +136,15 @@ export function ManagerDashboardView(props: DashboardViewProps) {
                   <TabsContent value="products" className="mt-6 space-y-6">
                     <ProductsTab
                       productViewList={productViewList}
-                      updateProductStatus={updateProductStatus}
                     />
                   </TabsContent>
 
                   <TabsContent value="reports" className="mt-6 space-y-6">
-                    <ReportsTab data={data} updateReportStatus={updateReportStatus} />
+                    <ReportsTab
+                      data={data}
+                      updateReportStatus={updateReportStatus}
+                      updateProductStatus={updateProductStatus}
+                    />
                   </TabsContent>
 
                   <TabsContent value="users" className="mt-6 space-y-6">

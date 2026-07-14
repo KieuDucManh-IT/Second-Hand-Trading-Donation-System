@@ -5,16 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { StatusBadge } from './StatusBadge';
-import { Eye, Flag, AlertTriangle } from 'lucide-react';
+import { Eye, Flag, AlertTriangle, Check, EyeOff } from 'lucide-react';
 import type { ManagerDashboardData } from './managerDashboardTypes';
 import { Pagination } from './Pagination';
 
 type ReportsTabProps = {
   data: ManagerDashboardData;
   updateReportStatus: (reportId: string, endpoint: 'accept' | 'reject') => Promise<void>;
+  updateProductStatus: (productId: string, status: 'available' | 'hidden') => Promise<void>;
 };
 
-export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
+export function ReportsTab({ data, updateReportStatus, updateProductStatus }: ReportsTabProps) {
   const navigate = useNavigate();
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const isDetailsOpen = !!selectedTargetId;
@@ -128,15 +129,43 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                       <TableCell className="pr-6 align-middle">
                         <div className="flex justify-end gap-2">
                           {group.targetType === 'product' && (
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-9 w-9 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-800"
-                              onClick={() => navigate(`/products/${group.targetId}`, { state: { from: 'manager', tab: 'reports' } })}
-                              title="Xem chi tiết sản phẩm"
-                            >
-                              <Eye className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                            </Button>
+                            <>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-9 w-9 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-800"
+                                onClick={() => navigate(`/products/${group.targetId}`, { state: { from: 'manager', tab: 'reports' } })}
+                                title="Xem chi tiết sản phẩm"
+                              >
+                                <Eye className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                              </Button>
+                              {(() => {
+                                const productStatus = group.reports[0]?.targetDetail?.status;
+                                if (productStatus && productStatus !== 'sold') {
+                                  return productStatus === 'hidden' ? (
+                                    <Button
+                                      size="icon"
+                                      className="h-9 w-9 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                                      onClick={() => updateProductStatus(group.targetId, 'available')}
+                                      title="Hiển thị sản phẩm"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-9 w-9 rounded-xl border-amber-300 text-amber-600 hover:bg-amber-50"
+                                      onClick={() => updateProductStatus(group.targetId, 'hidden')}
+                                      title="Ẩn sản phẩm"
+                                    >
+                                      <EyeOff className="h-4 w-4" />
+                                    </Button>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </>
                           )}
                           <Button
                             size="icon"
@@ -208,6 +237,33 @@ export function ReportsTab({ data, updateReportStatus }: ReportsTabProps) {
                   <AlertTriangle className="w-3.5 h-3.5 mr-1" />
                   Tổng số cảnh cáo của đối tượng này: {selectedGroup.targetWarnings}
                 </div>
+
+                {selectedGroup.targetType === 'product' && (() => {
+                  const productStatus = selectedGroup.reports[0]?.targetDetail?.status;
+                  if (!productStatus) return null;
+                  return (
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <span className="text-xs text-slate-500">Trạng thái sản phẩm:</span>
+                      <span className={`text-xs font-semibold ${productStatus === 'hidden' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {productStatus === 'hidden' ? 'Đang ẩn' : productStatus === 'available' ? 'Đang hiển thị' : productStatus}
+                      </span>
+                      {productStatus !== 'sold' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2.5 rounded-lg border-slate-200 ml-auto"
+                          onClick={async () => {
+                            const newStatus = productStatus === 'hidden' ? 'available' : 'hidden';
+                            await updateProductStatus(selectedGroup.targetId, newStatus);
+                            setSelectedTargetId(null);
+                          }}
+                        >
+                          {productStatus === 'hidden' ? 'Hiển thị lại' : 'Ẩn sản phẩm'}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>

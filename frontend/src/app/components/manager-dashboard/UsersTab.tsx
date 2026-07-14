@@ -22,16 +22,23 @@ export function UsersTab({
   const [searchQuery, setSearchQuery] = useState(() => {
     return sessionStorage.getItem('users_tab_search_query') || '';
   });
+  const [statusFilter, setStatusFilter] = useState(() => {
+    return sessionStorage.getItem('users_tab_status_filter') || 'all';
+  });
   const [currentPage, setCurrentPage] = useState<number>(() => {
     const saved = sessionStorage.getItem('users_tab_current_page');
     return saved ? Number(saved) : 1;
   });
   const itemsPerPage = 10;
 
-  const filteredUsers = data.users.filter((user) =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = data.users.filter((user) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const userStatus = user.status || 'active';
+    const matchesStatus = statusFilter === 'all' || userStatus === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const [isFirstRender, setIsFirstRender] = useState(true);
 
@@ -41,11 +48,15 @@ export function UsersTab({
       return;
     }
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, statusFilter]);
 
   useEffect(() => {
     sessionStorage.setItem('users_tab_search_query', searchQuery);
   }, [searchQuery]);
+
+  useEffect(() => {
+    sessionStorage.setItem('users_tab_status_filter', statusFilter);
+  }, [statusFilter]);
 
   useEffect(() => {
     sessionStorage.setItem('users_tab_current_page', String(currentPage));
@@ -63,15 +74,28 @@ export function UsersTab({
         <div>
           <CardTitle>Quản lý người dùng</CardTitle>
         </div>
-        <div className="relative w-full sm:w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Tìm kiếm người dùng..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 rounded-xl h-9 w-full"
-          />
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Hoạt động</option>
+              <option value="banned">Bị khóa</option>
+            </select>
+          </div>
+          <div className="relative w-full sm:w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Tìm kiếm người dùng..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 rounded-xl h-9 w-full"
+            />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
