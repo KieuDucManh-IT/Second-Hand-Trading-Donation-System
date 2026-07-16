@@ -96,7 +96,7 @@ export function EmailVerificationPage() {
               <Alert>
                 <CheckCircle className="w-4 h-4" />
                 <AlertDescription>
-                  You can now access all features of SecondLife. Redirecting in {countdown} seconds...
+                  You can now access all features of Second-Hand Trading & Donation System. Redirecting in {countdown} seconds...
                 </AlertDescription>
               </Alert>
 

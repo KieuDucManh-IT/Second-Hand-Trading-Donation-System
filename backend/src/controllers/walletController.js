@@ -148,7 +148,7 @@ exports.createDepositRequest = async (req, res) => {
             description,
             items: [
                 {
-                    name: "Nap tien vi SecondLife",
+                    name: "Nap tien vi SHTD System",
                     quantity: 1,
                     price: amount,
                 },
@@ -272,7 +272,7 @@ exports.createWithdrawRequest = async (req, res) => {
         const payoutPayload = {
             referenceId,
             amount: withdrawAmount,
-            description: `Rut tien SecondLife ${referenceId}`.slice(0, 50),
+            description: `Rut tien SHTD System ${referenceId}`.slice(0, 50),
             toBin,
             toAccountNumber: accountNumber,
             category: ["withdraw"],
