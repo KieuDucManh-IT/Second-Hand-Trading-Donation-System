@@ -456,7 +456,7 @@ export default function WalletPage() {
                     <div>
                         <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm">
                             <Wallet size={16} />
-                            SecondLife Wallet
+                            Second-Hand Trading & Donation System
                         </div>
 
                         <h1 className="text-4xl font-bold text-slate-900">
@@ -465,7 +465,7 @@ export default function WalletPage() {
 
                         <p className="mt-2 max-w-2xl text-slate-600">
                             Nạp tiền, rút tiền và theo dõi toàn bộ giao dịch của bạn trên hệ
-                            thống SecondLife.
+                            thống Second-Hand Trading & Donation System.
                         </p>
                     </div>
 

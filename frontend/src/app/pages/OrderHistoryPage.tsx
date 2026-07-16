@@ -119,11 +119,11 @@ export function OrderHistoryPage() {
         throw new Error(data.message || `Action failed`);
       }
 
-      toast.success(data.message || "Order updated successfully!");
+      toast.success(data.message || "Cập nhật đơn hàng thành công!");
       fetchOrders();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Failed to update order");
+      toast.error(err.message || "Không thể cập nhật đơn hàng");
     }
   };
 
@@ -140,7 +140,7 @@ export function OrderHistoryPage() {
         throw new Error("Accept failed");
       }
 
-      toast.success("Accepted donation request");
+      toast.success("Đã đồng ý yêu cầu quyên góp");
 
       fetchDonations();
     } catch (err: any) {
@@ -150,7 +150,7 @@ export function OrderHistoryPage() {
 
   const handleRejectDonation = async (id: string) => {
     const reason = prompt(
-      "Reason?\n\nExample:\n- Address too far\n- Item unavailable\n- Not eligible",
+      "Lý do từ chối?\n\nVí dụ:\n- Địa chỉ quá xa\n- Sản phẩm không còn sẵn\n- Không đủ điều kiện",
     );
 
     if (!reason) return;
@@ -173,7 +173,7 @@ export function OrderHistoryPage() {
         throw new Error("Reject failed");
       }
 
-      toast.success("Rejected donation request");
+      toast.success("Đã từ chối yêu cầu quyên góp");
       fetchDonations();
     } catch (err: any) {
       toast.error(err.message);
@@ -193,27 +193,27 @@ export function OrderHistoryPage() {
 
       fetchDonations();
 
-      toast.success("Delivery status updated");
+      toast.success("Đã cập nhật trạng thái giao hàng");
     } catch (err) {
-      toast.error("Update failed");
+      toast.error("Cập nhật thất bại");
     }
   };
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; className: string }> = {
       pending: {
-        label: "Pending Payment",
+        label: "Chờ thanh toán",
         className: "bg-yellow-500 text-white",
       },
       paid: {
-        label: "Paid (Escrow Held)",
+        label: "Đã thanh toán (Chờ giao hàng)",
         className: "bg-purple-500 text-white",
       },
-      confirmed: { label: "Confirmed", className: "bg-orange-500 text-white" },
-      shipping: { label: "Shipping", className: "bg-blue-500 text-white" },
-      delivered: { label: "Delivered", className: "bg-indigo-500 text-white" },
-      completed: { label: "Completed", className: "bg-green-500 text-white" },
-      cancelled: { label: "Cancelled", className: "bg-red-500 text-white" },
-      disputed: { label: "Disputed", className: "bg-pink-500 text-white" },
+      confirmed: { label: "Đã xác nhận", className: "bg-orange-500 text-white" },
+      shipping: { label: "Đang giao hàng", className: "bg-blue-500 text-white" },
+      delivered: { label: "Đã giao hàng", className: "bg-indigo-500 text-white" },
+      completed: { label: "Hoàn thành", className: "bg-green-500 text-white" },
+      cancelled: { label: "Đã hủy", className: "bg-red-500 text-white" },
+      disputed: { label: "Đang khiếu nại", className: "bg-pink-500 text-white" },
     };
 
     const config = map[status] || {
@@ -247,19 +247,19 @@ export function OrderHistoryPage() {
               />
               <div>
                 <h3 className="font-semibold text-lg line-clamp-1">
-                  {product.title || "Unknown Product"}
+                  {product.title || "Sản phẩm không rõ"}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Order ID: #{order._id}
+                  Mã đơn hàng: #{order._id}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {role === "buyer" ? "Seller: " : "Buyer: "}
+                  {role === "buyer" ? "Người bán: " : "Người mua: "}
                   <span className="font-medium text-gray-700 dark:text-gray-300">
-                    {partner?.fullName || "Unknown"}
+                    {partner?.fullName || "Không rõ"}
                   </span>
                 </p>
                 <p className="text-xs text-gray-400">
-                  Date: {new Date(order.createdAt).toLocaleDateString("vi-VN")}
+                  Ngày đặt: {new Date(order.createdAt).toLocaleDateString("vi-VN")}
                 </p>
               </div>
             </div>
@@ -268,7 +268,7 @@ export function OrderHistoryPage() {
               <div className="flex items-center gap-2">
                 {getStatusBadge(order.status)}
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
-                  {Number(order.totalPrice || 0).toLocaleString("vi-VN")} đ
+                  {Number(order.totalPrice || 0).toLocaleString("vi-VN")} VND
                 </span>
               </div>
 
@@ -281,19 +281,19 @@ export function OrderHistoryPage() {
                       onClick={() => handleAction(order._id, "pay")}
                       className="bg-purple-600 hover:bg-purple-700 text-white"
                     >
-                      Pay Now
+                      Thanh toán ngay
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const reason = prompt("Enter cancel reason:");
+                        const reason = prompt("Nhập lý do hủy:");
                         if (reason !== null)
                           handleAction(order._id, "cancel", reason);
                       }}
                       className="text-red-500 hover:text-red-600"
                     >
-                      Cancel
+                      Hủy
                     </Button>
                   </>
                 )}
@@ -303,13 +303,13 @@ export function OrderHistoryPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const reason = prompt("Enter cancel reason:");
+                      const reason = prompt("Nhập lý do hủy:");
                       if (reason !== null)
                         handleAction(order._id, "cancel", reason);
                     }}
                     className="text-red-500 hover:text-red-600"
                   >
-                    Request Cancel
+                    Yêu cầu hủy
                   </Button>
                 )}
 
@@ -321,18 +321,18 @@ export function OrderHistoryPage() {
                         onClick={() => handleAction(order._id, "receive")}
                         className="bg-green-600 hover:bg-green-700 text-white"
                       >
-                        Confirm Received
+                        Đã nhận hàng
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => {
-                          const reason = prompt("Enter dispute reason:");
+                          const reason = prompt("Nhập lý do khiếu nại:");
                           if (reason !== null)
                             handleAction(order._id, "dispute", reason);
                         }}
                       >
-                        Dispute
+                        Khiếu nại
                       </Button>
                     </>
                   )}
@@ -344,19 +344,19 @@ export function OrderHistoryPage() {
                       onClick={() => handleAction(order._id, "confirm")}
                       className="bg-orange-600 hover:bg-orange-700 text-white"
                     >
-                      Confirm Order
+                      Xác nhận đơn hàng
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const reason = prompt("Enter cancel reason:");
+                        const reason = prompt("Nhập lý do hủy:");
                         if (reason !== null)
                           handleAction(order._id, "cancel", reason);
                       }}
                       className="text-red-500 hover:text-red-600"
                     >
-                      Cancel Order
+                      Hủy đơn hàng
                     </Button>
                   </>
                 )}
@@ -368,19 +368,19 @@ export function OrderHistoryPage() {
                       onClick={() => handleAction(order._id, "ship")}
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      <Truck className="w-4 h-4 mr-1" /> Ship Order
+                      <Truck className="w-4 h-4 mr-1" /> Bắt đầu giao hàng
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const reason = prompt("Enter cancel reason:");
+                        const reason = prompt("Nhập lý do hủy:");
                         if (reason !== null)
                           handleAction(order._id, "cancel", reason);
                       }}
                       className="text-red-500 hover:text-red-600"
                     >
-                      Cancel Order
+                      Hủy đơn hàng
                     </Button>
                   </>
                 )}
@@ -391,20 +391,20 @@ export function OrderHistoryPage() {
                     onClick={() => handleAction(order._id, "deliver")}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
-                    Mark Delivered
+                    Đánh dấu đã giao
                   </Button>
                 )}
 
                 {!isBuyer && order.status === "delivered" && (
                   <span className="text-xs text-gray-500 italic">
-                    Awaiting Buyer Confirmation
+                    Chờ người mua xác nhận
                   </span>
                 )}
 
                 {order.status === "disputed" && (
                   <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800 max-w-xs">
-                    <span className="font-semibold">Disputed: </span>
-                    {order.disputeReason || "No reason specified."}
+                    <span className="font-semibold">Đang khiếu nại: </span>
+                    {order.disputeReason || "Không có lý do chi tiết."}
                   </div>
                 )}
               </div>
@@ -415,7 +415,6 @@ export function OrderHistoryPage() {
     );
   };
 
-  // Combine buying & selling orders for the "All Orders" view
   const allOrders = [
     ...buyingOrders.map((o) => ({ ...o, role: "buyer" })),
     ...sellingOrders.map((o) => ({ ...o, role: "seller" })),
@@ -428,9 +427,9 @@ export function OrderHistoryPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Order History</h1>
+            <h1 className="text-3xl font-bold">Lịch sử đơn hàng</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Manage your purchases, sales, and escrow protection status.
+              Quản lý đơn hàng mua, bán và trạng thái bảo vệ ký quỹ.
             </p>
           </div>
           <Button
@@ -439,7 +438,7 @@ export function OrderHistoryPage() {
             onClick={fetchOrders}
             className="rounded-full"
           >
-            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+            <RefreshCw className="w-4 h-4 mr-2" /> Làm mới
           </Button>
         </div>
 
@@ -451,25 +450,25 @@ export function OrderHistoryPage() {
 
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <p className="text-gray-500 animate-pulse">Loading orders...</p>
+            <p className="text-gray-500 animate-pulse">Đang tải đơn hàng...</p>
           </div>
         ) : (
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
               <TabsTrigger value="all">
-                All Orders ({allOrders.length})
+                Tất cả đơn ({allOrders.length})
               </TabsTrigger>
 
               <TabsTrigger value="buying">
-                Buying ({buyingOrders.length})
+                Mua hàng ({buyingOrders.length})
               </TabsTrigger>
 
               <TabsTrigger value="selling">
-                Selling ({sellingOrders.length})
+                Bán hàng ({sellingOrders.length})
               </TabsTrigger>
 
               <TabsTrigger value="donations">
-                Donations ({donations.length})
+                Quyên góp ({donations.length})
               </TabsTrigger>
             </TabsList>
 
@@ -478,7 +477,7 @@ export function OrderHistoryPage() {
                 <Card>
                   <CardContent className="p-12 text-center text-gray-500">
                     <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    No orders found.
+                    Không tìm thấy đơn hàng.
                   </CardContent>
                 </Card>
               ) : (
@@ -493,7 +492,7 @@ export function OrderHistoryPage() {
                 <Card>
                   <CardContent className="p-12 text-center text-gray-500">
                     <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    No purchases yet.
+                    Chưa mua đơn hàng nào.
                   </CardContent>
                 </Card>
               ) : (
@@ -508,7 +507,7 @@ export function OrderHistoryPage() {
                 <Card>
                   <CardContent className="p-12 text-center text-gray-500">
                     <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    No sales yet.
+                    Chưa bán đơn hàng nào.
                   </CardContent>
                 </Card>
               ) : (
@@ -522,11 +521,11 @@ export function OrderHistoryPage() {
               <Tabs defaultValue="received">
                 <TabsList className="mb-6">
                   <TabsTrigger value="received">
-                    Received Requests ({receivedDonations.length})
+                    Yêu cầu đã nhận ({receivedDonations.length})
                   </TabsTrigger>
 
                   <TabsTrigger value="my">
-                    My Requests ({myDonations.length})
+                    Yêu cầu của tôi ({myDonations.length})
                   </TabsTrigger>
                 </TabsList>
 
@@ -534,7 +533,7 @@ export function OrderHistoryPage() {
                   {receivedDonations.length === 0 ? (
                     <Card>
                       <CardContent className="p-12 text-center text-gray-500">
-                        No donation requests.
+                        Không có yêu cầu quyên góp nào.
                       </CardContent>
                     </Card>
                   ) : (
@@ -548,32 +547,40 @@ export function OrderHistoryPage() {
                               </h3>
 
                               <p className="text-sm text-gray-500">
-                                Requester:{" "}
+                                Người yêu cầu:{" "}
                                 {donation.requesterId?.fullName ||
                                   donation.requesterId?.userName}
                               </p>
 
                               <p className="mt-2">
-                                Status:
+                                Trạng thái:
                                 <span className="font-semibold ml-2">
-                                  {donation.status}
+                                  {donation.status === "pending"
+                                    ? "Chờ duyệt"
+                                    : donation.status === "accepted"
+                                    ? "Đã duyệt"
+                                    : donation.status === "rejected"
+                                    ? "Đã từ chối"
+                                    : donation.status}
                                 </span>
                               </p>
 
                               {donation.status === "accepted" && (
                                 <p className="text-green-600 mt-2">
-                                  Delivery Status:
+                                  Trạng thái giao hàng:
                                   <span className="font-semibold ml-2">
                                     {donation.deliveryStatus === "shipping"
-                                      ? " Shipping"
-                                      : " Delivered"}
+                                      ? " Đang vận chuyển"
+                                      : donation.deliveryStatus === "delivered"
+                                      ? " Đã giao hàng"
+                                      : " Chờ vận chuyển"}
                                   </span>
                                 </p>
                               )}
 
                               {donation.status === "rejected" && (
                                 <p className="text-red-500 mt-2">
-                                  Reason:
+                                  Lý do từ chối:
                                   <span className="font-semibold ml-2">
                                     {donation.rejectReason}
                                   </span>
@@ -590,7 +597,7 @@ export function OrderHistoryPage() {
                                       handleAcceptDonation(donation._id)
                                     }
                                   >
-                                    Accept
+                                    Đồng ý
                                   </Button>
 
                                   <Button
@@ -599,7 +606,7 @@ export function OrderHistoryPage() {
                                       handleRejectDonation(donation._id)
                                     }
                                   >
-                                    Reject
+                                    Từ chối
                                   </Button>
                                 </div>
                               )}
@@ -623,7 +630,7 @@ export function OrderHistoryPage() {
                                       )
                                     }
                                   >
-                                    Shipping
+                                    Vận chuyển
                                   </Button>
 
                                   <Button
@@ -643,7 +650,7 @@ export function OrderHistoryPage() {
                                       )
                                     }
                                   >
-                                    Delivered
+                                    Đã giao
                                   </Button>
                                 </div>
                               )}
@@ -661,7 +668,7 @@ export function OrderHistoryPage() {
                   {myDonations.length === 0 ? (
                     <Card>
                       <CardContent className="p-12 text-center text-gray-500">
-                        You haven't requested any donations.
+                        Bạn chưa yêu cầu quyên góp món đồ nào.
                       </CardContent>
                     </Card>
                   ) : (
@@ -673,35 +680,43 @@ export function OrderHistoryPage() {
                           </h3>
 
                           <p className="text-sm text-gray-500">
-                            Donor:{" "}
+                            Người tặng:{" "}
                             {donation.donorId?.fullName ||
                               donation.donorId?.userName}
                           </p>
 
                           <p className="mt-2">
-                            Status:
+                            Trạng thái:
                             <span className="font-semibold ml-2">
-                              {donation.status}
+                              {donation.status === "pending"
+                                ? "Chờ duyệt"
+                                : donation.status === "accepted"
+                                ? "Đã nhận"
+                                : donation.status === "rejected"
+                                ? "Đã từ chối"
+                                : donation.status}
                             </span>
                           </p>
 
                           {donation.status === "pending" && (
                             <p className="text-yellow-600 mt-2">
-                              ⏳ Waiting for donor confirmation...
+                              ⏳ Đang chờ người tặng xác nhận...
                             </p>
                           )}
 
                           {donation.status === "accepted" && (
                             <p className="text-green-600 mt-2">
                               {donation.deliveryStatus === "shipping"
-                                ? " Shipping"
-                                : " Delivered"}
+                                ? "Đang vận chuyển"
+                                : donation.deliveryStatus === "delivered"
+                                ? "Đã giao hàng"
+                                : "Chờ vận chuyển"}
                             </p>
                           )}
 
                           {donation.status === "rejected" && (
                             <p className="text-red-500 mt-2">
-                              Reason:
+                              Lý do từ chối:
                               <span className="font-semibold ml-2">
                                 {donation.rejectReason}
                               </span>
