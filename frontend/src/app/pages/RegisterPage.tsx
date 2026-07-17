@@ -9,6 +9,12 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
+
+const PASSWORD_REQUIREMENT_MESSAGE =
+  'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt';
+
 export function RegisterPage() {
   const navigate = useNavigate();
 
@@ -30,6 +36,10 @@ export function RegisterPage() {
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!PASSWORD_REGEX.test(formData.password)) {
+      setError(PASSWORD_REQUIREMENT_MESSAGE);
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Mật khẩu nhập lại không khớp');
@@ -180,7 +190,7 @@ export function RegisterPage() {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
                     autoComplete="new-password"
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"
@@ -190,7 +200,7 @@ export function RegisterPage() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">Phải chứa ít nhất 6 ký tự</p>
+                <p className="text-xs text-gray-500">Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt</p>
               </div>
 
               <div className="space-y-2">

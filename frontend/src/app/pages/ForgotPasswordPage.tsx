@@ -8,6 +8,12 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { Package, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
+
+const PASSWORD_REQUIREMENT_MESSAGE =
+  'Password must contain at least 8 characters, including uppercase, lowercase, number, and special character';
+
 export function ForgotPasswordPage() {
   const [step, setStep] = useState<'EMAIL' | 'OTP'>('EMAIL');
 
@@ -74,8 +80,8 @@ export function ForgotPasswordPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
+    if (!PASSWORD_REGEX.test(newPassword)) {
+      setError(PASSWORD_REQUIREMENT_MESSAGE);
       return;
     }
 
@@ -196,7 +202,7 @@ export function ForgotPasswordPage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
                     autoComplete="new-password"
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"
@@ -206,7 +212,10 @@ export function ForgotPasswordPage() {
                     {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">Must be at least 6 characters</p>
+                <p className="text-xs text-gray-500">
+                  Must contain at least 8 characters, including uppercase, lowercase,
+                  number, and special character
+                </p>
               </div>
 
               <div className="space-y-2">
