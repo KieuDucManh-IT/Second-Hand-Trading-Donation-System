@@ -346,7 +346,6 @@ export function ProductDetailPage() {
     }
 
     if (product.type === "donate") {
-      // Kiểm tra không cho tự gửi yêu cầu nhận đồ của chính mình
       const donorId =
         typeof product.ownerId === "object"
           ? product.ownerId?._id
@@ -358,10 +357,7 @@ export function ProductDetailPage() {
         return;
       }
 
-      // Mở dialog nhập lý do + thông tin nhận hàng
       setDonationMessage("");
-      // Chỉ điền sẵn họ tên nếu đó là tên thật, tránh trường hợp AuthContext
-      // fallback về email khi tài khoản chưa đặt tên hiển thị
       setDonationName(user.name && user.name !== user.email ? user.name : "");
       setDonationEmail(user.email || "");
       const firstLocation = user.locations && user.locations.length > 0 ? user.locations[0] : null;
@@ -1095,12 +1091,10 @@ export function ProductDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Donation Request Dialog ── */}
       <Dialog open={donationDialogOpen} onOpenChange={(v) => { setDonationDialogOpen(v); if (!v) setDonationMessage(""); }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {/* <Heart className="w-5 h-5 text-rose-500 fill-rose-500" /> */}
               Yêu cầu nhận đồ quyên góp
             </DialogTitle>
             <DialogDescription>
@@ -1109,7 +1103,6 @@ export function ProductDetailPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Product preview */}
             {product && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                 <ImageWithFallback
@@ -1130,7 +1123,6 @@ export function ProductDetailPage() {
               </div>
             )}
 
-            {/* Shipping info inputs */}
             <div className="space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
               <Label className="text-sm font-medium">
                 Thông tin nhận hàng <span className="text-red-500">*</span>
@@ -1220,7 +1212,6 @@ export function ProductDetailPage() {
               </div>
             </div>
  
-            {/* Message input */}
             <div>
               <Label htmlFor="donation-reason" className="text-sm font-medium">
                 Lý do bạn muốn nhận đồ <span className="text-red-500">*</span>

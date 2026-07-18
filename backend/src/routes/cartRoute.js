@@ -9,7 +9,7 @@ const {
   checkout,
 } = require('../controllers/cartController');
  
-router.use(protect); // tất cả route cần đăng nhập
+router.use(protect); 
  
 router.get('/',                       getCart);          
 router.post('/add',                   addToCart);        

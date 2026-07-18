@@ -25,7 +25,6 @@ const donationSchema = new mongoose.Schema(
       default: "",
     },
 
-    // Thông tin nhận hàng người xin donation cung cấp, để người tặng biết gửi đi đâu
     shippingInfo: {
       name: { type: String, default: "" },
       email: { type: String, default: "" },

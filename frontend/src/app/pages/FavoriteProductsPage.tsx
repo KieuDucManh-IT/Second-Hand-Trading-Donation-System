@@ -74,7 +74,6 @@ export function FavoriteProductsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button
             variant="ghost"
@@ -135,7 +134,7 @@ export function FavoriteProductsPage() {
                 className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer relative"
                 onClick={() => navigate(`/products/${product._id}`)}
               >
-                {/* Product Image and Overlays */}
+
                 <div className="relative h-48 bg-gray-100 dark:bg-gray-800">
                   <ImageWithFallback
                     src={product.thumbnail || (product.images && product.images[0]?.imageUrl) || ""}
@@ -155,7 +154,6 @@ export function FavoriteProductsPage() {
                     </div>
                   )}
                   
-                  {/* Share & Unfavorite Action Buttons */}
                   <div className="absolute top-3 right-3 flex gap-1.5 z-20">
                     <button
                       className="p-2 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 rounded-full shadow transition-all"
@@ -177,7 +175,7 @@ export function FavoriteProductsPage() {
                   </div>
                 </div>
 
-                {/* Product Details */}
+    
                 <CardContent className="p-4 flex flex-col justify-between h-36">
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">

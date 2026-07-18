@@ -17,7 +17,6 @@ const fileFilter = (_req, file, cb) => {
   cb(new Error("Chỉ chấp nhận file ảnh"));
 };
 
-// ── Upload avatar người dùng ────────────────────────
 const avatarStorage = new CloudinaryStorage({
   cloudinary,
   params: {
@@ -42,7 +41,6 @@ const uploadAvatar = multer({
   },
 });
 
-// ── Upload ảnh sản phẩm ─────────────────────────────
 const productStorage = new CloudinaryStorage({
   cloudinary,
   params: {
@@ -66,7 +64,6 @@ const uploadProduct = multer({
   },
 });
 
-// ── Xoá ảnh dùng chung ──────────────────────────────
 const deleteFromCloudinary = (publicId, resourceType = "image") => {
   return cloudinary.uploader.destroy(publicId, {
     resource_type: resourceType,

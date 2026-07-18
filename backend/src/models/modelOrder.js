@@ -21,7 +21,6 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
  
-    // Giá & phí
     totalPrice: {
       type: Number,
       required: true,
@@ -40,7 +39,6 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
  
-    // Phương thức & trạng thái thanh toán
     paymentMethod: {
       type: String,
       enum: ["wallet", "cod"],
@@ -52,7 +50,6 @@ const orderSchema = new mongoose.Schema(
       default: "unpaid",
     },
  
-    // Escrow
     escrowStatus: {
       type: String,
       enum: ["none", "holding", "released", "refunded", "disputed"],
@@ -64,7 +61,6 @@ const orderSchema = new mongoose.Schema(
       min: 0,
     },
  
-    // Trạng thái đơn hàng
     orderStatus: {
       type: String,
       enum: [
@@ -79,7 +75,6 @@ const orderSchema = new mongoose.Schema(
       default: "pending_seller_confirm",
     },
  
-    // Thông tin giao hàng (tuỳ chọn)
     shippingInfo: {
       name: String,
       email: String,
@@ -87,12 +82,11 @@ const orderSchema = new mongoose.Schema(
       address: String,
     },
  
-    // Timestamps nghiệp vụ
     paidAt: Date,
     sellerConfirmedAt: Date,
     shippedAt: Date,
     deliveredAt: Date,
-    confirmDeadline: Date, // deadline 7 ngày buyer xác nhận sau khi delivered
+    confirmDeadline: Date, 
     releasedAt: Date,
     refundedAt: Date,
     cancelledAt: Date,
@@ -100,7 +94,6 @@ const orderSchema = new mongoose.Schema(
     cancelReason: String,
     releaseReason: String,
 
-    // Ảnh gửi hàng (người bán upload khi bắt đầu giao)
     shippingProofImages: [
       {
         imageUrl: { type: String, required: true },
@@ -132,7 +125,6 @@ orderSchema.pre("validate", function () {
     this.sellerReceives = this.totalPrice - this.platformFee;
 
     
-    // Chỉ set paymentDeadline cho wallet, COD không cần deadline thanh toán
     if (!this.paymentDeadline && this.paymentMethod === "wallet") {
       const deadline = new Date();
       deadline.setHours(deadline.getHours() + 24);
@@ -145,6 +137,6 @@ orderSchema.index({ buyerId: 1, createdAt: -1 });
 orderSchema.index({ sellerId: 1, createdAt: -1 });
 orderSchema.index({ productId: 1 });
 orderSchema.index({ orderStatus: 1 });
-orderSchema.index({ confirmDeadline: 1, orderStatus: 1 }); // cho auto-release job
+orderSchema.index({ confirmDeadline: 1, orderStatus: 1 }); 
  
 module.exports = mongoose.model("Order", orderSchema);

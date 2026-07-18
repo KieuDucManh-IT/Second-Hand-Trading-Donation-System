@@ -373,7 +373,6 @@ exports.createDepositRequest = async (req, res) => {
         const wallet = await ensureWallet(userId);
         const orderCode = makeOrderCode();
 
-        // payOS giới hạn mô tả khá ngắn, nên dùng không dấu và ngắn gọn
         const description = `SL DEP${orderCode}`.slice(0, 25);
 
         const paymentLink = await payOS.paymentRequests.create({

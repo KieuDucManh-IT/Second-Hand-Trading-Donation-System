@@ -218,7 +218,6 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
 
           {selectedGroup && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              {/* Cột trái: Đối tượng bị báo cáo */}
               <div className="md:col-span-5 space-y-4 md:sticky md:top-0">
                 <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-5 space-y-3 border border-slate-100 dark:border-slate-800">
                   <div className="flex items-center justify-between">
@@ -274,7 +273,6 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }: Re
                 </div>
               </div>
 
-              {/* Cột phải: Danh sách báo cáo chi tiết */}
               <div className="md:col-span-7 space-y-4">
                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center">
                   Danh sách báo cáo ({selectedGroup.reports.length})

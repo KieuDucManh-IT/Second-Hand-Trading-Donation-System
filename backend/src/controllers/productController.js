@@ -19,7 +19,7 @@ const getSensitiveWords = async () => {
  
 /**
  * Kiểm tra văn bản có chứa từ nhạy cảm không
- * @returns {Promise<string|null>} từ vi phạm đầu tiên, hoặc null nếu sạch
+ * @returns {Promise<string|null>} 
  */
 const findSensitiveWord = async (text) => {
   if (!text) return null;
@@ -72,12 +72,10 @@ const getExchangeLockedProductIds = async () => {
 };
  
  
-// POST /api/products
 exports.createProduct = async (req, res, next) => {
   try {
     const { title, description, price, condition, type, categoryId, address, longitude, latitude } = req.body;
  
-    // ── Validate bắt buộc ────────────────────────────────────────────────────
     if (!title || !description || !condition || !type || !categoryId) {
       return res.status(400).json({
         success: false,
@@ -93,7 +91,6 @@ exports.createProduct = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Giá bán phải lớn hơn 0' });
     }
  
-    // ── Content moderation ───────────────────────────────────────────────────
     const violationInTitle = await findSensitiveWord(title);
     if (violationInTitle) {
       return res.status(400).json({
@@ -140,7 +137,6 @@ exports.createProduct = async (req, res, next) => {
   }
 };
  
-// POST /api/products/:id/images (tối đa 8 ảnh)
 exports.uploadImages = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -170,7 +166,6 @@ exports.uploadImages = async (req, res, next) => {
   }
 };
  
-// DELETE /api/products/images/:imageId
 exports.deleteImage = async (req, res, next) => {
   try {
     const image = await ProductImage.findById(req.params.imageId).populate('productId');
@@ -188,7 +183,6 @@ exports.deleteImage = async (req, res, next) => {
   }
 };
  
-// GET /api/products - danh sách public (chỉ available + isAvailable)
 exports.getProducts = async (req, res, next) => {
   try {
     const {
@@ -280,7 +274,6 @@ exports.getProducts = async (req, res, next) => {
   }
 };
  
-// GET /api/products/:id
 exports.getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id)
@@ -301,7 +294,6 @@ exports.getProductById = async (req, res, next) => {
   }
 };
  
-// PUT /api/products/:id
 exports.updateProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -310,7 +302,6 @@ exports.updateProduct = async (req, res, next) => {
     if (product.ownerId.toString() !== req.user._id.toString())
       return res.status(403).json({ success: false, message: 'Không có quyền' });
  
-    // Nếu user edit title/description => reset về pending review lại
     const textChanged = req.body.title !== undefined || req.body.description !== undefined;
  
     if (req.body.title) {
@@ -353,7 +344,6 @@ exports.updateProduct = async (req, res, next) => {
   }
 };
  
-// DELETE /api/products/:id
 exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -373,7 +363,6 @@ exports.deleteProduct = async (req, res, next) => {
   }
 };
  
-// GET /api/products/seller/:userId
 exports.getSellerProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -403,7 +392,6 @@ exports.getSellerProducts = async (req, res, next) => {
   }
 };
  
-// GET /api/products/my
 exports.getMyProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
@@ -429,9 +417,7 @@ exports.getMyProducts = async (req, res, next) => {
   }
 };
  
-// ── Manager routes ────────────────────────────────────────────────────────────
- 
-// GET /api/products/pending  (manager only — cần thêm vào route file)
+//Manager routes
 exports.getPendingProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -459,7 +445,6 @@ exports.getPendingProducts = async (req, res, next) => {
   }
 };
  
-// PUT /api/products/:id/approve  (manager only)
 exports.approveProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -477,7 +462,6 @@ exports.approveProduct = async (req, res, next) => {
   }
 };
  
-// PUT /api/products/:id/reject  (manager only)
 exports.rejectProduct = async (req, res, next) => {
   try {
     const { reason } = req.body;

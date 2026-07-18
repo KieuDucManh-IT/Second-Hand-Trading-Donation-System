@@ -32,7 +32,6 @@ const conversationSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Số lượng tin chưa đọc theo từng user, key = userId (string)
     unreadCounts: {
       type: Map,
       of: Number,
@@ -42,7 +41,6 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Một cặp user + một sản phẩm chỉ nên có 1 cuộc trò chuyện
 conversationSchema.index({ participants: 1 });
 conversationSchema.index({ productId: 1 });
 conversationSchema.index({ lastMessageAt: -1 });

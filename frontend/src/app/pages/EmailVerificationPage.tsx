@@ -12,7 +12,6 @@ export function EmailVerificationPage() {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Simulate verification process
     const timer = setTimeout(() => {
       setStatus('success');
       toast.success('Email verified successfully!');

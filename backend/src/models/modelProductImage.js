@@ -8,7 +8,7 @@ const productImageSchema = new mongoose.Schema(
       required: true,
     },
     imageUrl: { type: String, required: true },
-    publicId: { type: String, required: true }, // Cloudinary public_id (dùng để xoá)
+    publicId: { type: String, required: true }, 
     order:    { type: Number, default: 0 },
   },
   { timestamps: true }

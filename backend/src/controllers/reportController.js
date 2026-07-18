@@ -39,7 +39,6 @@ const createReport = async (req, res) => {
  
     await report.save();
  
-    // ✅ Gửi thông báo đến tất cả manager/admin
     try {
       const managers = await User.find({ role: { $in: ["manager", "admin"] } }).select("_id");
       const targetLabel =

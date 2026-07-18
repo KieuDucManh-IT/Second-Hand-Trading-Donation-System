@@ -45,7 +45,6 @@ exports.requestDonation = async (req, res) => {
       message,
     });
  
-    // Gửi thông báo đến donor (người đăng đồ)
     try {
       const Product = require("../models/modelProduct");
       const User = require("../models/modelUser");
@@ -88,14 +87,12 @@ exports.acceptDonation = async (req, res) => {
       });
     }
 
-    // Accept request này
     donation.status = "accepted";
     donation.deliveryStatus = "shipping";
     donation.acceptedAt = new Date();
 
     await donation.save();
 
-    // Ẩn sản phẩm khỏi Marketplace
     await Product.findByIdAndUpdate(
       donation.productId,
       {
@@ -104,7 +101,6 @@ exports.acceptDonation = async (req, res) => {
       }
     );
 
-    // Reject toàn bộ request khác
     await Donation.updateMany(
       {
         productId: donation.productId,
@@ -125,7 +121,6 @@ exports.acceptDonation = async (req, res) => {
         isAvailable: false,
       });
  
-      // Gửi thông báo đến requester (người xin)
       try {
         const User = require("../models/modelUser");
         const product = await Product.findById(donation.productId);
@@ -167,7 +162,6 @@ exports.rejectDonation = async (req, res) => {
     );
  
     if (donation) {
-      // Gửi thông báo đến requester (người xin)
       try {
         const Product = require("../models/modelProduct");
         const User = require("../models/modelUser");
@@ -202,7 +196,6 @@ exports.getMyDonations = async (req, res) => {
   try {
     const userId = req.user.id;
  
-    // Phân trang tùy chọn (nếu có page/limit query params)
     if (req.query.page || req.query.limit) {
       const page = Math.max(1, parseInt(req.query.page) || 1);
       const limit = Math.min(100, parseInt(req.query.limit) || 10);
@@ -238,14 +231,13 @@ exports.getMyDonations = async (req, res) => {
       });
     }
  
-    // Mặc định trả về toàn bộ danh sách được sắp xếp mới nhất
     const donations = await Donation.find({
       $or: [
         { donorId: userId },
         { requesterId: userId }
       ]
     })
-      .sort({ createdAt: -1 })   // Thêm dòng này
+      .sort({ createdAt: -1 })   
       .populate("productId")
       .populate("donorId")
       .populate("requesterId");
@@ -269,7 +261,6 @@ exports.updateDeliveryStatus = async (req, res) => {
     );
  
     if (donation) {
-      // Gửi thông báo đến requester (người xin)
       try {
         const Product = require("../models/modelProduct");
         const User = require("../models/modelUser");

@@ -47,7 +47,6 @@ export function ProductListingPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
  
-  // ── Filter state ──────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery]       = useState(searchParams.get('search') || '');
   const [inputValue,  setInputValue]        = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
@@ -58,7 +57,6 @@ export function ProductListingPage() {
   const [viewMode, setViewMode]             = useState<'grid'|'list'>('grid');
   const [page, setPage]                     = useState(1);
  
-  // ── Data state ────────────────────────────────────────────────────────────
   const [products, setProducts]     = useState<ApiProduct[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -67,14 +65,12 @@ export function ProductListingPage() {
   const [error, setError]           = useState<string | null>(null);
   const [favorites, setFavorites]   = useState<string[]>([]);
  
-  // Load categories once
   useEffect(() => {
     fetchCategories()
       .then(res => setCategories(res.data))
       .catch(() => {});
   }, []);
 
-  // Load favorites once
   useEffect(() => {
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (token) {
@@ -114,7 +110,6 @@ export function ProductListingPage() {
     }
   };
  
-  // Load products whenever filters change
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -147,7 +142,6 @@ export function ProductListingPage() {
     loadProducts();
   }, [loadProducts]);
  
-  // Keep URL in sync
   useEffect(() => {
     const params: Record<string, string> = {};
     if (searchQuery) params.search = searchQuery;
@@ -181,7 +175,6 @@ export function ProductListingPage() {
  
   const FilterPanel = () => (
     <div className="space-y-6">
-      {/* Category */}
       <div>
         <Label className="text-sm font-medium mb-2 block">Danh mục</Label>
         <Select
@@ -218,7 +211,6 @@ export function ProductListingPage() {
         </Select>
       </div>
  
-      {/* Condition */}
       <div>
         <Label className="text-sm font-medium mb-3 block">Tình trạng</Label>
         <div className="space-y-2">
@@ -237,7 +229,6 @@ export function ProductListingPage() {
         </div>
       </div>
  
-      {/* Price Range */}
       <div>
         <Label className="text-sm font-medium mb-3 block">
            Khoảng giá: {priceRange[0].toLocaleString('vi-VN')} VND – {priceRange[1].toLocaleString('vi-VN')} VND
@@ -252,7 +243,6 @@ export function ProductListingPage() {
         />
       </div>
  
-      {/* Donations only */}
       <div className="flex items-center space-x-2">
         <Checkbox
           id="donations-only"
@@ -272,7 +262,6 @@ export function ProductListingPage() {
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
             Tất cả sản phẩm
@@ -282,7 +271,6 @@ export function ProductListingPage() {
           </p>
         </div>
  
-        {/* Search + Sort Bar */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <form onSubmit={handleSearch} className="flex-1 relative flex gap-2">
             <div className="relative flex-1">
@@ -318,7 +306,6 @@ export function ProductListingPage() {
               <List className="w-5 h-5" />
             </Button>
  
-            {/* Mobile filter */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" className="md:hidden rounded-xl h-12">
@@ -339,7 +326,6 @@ export function ProductListingPage() {
         </div>
  
         <div className="flex gap-8">
-          {/* Desktop sidebar */}
           <aside className="hidden md:block w-64 shrink-0">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm sticky top-24">
               <h3 className="font-semibold mb-6 flex items-center gap-2">
@@ -350,7 +336,6 @@ export function ProductListingPage() {
             </div>
           </aside>
  
-          {/* Products */}
           <div className="flex-1">
             <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
               {loading ? 'Đang tải...' : `${totalCount} sản phẩm tìm thấy`}
@@ -498,7 +483,6 @@ export function ProductListingPage() {
                   ))}
                 </div>
  
-                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-10">
                     <Button
