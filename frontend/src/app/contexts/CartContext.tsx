@@ -3,7 +3,6 @@ import { toast } from 'sonner';
  
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
  
-// ── Types ─────────────────────────────────────────────────────────────────────
 export interface CartProduct {
   _id: string;
   title: string;
@@ -24,8 +23,8 @@ export interface CartItem {
 export interface CartSummary {
   itemCount: number;
   totalPrice: number;
-  platformFee: number;     // 10% — phí nền tảng
-  sellerReceives: number;  // 90% — info
+  platformFee: number;     
+  sellerReceives: number;  
 }
  
 interface CartContextType {
@@ -40,7 +39,6 @@ interface CartContextType {
   refetch:        () => Promise<void>;
 }
  
-// ── Context ───────────────────────────────────────────────────────────────────
 const CartContext = createContext<CartContextType | undefined>(undefined);
  
 const EMPTY_SUMMARY: CartSummary = { itemCount: 0, totalPrice: 0, platformFee: 0, sellerReceives: 0 };
@@ -55,7 +53,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [summary, setSummary] = useState<CartSummary>(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(false);
  
-  // ── Fetch giỏ hàng từ backend ─────────────────────────────────────────────
   const refetch = useCallback(async () => {
     const token = sessionStorage.getItem('token');
     if (!token) { setItems([]); setSummary(EMPTY_SUMMARY); return; }
@@ -69,19 +66,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setSummary(body.data.summary ?? EMPTY_SUMMARY);
       }
     } catch {
-      // Mạng lỗi — giữ nguyên state cũ, không báo lỗi ồn
     } finally {
       setLoading(false);
     }
   }, []);
  
-  // Load khi mount (nếu đã đăng nhập)
   useEffect(() => { refetch(); }, [refetch]);
  
-  // ── Thêm vào giỏ ─────────────────────────────────────────────────────────
   const addingRef = React.useRef(false);
   const addToCart = async (productId: string, productTitle?: string) => {
-    // Chống spam: nếu đang xử lý request trước thì bỏ qua
     if (addingRef.current || loading) return;
     addingRef.current = true;
     setLoading(true);
@@ -95,7 +88,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error(body.message);
       setItems(body.data.items);
       setSummary(body.data.summary);
-      // Toast duy nhất từ CartContext, không toast thêm ở nơi gọi
       toast.success(body.message ?? `Đã thêm${productTitle ? ` "${productTitle}"` : ''} vào giỏ hàng`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không thể thêm vào giỏ hàng');
@@ -105,7 +97,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
  
-  // ── Xóa khỏi giỏ ─────────────────────────────────────────────────────────
   const removeFromCart = async (productId: string) => {
     setLoading(true);
     try {
@@ -125,7 +116,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
  
-  // ── Xóa hết giỏ ──────────────────────────────────────────────────────────
   const clearCart = async () => {
     setLoading(true);
     try {
@@ -144,7 +134,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
  
-  // ── Checkout ──────────────────────────────────────────────────────────────
   const checkout = async (selectedProductIds?: string[]) => {
     setLoading(true);
     try {
@@ -155,7 +144,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message);
-      // Sau checkout, refetch lại giỏ (những item chưa chọn vẫn còn)
       await refetch();
       return { success: true, ordersCount: body.data.ordersCount };
     } catch (err) {

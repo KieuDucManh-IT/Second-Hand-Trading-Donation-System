@@ -106,7 +106,6 @@ export async function fetchCategories(): Promise<{ success: boolean; data: ApiCa
   return res.json();
 }
  
-/** Map condition value sang label hiển thị */
 export const CONDITION_LABELS: Record<string, string> = {
   new:      'Mới',
   like_new: 'Như mới',

@@ -10,7 +10,6 @@ import {
 import { useAuth } from "./AuthContext";
 import { connectSocket, disconnectSocket, getSocket } from "../lib/socket";
  
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface NotificationData {
   orderId?: string;
   amount?: number;

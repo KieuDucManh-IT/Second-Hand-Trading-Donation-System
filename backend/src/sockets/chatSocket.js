@@ -8,10 +8,6 @@ const { containsProfanity } = require('../utils/profanityFilter');
  
 const MAX_MESSAGE_LENGTH = 2000;
  
-// ── Theo dõi user online trong bộ nhớ ─────────────────────────────────────
-// userId -> số lượng kết nối (1 user có thể mở nhiều tab/thiết bị)
-// Dùng đếm số socket thay vì cờ true/false để tránh báo "offline" nhầm khi
-// user chỉ đóng 1 trong nhiều tab đang mở.
 const onlineUsers = new Map();
  
 const markUserOnline = (io, userId) => {
@@ -45,7 +41,6 @@ const initChatSocket = (httpServer) => {
     },
   });
  
-  // ── Middleware xác thực: client gửi token qua socket.handshake.auth.token ──
   io.use(async (socket, next) => {
     try {
       const token =
@@ -73,12 +68,10 @@ const initChatSocket = (httpServer) => {
   io.on('connection', (socket) => {
     const userId = socket.user._id.toString();
  
-    // Mỗi user có 1 room riêng -> server có thể emit tới mọi tab/thiết bị của user đó
     socket.join(`user:${userId}`);
  
     markUserOnline(io, userId);
  
-    // ── Cho client hỏi trạng thái online của 1 danh sách user (lúc mới mở trang) ──
     socket.on('get_online_status', (userIds = [], callback) => {
       const result = {};
       (Array.isArray(userIds) ? userIds : [userIds]).forEach((id) => {
@@ -87,7 +80,6 @@ const initChatSocket = (httpServer) => {
       if (typeof callback === 'function') callback(result);
     });
  
-    // ── Tham gia phòng của một cuộc trò chuyện cụ thể ──────────────────────
     socket.on('join_conversation', async (conversationId) => {
       try {
         const conv = await Conversation.findById(conversationId);
@@ -105,7 +97,6 @@ const initChatSocket = (httpServer) => {
       socket.leave(`conversation:${conversationId}`);
     });
  
-    // ── Gửi tin nhắn realtime ───────────────────────────────────────────────
     socket.on('send_message', async ({ conversationId, content }, callback) => {
       const ack = typeof callback === 'function' ? callback : () => {};
 
@@ -161,10 +152,8 @@ const initChatSocket = (httpServer) => {
 
         await conv.save();
 
-        // Gửi cho tất cả participant kèm thông tin participant để frontend hiển thị tên/avatar
         conv.participants.forEach((p) => {
           const receiverId = p._id.toString();
-          // Với mỗi người nhận, "participant" là người còn lại (người gửi)
           const otherParticipant = conv.participants.find(
             (op) => op._id.toString() !== receiverId
           );
@@ -186,7 +175,6 @@ const initChatSocket = (httpServer) => {
       }
     });
  
-    // ── Trạng thái đang nhập ─────────────────────────────────────────────────
     socket.on('typing', ({ conversationId, isTyping }) => {
       socket.to(`conversation:${conversationId}`).emit('user_typing', {
         conversationId,
@@ -195,7 +183,6 @@ const initChatSocket = (httpServer) => {
       });
     });
  
-    // ── Đánh dấu đã đọc ───────────────────────────────────────────────────────
     socket.on('mark_as_read', async ({ conversationId }) => {
       try {
         const conv = await Conversation.findById(conversationId);
@@ -206,7 +193,6 @@ const initChatSocket = (httpServer) => {
         conv.unreadCounts.set(userId, 0);
         await conv.save();
  
-        // Đọc xong -> hẹn giờ tự xóa khỏi DB sau 2 tháng (theo yêu cầu).
         const expireAt = new Date();
         expireAt.setMonth(expireAt.getMonth() + 2);
  

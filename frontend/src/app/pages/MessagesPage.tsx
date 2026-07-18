@@ -19,7 +19,6 @@ import {
 import { connectSocket } from '../lib/socket';
 import type { Socket } from 'socket.io-client';
  
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
 function formatTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -34,16 +33,13 @@ function initials(name?: string | null) {
     .join('')
     .toUpperCase();
 }
- 
-// Luôn sắp xếp tin nhắn theo thời gian tạo (cũ -> mới) để tránh hiển thị
-// sai thứ tự dù dữ liệu đến từ API hay socket theo thứ tự nào.
+
 function sortByTime(msgs: ApiMessage[]): ApiMessage[] {
   return [...msgs].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 }
  
-/* ── Component ───────────────────────────────────────────────────────────── */
 export function MessagesPage() {
   const { isAuthenticated, isAuthReady, user } = useAuth();
   const navigate = useNavigate();
@@ -64,18 +60,15 @@ export function MessagesPage() {
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Ref luôn giữ giá trị mới nhất để dùng trong socket closure
   const selectedConvIdRef = useRef<string | null>(null);
  
   const selectedConv = conversations.find((c) => c.id === selectedConvId) ?? null;
  
-  /* ── Auth guard ──────────────────────────────────────────────────────── */
   useEffect(() => {
     if (!isAuthReady) return;
     if (!isAuthenticated) navigate('/login');
   }, [isAuthReady, isAuthenticated, navigate]);
  
-  /* ── Kết nối Socket.IO ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!isAuthenticated) return;
  
@@ -100,7 +93,6 @@ export function MessagesPage() {
             c.id === conversationId
               ? {
                   ...c,
-                  // Nếu participant chưa có (null), cập nhật từ socket data
                   participant: c.participant ?? participant ?? null,
                   lastMessage: message.content,
                   lastMessageAt: message.createdAt,
@@ -109,7 +101,6 @@ export function MessagesPage() {
               : c
           );
         }
-        // Conversation chưa có trong danh sách (tin nhắn mới từ người lạ) → thêm vào
         return [
           {
             id: conversationId,
@@ -178,14 +169,12 @@ export function MessagesPage() {
     };
   }, [isAuthenticated]);
  
-  /* ── Load conversations ──────────────────────────────────────────────── */
   useEffect(() => {
     if (!isAuthenticated) return;
     setLoadingConvs(true);
     fetchConversations()
       .then((res) => {
         setConversations(res.data);
-        // Nếu được navigate từ trang sản phẩm với conversationId
         const navConvId = (location.state as any)?.conversationId as string | undefined;
         if (navConvId) {
           setSelectedConvId(navConvId);
@@ -195,15 +184,12 @@ export function MessagesPage() {
       })
       .catch(() => toast.error('Không thể tải danh sách trò chuyện'))
       .finally(() => setLoadingConvs(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
  
-  /* ── Khi selectedConvId thay đổi: load messages + join socket room ───── */
   const handleSelectConversation = useCallback(
     async (convId: string) => {
       if (convId === selectedConvIdRef.current) return;
  
-      // Rời phòng cũ
       if (selectedConvIdRef.current) {
         socketRef.current?.emit('leave_conversation', selectedConvIdRef.current);
       }
@@ -232,21 +218,16 @@ export function MessagesPage() {
     []
   );
  
-  // Sau khi load conversations xong, nếu có selectedConvId từ navigation → load messages
   useEffect(() => {
     if (initialized && selectedConvId) {
       handleSelectConversation(selectedConvId);
     }
-    // chỉ chạy 1 lần khi initialized
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
  
-  /* ── Auto scroll ─────────────────────────────────────────────────────── */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
  
-  /* ── Gửi tin nhắn ────────────────────────────────────────────────────── */
   const handleSend = () => {
     if (!messageText.trim() || !selectedConvId || sending) return;
 
@@ -272,9 +253,6 @@ export function MessagesPage() {
       setMessageText(content);
     }, 8000);
 
-    // Không hiển thị tin nhắn ngay (optimistic) nữa — chờ server xác nhận.
-    // Nếu server từ chối (VD: chứa từ ngữ nhạy cảm), tin nhắn sẽ KHÔNG xuất
-    // hiện ở đâu cả, chỉ báo lỗi, tránh tạo cảm giác "đã gửi" giả.
     socket.emit(
       'send_message',
       { conversationId: convId, content },
@@ -283,18 +261,15 @@ export function MessagesPage() {
         acked = true;
         clearTimeout(timeoutId);
         setSending(false);
-        if (!res) return; // server không hỗ trợ ack (fallback cũ) — bỏ qua
+        if (!res) return; 
         if (!res.success) {
           toast.error(res.message || 'Không thể gửi tin nhắn');
-          setMessageText(content); // trả lại nội dung để người dùng sửa
+          setMessageText(content); 
         }
-        // Nếu thành công: message thật sẽ được thêm vào qua sự kiện
-        // socket 'new_message' (server emit cho cả người gửi lẫn người nhận).
       }
     );
   };
  
-  /* ── Typing indicator ────────────────────────────────────────────────── */
   const handleInputChange = (val: string) => {
     setMessageText(val);
     if (!selectedConvId) return;
@@ -307,7 +282,6 @@ export function MessagesPage() {
     }, 1500);
   };
  
-  /* ── Filter ──────────────────────────────────────────────────────────── */
   const filteredConversations = conversations.filter((c) => {
     const q = search.toLowerCase();
     return (
@@ -318,15 +292,12 @@ export function MessagesPage() {
   });
  
   const isTypingAnyone = Object.values(typingUsers).some(Boolean);
- 
-  /* ── Render ──────────────────────────────────────────────────────────── */
-  return (
+   return (
     <div className="h-[calc(100vh-4rem)] overflow-hidden bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-full">
         <Card className="h-full overflow-hidden">
           <div className="grid md:grid-cols-[340px_1fr] h-full min-h-0">
  
-            {/* ── Danh sách cuộc trò chuyện ──────────────────────────── */}
             <div className="border-r border-gray-200 dark:border-gray-700 flex flex-col h-full min-h-0">
               <div className="p-4 border-b flex-shrink-0">
                 <h2 className="text-xl font-bold mb-3">Tin nhắn</h2>
@@ -401,10 +372,8 @@ export function MessagesPage() {
               </div>
             </div>
  
-            {/* ── Khu vực chat ───────────────────────────────────────── */}
             {selectedConv ? (
               <div className="flex flex-col h-full min-h-0">
-                {/* Header */}
                 <div className="p-4 border-b flex items-center gap-3 flex-shrink-0 bg-white dark:bg-gray-900">
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={selectedConv.participant?.avatar} />
@@ -420,7 +389,6 @@ export function MessagesPage() {
                   </div>
                 </div>
  
-                {/* Messages */}
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-3 bg-gray-50 dark:bg-gray-950 [overflow-anchor:none]">
                   {loadingMsgs ? (
                     <div className="flex justify-center items-center h-full">
@@ -464,7 +432,6 @@ export function MessagesPage() {
                     })
                   )}
  
-                  {/* Typing indicator */}
                   {isTypingAnyone && (
                     <div className="flex justify-start">
                       <Avatar className="w-7 h-7 mr-2 self-end flex-shrink-0">
@@ -484,7 +451,6 @@ export function MessagesPage() {
                   <div ref={messagesEndRef} />
                 </div>
  
-                {/* Input */}
                 <div className="p-4 border-t bg-white dark:bg-gray-900 flex-shrink-0">
                   <div className="flex gap-2 items-end">
                     <Textarea

@@ -1,11 +1,9 @@
-// ─── notificationController.js ───────────────────────────────────────────────
 const Notification = require("../models/modelNotification");
  
 function getUserId(req) {
   return req.user?._id || req.user?.id || req.userId;
 }
  
-/** GET /api/notifications - Lấy danh sách thông báo của user hiện tại */
 exports.getMyNotifications = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -33,7 +31,6 @@ exports.getMyNotifications = async (req, res) => {
   }
 };
  
-/** PATCH /api/notifications/:id/read - Đánh dấu đã đọc một thông báo */
 exports.markOneRead = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -53,7 +50,6 @@ exports.markOneRead = async (req, res) => {
   }
 };
  
-/** PATCH /api/notifications/read-all - Đánh dấu tất cả đã đọc */
 exports.markAllRead = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -64,7 +60,6 @@ exports.markAllRead = async (req, res) => {
   }
 };
  
-/** DELETE /api/notifications/:id - Xoá 1 thông báo */
 exports.deleteOne = async (req, res) => {
   try {
     const userId = getUserId(req);

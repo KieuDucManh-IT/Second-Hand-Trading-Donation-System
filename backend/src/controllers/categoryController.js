@@ -1,6 +1,5 @@
 const Category = require('../models/modelCategory');
  
-// GET /api/categories
 exports.getCategories = async (req, res, next) => {
   try {
     const categories = await Category.find().sort({ name: 1 });
@@ -8,7 +7,6 @@ exports.getCategories = async (req, res, next) => {
   } catch (err) { next(err); }
 };
  
-// POST /api/categories  (manager only)
 exports.createCategory = async (req, res, next) => {
   try {
     const { name, description, icon } = req.body;
@@ -20,7 +18,6 @@ exports.createCategory = async (req, res, next) => {
   } catch (err) { next(err); }
 };
  
-// PUT /api/categories/:id  (manager only)
 exports.updateCategory = async (req, res, next) => {
   try {
     const { name, description, icon } = req.body;
@@ -34,7 +31,6 @@ exports.updateCategory = async (req, res, next) => {
   } catch (err) { next(err); }
 };
  
-// DELETE /api/categories/:id  (manager only)
 exports.deleteCategory = async (req, res, next) => {
   try {
     const category = await Category.findById(req.params.id);

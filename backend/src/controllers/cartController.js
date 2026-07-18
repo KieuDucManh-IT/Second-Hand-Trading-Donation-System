@@ -4,7 +4,6 @@ const Product = require('../models/modelProduct');
 const Order   = require('../models/modelOrder');
 const User    = require('../models/modelUser');
  
-// ── Helper: lấy cart đã populate đầy đủ ──────────────────────────────────────
 const getPopulatedCart = (userId) =>
   Cart.findOne({ userId }).populate({
     path: 'items.productId',
@@ -12,14 +11,13 @@ const getPopulatedCart = (userId) =>
     populate: { path: 'ownerId', select: 'userName' },
   });
  
-// ── GET /api/cart ─────────────────────────────────────────────────────────────
-// Lấy giỏ hàng của buyer, tự lọc sản phẩm đã bị sold/reserved ra khỏi kết quả
+
 exports.getCart = async (req, res, next) => {
   try {
     const cart = await getPopulatedCart(req.user._id);
     if (!cart) return res.json({ success: true, data: { items: [], summary: buildSummary([]) } });
  
-    // Lọc ra những item mà sản phẩm vẫn available
+   
     const validItems = cart.items.filter((item) => {
       const p = item.productId;
       return p && p.isAvailable && p.status === 'available' && p.type === 'sell';
@@ -37,14 +35,12 @@ exports.getCart = async (req, res, next) => {
   }
 };
  
-// ── POST /api/cart/add ────────────────────────────────────────────────────────
-// Thêm 1 sản phẩm vào giỏ
+
 exports.addToCart = async (req, res, next) => {
   try {
     const { productId } = req.body;
     const buyerId = req.user._id;
  
-    // Kiểm tra sản phẩm hợp lệ
     const product = await Product.findById(productId);
     if (!product)
       return res.status(404).json({ success: false, message: 'Sản phẩm không tồn tại' });
@@ -55,9 +51,8 @@ exports.addToCart = async (req, res, next) => {
     if (product.ownerId.toString() === buyerId.toString())
       return res.status(400).json({ success: false, message: 'Bạn không thể thêm sản phẩm của chính mình vào giỏ' });
  
-    // Upsert cart, thêm item nếu chưa có (hàng cũ không cho trùng)
     const cart = await Cart.findOneAndUpdate(
-      { userId: buyerId, 'items.productId': { $ne: productId } }, // chưa có item này
+      { userId: buyerId, 'items.productId': { $ne: productId } }, 
       {
         $setOnInsert: { userId: buyerId },
         $push: { items: { productId, addedAt: new Date() } },
@@ -65,7 +60,6 @@ exports.addToCart = async (req, res, next) => {
       { upsert: true, new: true }
     );
  
-    // Nếu cart không thay đổi → sản phẩm đã có trong giỏ
     const alreadyExists = await Cart.findOne({ userId: buyerId, 'items.productId': productId });
     if (!cart && alreadyExists)
       return res.status(400).json({ success: false, message: 'Sản phẩm đã có trong giỏ hàng' });
@@ -85,7 +79,6 @@ exports.addToCart = async (req, res, next) => {
   }
 };
  
-// ── DELETE /api/cart/remove/:productId ───────────────────────────────────────
 exports.removeFromCart = async (req, res, next) => {
   try {
     await Cart.findOneAndUpdate(
@@ -107,7 +100,6 @@ exports.removeFromCart = async (req, res, next) => {
   }
 };
  
-// ── DELETE /api/cart/clear ────────────────────────────────────────────────────
 exports.clearCart = async (req, res, next) => {
   try {
     await Cart.findOneAndUpdate({ userId: req.user._id }, { $set: { items: [] } });
@@ -117,23 +109,20 @@ exports.clearCart = async (req, res, next) => {
   }
 };
  
-// ── POST /api/cart/checkout ───────────────────────────────────────────────────
-// Tạo order cho từng sản phẩm trong giỏ (hoặc subset được chọn),
-// tự điền thông tin giao hàng từ profile buyer, trừ 10% phí nền tảng
+
 exports.checkout = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
     const buyerId = req.user._id;
  
-    // Lấy thông tin profile buyer (tự fill vào đơn hàng)
+
     const buyer = await User.findById(buyerId).select('userName email phone address district city').session(session);
     if (!buyer) {
       await session.abortTransaction();
       return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin người dùng' });
     }
  
-    // Kiểm tra buyer đã có đủ thông tin giao hàng chưa
     const missingFields = [];
     if (!buyer.phone)    missingFields.push('số điện thoại');
     if (!buyer.address)  missingFields.push('địa chỉ');
@@ -147,15 +136,13 @@ exports.checkout = async (req, res, next) => {
       });
     }
  
-    // Lấy giỏ hàng
     const cart = await Cart.findOne({ userId: buyerId }).session(session);
     if (!cart || cart.items.length === 0) {
       await session.abortTransaction();
       return res.status(400).json({ success: false, message: 'Giỏ hàng trống' });
     }
  
-    // Nếu request gửi lên selectedProductIds thì chỉ checkout những item đó
-    const { selectedProductIds } = req.body; // string[] | undefined
+    const { selectedProductIds } = req.body;
     const itemsToCheckout = selectedProductIds?.length
       ? cart.items.filter((i) => selectedProductIds.includes(i.productId.toString()))
       : cart.items;
@@ -165,7 +152,6 @@ exports.checkout = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Không có sản phẩm nào được chọn' });
     }
  
-    // Lấy thông tin sản phẩm và validate
     const productIds = itemsToCheckout.map((i) => i.productId);
     const products   = await Product.find({ _id: { $in: productIds } }).session(session);
  
@@ -192,7 +178,6 @@ exports.checkout = async (req, res, next) => {
       return res.status(400).json({ success: false, message: errors.join('; ') });
     }
  
-    // Tạo order cho từng sản phẩm hợp lệ
     const PLATFORM_FEE_RATE = 0.1;
     const createdOrders = [];
  
@@ -210,7 +195,6 @@ exports.checkout = async (req, res, next) => {
             platformFeeRate: PLATFORM_FEE_RATE,
             platformFee,
             sellerReceives,
-            // Thông tin giao hàng tự fill từ profile
             shippingInfo: {
               name:     buyer.userName,
               email:    buyer.email,
@@ -224,7 +208,6 @@ exports.checkout = async (req, res, next) => {
         { session }
       );
  
-      // Đặt sản phẩm sang reserved
       product.status      = 'reserved';
       product.isAvailable = false;
       await product.save({ session });
@@ -232,7 +215,6 @@ exports.checkout = async (req, res, next) => {
       createdOrders.push(order);
     }
  
-    // Xóa các item đã checkout ra khỏi giỏ
     const checkedOutIds = toCreate.map((p) => p._id);
     await Cart.findOneAndUpdate(
       { userId: buyerId },
@@ -259,7 +241,6 @@ exports.checkout = async (req, res, next) => {
   }
 };
  
-// ── Helper: tính tóm tắt giỏ hàng ───────────────────────────────────────────
 function buildSummary(items) {
   const totalPrice    = items.reduce((sum, i) => sum + (i.productId?.price ?? 0), 0);
   const platformFee   = Math.round(totalPrice * 0.1);
@@ -267,6 +248,6 @@ function buildSummary(items) {
     itemCount:      items.length,
     totalPrice,
     platformFee,
-    sellerReceives: totalPrice - platformFee, // tổng seller nhận (info)
+    sellerReceives: totalPrice - platformFee, 
   };
 }

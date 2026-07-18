@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useNotifications, INotification } from "../contexts/NotificationContext";
 import { Bell, BellOff, CheckCheck, Trash2, ShoppingBag, Wallet, AlertTriangle, Package, XCircle, Star } from "lucide-react";
  
-// ─── Icon & màu sắc theo loại thông báo ──────────────────────────────────────
 function getNotificationMeta(type: string) {
   switch (type) {
     case "order_created":
@@ -45,7 +44,6 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("vi-VN");
 }
  
-// ─── Filter tabs ──────────────────────────────────────────────────────────────
 const TABS = [
   { key: "all", label: "Tất cả" },
   { key: "order", label: "Đơn hàng" },
@@ -63,7 +61,6 @@ function matchTab(noti: INotification, tab: string) {
   return true;
 }
  
-// ─── Single notification card ─────────────────────────────────────────────────
 function NotificationCard({
   noti,
   onRead,
@@ -91,12 +88,10 @@ function NotificationCard({
         }`}
       onClick={handleClick}
     >
-      {/* Icon */}
       <div className={`flex-shrink-0 p-2.5 rounded-full ${color}`}>
         {icon}
       </div>
  
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -108,7 +103,6 @@ function NotificationCard({
             </p>
             <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{noti.message}</p>
  
-            {/* Số tiền */}
             {noti.data?.amount != null && (
               <p className="text-sm font-semibold text-emerald-600 mt-1">
                 +{noti.data.amount.toLocaleString("vi-VN")} VND
@@ -116,7 +110,6 @@ function NotificationCard({
             )}
           </div>
  
-          {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             {!noti.isRead && (
               <button
@@ -140,7 +133,6 @@ function NotificationCard({
         <p className="text-xs text-gray-400 mt-1">{timeAgo(noti.createdAt)}</p>
       </div>
  
-      {/* Unread dot */}
       {!noti.isRead && (
         <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full mt-2" />
       )}
@@ -148,7 +140,6 @@ function NotificationCard({
   );
 }
  
-// ─── Main page ────────────────────────────────────────────────────────────────
 export default function NotificationPage() {
   const navigate = useNavigate();
   const { notifications, unreadCount, loading, fetchNotifications, markOneRead, markAllRead, deleteOne, totalPages, currentPage } =
@@ -196,7 +187,6 @@ export default function NotificationPage() {
         )}
       </div>
  
-      {/* Filter tabs */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {TABS.map((tab) => (
           <button
@@ -218,7 +208,6 @@ export default function NotificationPage() {
         ))}
       </div>
  
-      {/* List */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -245,7 +234,6 @@ export default function NotificationPage() {
         </div>
       )}
  
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 mt-6">
           <button

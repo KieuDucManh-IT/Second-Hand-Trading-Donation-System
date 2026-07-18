@@ -45,7 +45,6 @@ function startOrderAutoReleaseJob() {
     await runOrderAutoReleaseJob();
   });
 
-  // Chạy mỗi 30 phút để huỷ đơn pending quá 24h
   cron.schedule("*/30 * * * *", async () => {
     await runAutoCancelPendingJob();
   });

@@ -55,7 +55,6 @@ const authHeader = () => ({
   Authorization: `Bearer ${sessionStorage.getItem("token") ?? ""}`,
 });
  
-/** Buyer tạo đơn hàng */
 export async function createOrder(
   productId: string,
   paymentMethod: PaymentMethod = "wallet",
@@ -71,7 +70,6 @@ export async function createOrder(
   return body;
 }
  
-/** Buyer thanh toán đơn hàng qua ví */
 export async function payOrderByWallet(
   orderId: string
 ): Promise<{ success: boolean; order: Order; message: string }> {
@@ -84,7 +82,6 @@ export async function payOrderByWallet(
   return body;
 }
  
-/** Seller xác nhận đơn */
 export async function sellerConfirmOrder(
   orderId: string
 ): Promise<{ success: boolean; order: Order }> {
@@ -97,7 +94,6 @@ export async function sellerConfirmOrder(
   return body;
 }
  
-/** Seller đánh dấu đang giao */
 export async function markShipping(
   orderId: string
 ): Promise<{ success: boolean; order: Order }> {
@@ -110,7 +106,6 @@ export async function markShipping(
   return body;
 }
  
-/** Seller đánh dấu đã giao */
 export async function markDelivered(
   orderId: string
 ): Promise<{ success: boolean; order: Order }> {
@@ -123,7 +118,6 @@ export async function markDelivered(
   return body;
 }
  
-/** Buyer xác nhận đã nhận hàng */
 export async function buyerConfirmReceived(
   orderId: string
 ): Promise<{ success: boolean; order: Order }> {
@@ -136,7 +130,6 @@ export async function buyerConfirmReceived(
   return body;
 }
  
-/** Buyer hoặc Seller huỷ đơn */
 export async function cancelOrder(
   orderId: string,
   reason?: string
@@ -151,7 +144,6 @@ export async function cancelOrder(
   return body;
 }
  
-/** Buyer mở khiếu nại */
 export async function openDispute(
   orderId: string,
   reason: string,
@@ -174,7 +166,6 @@ export async function openDispute(
   return body;
 }
  
-/** Buyer xem danh sách đơn mua */
 export async function fetchMyPurchases(): Promise<{ success: boolean; data: Order[] }> {
   const res = await fetch(`${API_BASE}/api/orders/my-purchases`, { headers: authHeader() });
   const body = await res.json();
@@ -182,7 +173,6 @@ export async function fetchMyPurchases(): Promise<{ success: boolean; data: Orde
   return body;
 }
  
-/** Seller xem danh sách đơn bán */
 export async function fetchMySales(): Promise<{ success: boolean; data: Order[] }> {
   const res = await fetch(`${API_BASE}/api/orders/my-sales`, { headers: authHeader() });
   const body = await res.json();
@@ -190,7 +180,6 @@ export async function fetchMySales(): Promise<{ success: boolean; data: Order[] 
   return body;
 }
  
-/** Lấy chi tiết 1 đơn */
 export async function fetchOrderById(
   orderId: string
 ): Promise<{ success: boolean; data: Order }> {
@@ -200,7 +189,6 @@ export async function fetchOrderById(
   return body;
 }
  
-/** Format tiền VND */
 export function formatVND(n: number): string {
   return n.toLocaleString("vi-VN") + " VND";
 }

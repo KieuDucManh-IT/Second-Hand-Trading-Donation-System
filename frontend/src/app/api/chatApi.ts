@@ -42,7 +42,6 @@ async function handle<T>(res: Response): Promise<T> {
   return body;
 }
 
-/** Lấy danh sách cuộc trò chuyện của user hiện tại */
 export async function fetchConversations(): Promise<{ success: boolean; data: ApiConversation[] }> {
   const res = await fetch(`${API_BASE}/api/chat/conversations`, {
     headers: authHeaders(),
@@ -50,7 +49,6 @@ export async function fetchConversations(): Promise<{ success: boolean; data: Ap
   return handle(res);
 }
 
-/** Tìm hoặc tạo cuộc trò chuyện với một người khác (có thể gắn theo sản phẩm) */
 export async function getOrCreateConversation(
   participantId: string,
   productId?: string
@@ -63,7 +61,6 @@ export async function getOrCreateConversation(
   return handle(res);
 }
 
-/** Lấy lịch sử tin nhắn của một cuộc trò chuyện */
 export async function fetchMessages(
   conversationId: string,
   page = 1,
@@ -76,7 +73,6 @@ export async function fetchMessages(
   return handle(res);
 }
 
-/** Gửi tin nhắn qua REST (dùng làm fallback nếu socket lỗi) */
 export async function sendMessageRest(
   conversationId: string,
   content: string
@@ -89,7 +85,6 @@ export async function sendMessageRest(
   return handle(res);
 }
 
-/** Đánh dấu cuộc trò chuyện đã đọc */
 export async function markConversationAsRead(conversationId: string): Promise<{ success: boolean }> {
   const res = await fetch(`${API_BASE}/api/chat/conversations/${conversationId}/read`, {
     method: 'PUT',

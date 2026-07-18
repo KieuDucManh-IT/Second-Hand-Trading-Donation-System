@@ -5,7 +5,6 @@ function getUserId(req) {
   return req.user?._id || req.user?.id || req.userId;
 }
  
-// Buyer thanh toán qua ví
 exports.payOrderByWallet = async (req, res) => {
   try {
     const userId  = getUserId(req);
@@ -17,7 +16,6 @@ exports.payOrderByWallet = async (req, res) => {
   }
 };
  
-// Seller xác nhận đơn hàng
 exports.sellerConfirmOrder = async (req, res) => {
   try {
     const userId  = getUserId(req);
@@ -29,13 +27,11 @@ exports.sellerConfirmOrder = async (req, res) => {
   }
 };
  
-// Seller cập nhật đang giao
 exports.markOrderShipping = async (req, res) => {
   try {
     const userId  = getUserId(req);
     const { orderId } = req.params;
 
-    // Upload ảnh nếu có
     let shippingProofImages = [];
     if (req.files && req.files.length > 0) {
       const uploadToCloudinary = require("../utils/uploadToCloudinary");
@@ -52,7 +48,6 @@ exports.markOrderShipping = async (req, res) => {
   }
 };
  
-// Seller cập nhật đã giao
 exports.markOrderDelivered = async (req, res) => {
   try {
     const userId  = getUserId(req);
@@ -64,7 +59,6 @@ exports.markOrderDelivered = async (req, res) => {
   }
 };
  
-// Buyer xác nhận đã nhận hàng
 exports.buyerConfirmReceived = async (req, res) => {
   try {
     const userId  = getUserId(req);
@@ -76,7 +70,6 @@ exports.buyerConfirmReceived = async (req, res) => {
   }
 };
  
-// Buyer hoặc seller huỷ đơn + hoàn tiền
 exports.cancelOrderAndRefund = async (req, res) => {
   try {
     const userId  = getUserId(req);
@@ -89,7 +82,6 @@ exports.cancelOrderAndRefund = async (req, res) => {
   }
 };
  
-// Buyer mở khiếu nại
 exports.openOrderDispute = async (req, res) => {
   try {
     const userId  = getUserId(req);
@@ -130,7 +122,6 @@ exports.openOrderDispute = async (req, res) => {
   }
 };
  
-// Admin / cron: chạy auto release thủ công
 exports.manualRunAutoRelease = async (req, res) => {
   try {
     const result = await escrowService.autoReleaseExpiredOrders();
@@ -140,7 +131,6 @@ exports.manualRunAutoRelease = async (req, res) => {
   }
 };
 
-// Cron: tự động huỷ đơn pending quá 24h chưa thanh toán
 exports.manualRunAutoCancelPending = async (req, res) => {
   try {
     const result = await escrowService.autoCancelExpiredPendingOrders();
@@ -150,7 +140,6 @@ exports.manualRunAutoCancelPending = async (req, res) => {
   }
 };
 
-// Buyer đánh giá người bán sau khi đơn hoàn thành
 exports.rateSeller = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -163,7 +152,6 @@ exports.rateSeller = async (req, res) => {
   }
 };
 
-// Lấy danh sách đánh giá của một người bán (public, có phân trang)
 exports.getSellerReviews = async (req, res) => {
   try {
     const { sellerId } = req.params;
@@ -210,7 +198,6 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bạn không thể tự mua sản phẩm của chính mình" });
     }
 
-    // Kiểm tra buyer đã có đơn hàng đang active cho sản phẩm này chưa
     const existingOrder = await Order.findOne({
       buyerId: userId,
       productId: productId,
@@ -229,7 +216,6 @@ exports.createOrder = async (req, res) => {
       shippingInfo: shippingInfo || undefined,
     });
 
-    // Đặt sản phẩm sang reserved
     product.status = "reserved";
     product.isAvailable = false;
     await product.save();
@@ -266,7 +252,6 @@ exports.getMyBuyingOrders = async (req, res) => {
       .populate("sellerId", "fullName email avatar userName phone")
       .sort({ createdAt: -1 });
 
-    // Gắn ảnh sản phẩm vào mỗi đơn hàng
     const productIds = orders.map(o => o.productId?._id).filter(Boolean);
     const images = await ProductImage.find({ productId: { $in: productIds } }).sort({ order: 1 });
     const imageMap = {};

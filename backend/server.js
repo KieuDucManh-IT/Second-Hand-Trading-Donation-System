@@ -20,7 +20,7 @@ const webhookRoutes = require("./src/routes/webhookRoutes");
 const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
 const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
 const donationRoute = require("./src/routes/donationRoute");
-// ✅ THÊM: notification route
+
 const notificationRoute = require("./src/routes/notificationRoute");
  
 const { initChatSocket } = require("./src/sockets/chatSocket");

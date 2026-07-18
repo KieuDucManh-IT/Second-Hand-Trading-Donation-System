@@ -139,7 +139,6 @@ exports.createDepositRequest = async (req, res) => {
         const wallet = await ensureWallet(userId);
         const orderCode = makeOrderCode();
 
-        // payOS giới hạn mô tả khá ngắn, nên dùng không dấu và ngắn gọn
         const description = `SL DEP${orderCode}`.slice(0, 25);
 
         const paymentLink = await payOS.paymentRequests.create({
@@ -292,7 +291,6 @@ exports.createWithdrawRequest = async (req, res) => {
 
         await createdTransaction.save();
 
-        // Tự kiểm tra sau vài giây để cập nhật completed/failed
         setTimeout(() => {
             syncWithdrawTransaction(createdTransaction._id).catch((error) => {
                 console.error("AUTO SYNC WITHDRAW ERROR:", error);

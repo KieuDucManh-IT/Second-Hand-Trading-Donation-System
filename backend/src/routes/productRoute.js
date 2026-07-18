@@ -24,7 +24,6 @@ const {
 const { protect }       = require('../middlewares/authMiddleware');
 const { uploadProduct } = require('../config/cloudinary');
  
-// Middleware kiểm tra role manager
 const requireManager = (req, res, next) => {
   if (req.user?.role !== 'manager') {
     return res.status(403).json({ success: false, message: 'Chỉ manager mới có quyền này' });
@@ -32,25 +31,20 @@ const requireManager = (req, res, next) => {
   next();
 };
  
-// ── Public routes ─────────────────────────────────────────────────────────────
 router.get('/', getProducts);
 router.get('/sensitive-words', getSensitiveWordsRoute);
 router.get('/seller/:userId', getSellerProducts);
 
-// ── User protected routes cần đặt TRƯỚC /:id ────────────────────────────────
 router.get('/my', protect, getMyProducts);
 router.get("/my/exchange", protect, getMyProductsForExchange);
 router.get('/favorites', protect, getFavoriteProducts);
 
-// ── Manager routes cần đặt TRƯỚC /:id ───────────────────────────────────────
 router.get('/pending', protect, requireManager, getPendingProducts);
 
 router.get('/:id/reviews', getProductReviews);
 
-// Route động /:id phải để sau cùng trong nhóm GET
 router.get('/:id', getProductById);
 
-// ── User protected routes ────────────────────────────────────────────────────
 router.post('/', protect, createProduct);
 router.post('/:id/images', protect, uploadProduct.array('images', 8), uploadImages);
 router.delete('/images/:imageId', protect, deleteImage);
@@ -58,7 +52,6 @@ router.put('/:id', protect, updateProduct);
 router.delete('/:id', protect, deleteProduct);
 router.post('/:id/favorite', protect, toggleFavorite);
 
-// ── Manager routes ────────────────────────────────────────────────────────────
 router.put('/:id/approve', protect, requireManager, approveProduct);
 router.put('/:id/reject', protect, requireManager, rejectProduct);
 

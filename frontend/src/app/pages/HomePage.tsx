@@ -99,9 +99,7 @@ export function HomePage() {
  
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-emerald-50/60 via-amber-50/40 to-orange-50/20 dark:from-slate-950 dark:via-[#131b17] dark:to-slate-900 py-24 overflow-hidden">
-        {/* Subtle grid background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -120,7 +118,6 @@ export function HomePage() {
                 Tham gia thị trường cộng đồng bền vững của chúng tôi. Nơi bạn có thể mua bán, trao đổi đồ cũ một cách an toàn và chia sẻ yêu thương qua quyên góp.
               </p>
  
-              {/* Search Bar */}
               <form onSubmit={handleSearch} className="relative max-w-md shadow-md rounded-full">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
@@ -138,7 +135,6 @@ export function HomePage() {
                 </Button>
               </form>
  
-              {/* Stats */}
               <div className="flex flex-wrap gap-8 pt-4">
                 <div className="border-l-2 border-primary/20 pl-4">
                   <div className="text-3xl font-bold text-gray-900 dark:text-white">10K+</div>
@@ -155,7 +151,6 @@ export function HomePage() {
               </div>
             </div>
  
-            {/* Hero Images */}
             <div className="relative h-[400px] lg:h-full hidden lg:block">
               <div className="absolute inset-0 grid grid-cols-2 gap-4">
                 <div className="space-y-4">
@@ -183,7 +178,6 @@ export function HomePage() {
         </div>
       </section>
  
-      {/* Features */}
       <section className="py-20 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -209,7 +203,6 @@ export function HomePage() {
         </div>
       </section>
  
-      {/* Categories from DB */}
       <section className="py-16 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-8">
@@ -254,7 +247,6 @@ export function HomePage() {
         </div>
       </section>
  
-      {/* Featured Products from DB */}
       <section className="py-16 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-8">
@@ -358,7 +350,6 @@ export function HomePage() {
         </div>
       </section>
  
-      {/* Donation Section from DB */}
       <section className="py-20 bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-950 dark:to-teal-950 shadow-inner">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -433,9 +424,7 @@ export function HomePage() {
         </div>
       </section>
  
-      {/* CTA Section */}
       <section className="py-20 bg-background relative overflow-hidden">
-        {/* Decorative background shapes */}
         <div className="absolute top-0 left-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
