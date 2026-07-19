@@ -1,7 +1,7 @@
-// import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-// import { toast } from 'sonner';
+// // import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+// // import { toast } from 'sonner';
  
-// const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// // const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
  
 // // ── Types ─────────────────────────────────────────────────────────────────────
 // export interface CartProduct {
@@ -16,10 +16,10 @@
 //   ownerId: { _id: string; userName: string };
 // }
  
-// export interface CartItem {
-//   productId: CartProduct;
-//   addedAt: string;
-// }
+// // export interface CartItem {
+// //   productId: CartProduct;
+// //   addedAt: string;
+// // }
  
 // export interface CartSummary {
 //   itemCount: number;
@@ -28,32 +28,32 @@
 //   sellerReceives: number;  // 90% — info
 // }
  
-// interface CartContextType {
-//   items: CartItem[];
-//   summary: CartSummary;
-//   loading: boolean;
-//   addToCart:      (productId: string, productTitle?: string) => Promise<void>;
-//   removeFromCart: (productId: string) => Promise<void>;
-//   clearCart:      () => Promise<void>;
-//   checkout:       (selectedProductIds?: string[]) => Promise<{ success: boolean; ordersCount?: number }>;
-//   isInCart:       (productId: string) => boolean;
-//   refetch:        () => Promise<void>;
-// }
+// // interface CartContextType {
+// //   items: CartItem[];
+// //   summary: CartSummary;
+// //   loading: boolean;
+// //   addToCart:      (productId: string, productTitle?: string) => Promise<void>;
+// //   removeFromCart: (productId: string) => Promise<void>;
+// //   clearCart:      () => Promise<void>;
+// //   checkout:       (selectedProductIds?: string[]) => Promise<{ success: boolean; ordersCount?: number }>;
+// //   isInCart:       (productId: string) => boolean;
+// //   refetch:        () => Promise<void>;
+// // }
  
 // // ── Context ───────────────────────────────────────────────────────────────────
 // const CartContext = createContext<CartContextType | undefined>(undefined);
  
-// const EMPTY_SUMMARY: CartSummary = { itemCount: 0, totalPrice: 0, platformFee: 0, sellerReceives: 0 };
+// // const EMPTY_SUMMARY: CartSummary = { itemCount: 0, totalPrice: 0, platformFee: 0, sellerReceives: 0 };
  
-// const authHeader = () => ({
-//   'Content-Type': 'application/json',
-//   Authorization: `Bearer ${sessionStorage.getItem('token') ?? ''}`,
-// });
+// // const authHeader = () => ({
+// //   'Content-Type': 'application/json',
+// //   Authorization: `Bearer ${sessionStorage.getItem('token') ?? ''}`,
+// // });
  
-// export function CartProvider({ children }: { children: ReactNode }) {
-//   const [items,   setItems]   = useState<CartItem[]>([]);
-//   const [summary, setSummary] = useState<CartSummary>(EMPTY_SUMMARY);
-//   const [loading, setLoading] = useState(false);
+// // export function CartProvider({ children }: { children: ReactNode }) {
+// //   const [items,   setItems]   = useState<CartItem[]>([]);
+// //   const [summary, setSummary] = useState<CartSummary>(EMPTY_SUMMARY);
+// //   const [loading, setLoading] = useState(false);
  
 //   // ── Fetch giỏ hàng từ backend ─────────────────────────────────────────────
 //   const refetch = useCallback(async () => {
@@ -166,18 +166,18 @@
 //     }
 //   };
  
-//   const isInCart = (productId: string) =>
-//     items.some((i) => i.productId._id === productId);
+// //   const isInCart = (productId: string) =>
+// //     items.some((i) => i.productId._id === productId);
  
-//   return (
-//     <CartContext.Provider value={{ items, summary, loading, addToCart, removeFromCart, clearCart, checkout, isInCart, refetch }}>
-//       {children}
-//     </CartContext.Provider>
-//   );
-// }
+// //   return (
+// //     <CartContext.Provider value={{ items, summary, loading, addToCart, removeFromCart, clearCart, checkout, isInCart, refetch }}>
+// //       {children}
+// //     </CartContext.Provider>
+// //   );
+// // }
  
-// export function useCart() {
-//   const ctx = useContext(CartContext);
-//   if (!ctx) throw new Error('useCart must be used within CartProvider');
-//   return ctx;
-// }
+// // export function useCart() {
+// //   const ctx = useContext(CartContext);
+// //   if (!ctx) throw new Error('useCart must be used within CartProvider');
+// //   return ctx;
+// // }

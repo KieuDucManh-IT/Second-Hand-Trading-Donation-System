@@ -170,7 +170,6 @@ export default function DonationRequestsPage() {
                 {item.message}
               </p>
  
-              {/* Thông tin nhận hàng người xin donation cung cấp */}
               {item.shippingInfo && (item.shippingInfo.name || item.shippingInfo.address) && (
                 <div className="mt-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 space-y-1">
                   <p className="text-sm font-semibold text-rose-700 dark:text-rose-400 mb-1">
@@ -229,7 +228,6 @@ export default function DonationRequestsPage() {
             </div>
           ))}
  
-          {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-6">
               <button

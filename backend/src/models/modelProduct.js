@@ -28,7 +28,7 @@ const productSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ['available', 'sold', 'reserved', 'hidden'],
-      default: 'available',        // đăng công khai ngay (đã có lọc từ nhạy cảm)
+      default: 'available',      
     },
     location: {
   type: String,

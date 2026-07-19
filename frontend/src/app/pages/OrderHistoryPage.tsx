@@ -272,7 +272,6 @@ export function OrderHistoryPage() {
                 </span>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-2 mt-2 flex-wrap">
                 {isBuyer && order.status === "pending" && (
                   <>
@@ -662,7 +661,6 @@ export function OrderHistoryPage() {
                   )}
                 </TabsContent>
 
-                {/* ================= MY REQUESTS ================= */}
 
                 <TabsContent value="my" className="space-y-4">
                   {myDonations.length === 0 ? (

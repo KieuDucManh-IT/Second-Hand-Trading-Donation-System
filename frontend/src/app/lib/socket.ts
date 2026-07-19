@@ -4,10 +4,6 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 let socket: Socket | null = null;
 
-/**
- * Lấy (hoặc tạo mới) socket instance đã kết nối với token hiện tại.
- * Nếu token thay đổi (đăng nhập tài khoản khác), gọi disconnectSocket() trước.
- */
 export function getSocket(): Socket {
   const token = sessionStorage.getItem('token') || '';
 
@@ -18,7 +14,6 @@ export function getSocket(): Socket {
       transports: ['websocket', 'polling'],
     });
   } else {
-    // Cập nhật token mới nhất trước mỗi lần kết nối
     socket.auth = { token };
   }
 

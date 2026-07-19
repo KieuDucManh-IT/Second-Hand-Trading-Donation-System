@@ -15,6 +15,16 @@ const {
   increaseAttempts
 } = require("../utils/otpStore");
 
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
+
+const PASSWORD_REQUIREMENT_MESSAGE =
+  "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt, không chứa khoảng trắng";
+
+const isStrongPassword = (password) => {
+  return typeof password === "string" && PASSWORD_REGEX.test(password);
+};
+
 const sendRegisterOTP = async (req, res) => {
   try {
     const { email } = req.body;
@@ -65,11 +75,20 @@ const sendRegisterOTP = async (req, res) => {
 const verifyRegisterOTP = async (req, res) => {
   try {
     const { userName, email, password, otp } = req.body;
-    console.log("Body received in verifyRegisterOTP:", req.body);
+    console.log("Verify register OTP request:", {
+      email: req.body.email,
+      hasOtp: Boolean(req.body.otp),
+    });
 
     if (!userName || !email || !password || !otp) {
       return res.status(400).json({
         message: "Vui lòng nhập đầy đủ thông tin"
+      });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: PASSWORD_REQUIREMENT_MESSAGE,
       });
     }
 
@@ -226,9 +245,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (!isStrongPassword(newPassword)) {
       return res.status(400).json({
-        message: "Mật khẩu mới phải có ít nhất 6 ký tự",
+        message: PASSWORD_REQUIREMENT_MESSAGE,
       });
     }
 
@@ -350,9 +369,9 @@ const verifyForgotPasswordOTP = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (!isStrongPassword(newPassword)) {
       return res.status(400).json({
-        message: "Mật khẩu mới phải có ít nhất 6 ký tự"
+        message: PASSWORD_REQUIREMENT_MESSAGE,
       });
     }
 
@@ -619,9 +638,9 @@ const getSellerReviews = async (req, res) => {
       sellerId: userId,
       "sellerRating.rating": { $exists: true, $gt: 0 }
     })
-    .populate("productId", "title thumbnail price condition type status")
-    .populate("buyerId", "fullName avatar email userName")
-    .sort({ "sellerRating.ratedAt": -1 });
+      .populate("productId", "title thumbnail price condition type status")
+      .populate("buyerId", "fullName avatar email userName")
+      .sort({ "sellerRating.ratedAt": -1 });
 
     const productIds = reviews.map(r => r.productId?._id).filter(Boolean);
     const images = await ProductImage.find({ productId: { $in: productIds } }).sort({ order: 1 });

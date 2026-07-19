@@ -57,7 +57,6 @@ export function useManagerDashboard() {
     const stateTab = (location.state as any)?.tab;
     if (stateTab) return stateTab;
 
-    // Check if the page is reloaded
     const isPageReload = performance.navigation?.type === 1;
 
     if (isPageReload) {
@@ -66,7 +65,6 @@ export function useManagerDashboard() {
         return savedTab;
       }
     } else {
-      // Clear dashboard session keys for a fresh navigation
       const keys = [
         'manager_dashboard_active_tab',
         'manager_dashboard_show_all_products',

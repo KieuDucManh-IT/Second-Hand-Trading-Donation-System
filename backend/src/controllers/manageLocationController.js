@@ -11,6 +11,27 @@ const addLocation = async (req, res) => {
       });
     }
 
+    const normalizedPhone = String(phoneNumber).trim();
+    const normalizedAddress = String(address).trim();
+
+    if (!/^\d+$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        message: "Số điện thoại không hợp lệ",
+      });
+    }
+
+    if (normalizedPhone.length < 9 || normalizedPhone.length > 11) {
+      return res.status(400).json({
+        message: "Số điện thoại phải có từ 9 đến 11 chữ số",
+      });
+    }
+
+    if (!normalizedAddress) {
+      return res.status(400).json({
+        message: "Địa chỉ không được để trống",
+      });
+    }
+
     if (!req.user) {
       return res.status(401).json({
         message: "Bạn chưa đăng nhập",
@@ -26,8 +47,8 @@ const addLocation = async (req, res) => {
     }
 
     user.locations.push({
-      phoneNumber,
-      address,
+      phoneNumber: normalizedPhone,
+      address: normalizedAddress,
     });
 
     await user.save();

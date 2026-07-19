@@ -5,13 +5,13 @@ const Notification = require("../models/modelNotification");
 /**
  * Tạo thông báo + emit socket tới user
  *
- * @param {Object} io           - Socket.IO server instance (app.get('io'))
+ * @param {Object} io           
  * @param {Object} options
- * @param {string} options.userId   - ID người nhận
- * @param {string} options.type     - Loại thông báo (khớp enum trong model)
- * @param {string} options.title    - Tiêu đề
- * @param {string} options.message  - Nội dung
- * @param {Object} [options.data]   - { orderId, amount, currency }
+ * @param {string} options.userId   
+ * @param {string} options.type     
+ * @param {string} options.title    
+ * @param {string} options.message  
+ * @param {Object} [options.data]   
  */
 async function sendNotification(io, { userId, type, title, message, data = {} }) {
   try {
@@ -23,7 +23,6 @@ async function sendNotification(io, { userId, type, title, message, data = {} })
       data,
     });
  
-    // Emit tới room riêng của user (user:${userId})
     if (io) {
       io.to(`user:${userId}`).emit("notification", {
         _id: notification._id,
@@ -42,9 +41,7 @@ async function sendNotification(io, { userId, type, title, message, data = {} })
   }
 }
  
-/**
- * Gửi thông báo cho nhiều user cùng lúc
- */
+
 async function sendNotificationMany(io, userIds, payload) {
   return Promise.all(userIds.map((uid) => sendNotification(io, { ...payload, userId: uid })));
 }

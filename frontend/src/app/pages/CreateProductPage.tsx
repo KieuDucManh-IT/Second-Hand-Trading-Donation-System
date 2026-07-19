@@ -35,7 +35,6 @@ export function CreateProductPage() {
     address: '',
   });
  
-  // Ảnh preview (local URL) và file thật
   const [imageFiles, setImageFiles]     = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [forbiddenKeywords, setForbiddenKeywords] = useState<string[]>([]);
@@ -44,13 +43,11 @@ export function CreateProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
  
-  // Redirect nếu chưa đăng nhập
   useEffect(() => {
     if (!isAuthReady) return;
     if (!isAuthenticated) navigate('/login');
   }, [isAuthReady, isAuthenticated, navigate]);
  
-  // Load categories từ API
   useEffect(() => {
     const load = async () => {
       try {
@@ -73,7 +70,6 @@ export function CreateProductPage() {
     load();
   }, []);
 
-  // Load forbidden keywords từ API
   useEffect(() => {
     const loadForbidden = async () => {
       try {
@@ -95,7 +91,6 @@ export function CreateProductPage() {
     return forbiddenKeywords.find((w) => lower.includes(w.toLowerCase())) || null;
   };
  
-
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
  
@@ -129,7 +124,6 @@ export function CreateProductPage() {
     return Object.keys(newErrors).length === 0;
   };
  
-// Xử Lý ảnh
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = 8 - imageFiles.length;
@@ -138,7 +132,6 @@ export function CreateProductPage() {
     if (selected.length > remaining)
       toast.warning(`Chỉ thêm được ${remaining} ảnh nữa (tối đa 8)`);
  
-    // Kiểm tra size
     const oversized = toAdd.filter((f) => f.size > 5 * 1024 * 1024);
     if (oversized.length) {
       toast.error('Một số ảnh quá 5MB và đã bị bỏ qua');
@@ -159,7 +152,6 @@ export function CreateProductPage() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== idx));
   };
  
-  // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;

@@ -53,7 +53,6 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
  
-  // Reviews state
   const [reviews, setReviews] = useState<SellerReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
@@ -62,7 +61,6 @@ export function ProfilePage() {
   const [reviewsPage, setReviewsPage] = useState(1);
   const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
 
-  // Xóa sản phẩm
   const [deleteTarget, setDeleteTarget] = useState<ApiProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
  

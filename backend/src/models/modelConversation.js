@@ -40,7 +40,6 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Một cặp user + một sản phẩm chỉ nên có 1 cuộc trò chuyện
 conversationSchema.index({ participants: 1 });
 conversationSchema.index({ productId: 1 });
 conversationSchema.index({ lastMessageAt: -1 });

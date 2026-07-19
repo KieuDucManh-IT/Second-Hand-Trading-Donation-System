@@ -17,13 +17,12 @@ const BAD_WORDS = [
   "fuck", "fck", "shit", "bitch", "asshole", "bastard", "motherfucker",
 ];
  
-// Chuẩn hoá chuỗi: bỏ dấu, chuyển thường, gộp khoảng trắng, để bắt được các
-// biến thể viết không dấu.
+
 function normalize(text) {
   return String(text || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // bỏ dấu tiếng Việt
+    .replace(/[\u0300-\u036f]/g, "") 
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
@@ -34,8 +33,6 @@ function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
  
-// Dùng ranh giới từ (word boundary) để so khớp, tránh false-positive với các
-// từ hợp lệ chứa chuỗi con trùng khớp (vd: "ngu" không được khớp bên trong "nguyễn").
 function containsProfanity(text) {
   if (!text) return false;
   const normalized = normalize(text);

@@ -15,6 +15,12 @@ import { Eye, EyeOff, Lock, MapPin, Phone, Package, Trash2 } from "lucide-react"
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 
+const PASSWORD_REGEX =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
+
+const PASSWORD_REQUIREMENT_MESSAGE =
+    "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt";
+
 const API_BASE = (import.meta as any).env.VITE_API_URL || "http://localhost:5000";
 
 type LocationItem = {
@@ -154,8 +160,8 @@ export function AccountSettingsPage() {
             return;
         }
 
-        if (newPassword.length < 6) {
-            setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự");
+        if (!PASSWORD_REGEX.test(newPassword)) {
+            setPasswordError(PASSWORD_REQUIREMENT_MESSAGE);
             return;
         }
 
@@ -215,66 +221,66 @@ export function AccountSettingsPage() {
     };
 
     const handleUpdateLocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLocationError("");
+        e.preventDefault();
+        setLocationError("");
 
-    if (!phoneNumber.trim()) {
-        setLocationError("Vui lòng nhập số điện thoại");
-        return;
-    }
-
-    if (!location.trim()) {
-        setLocationError("Vui lòng nhập địa chỉ của bạn");
-        return;
-    }
-
-    try {
-        setLocationLoading(true);
-
-        const token = sessionStorage.getItem("token");
-
-        if (!token) {
-            throw new Error("Bạn chưa đăng nhập");
+        if (!phoneNumber.trim()) {
+            setLocationError("Vui lòng nhập số điện thoại");
+            return;
         }
 
-        const res = await fetch(`${API_BASE}/api/location/add-location`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                phoneNumber,
-                address: location,
-            }),
-        });
+        if (!location.trim()) {
+            setLocationError("Vui lòng nhập địa chỉ của bạn");
+            return;
+        }
 
-        const text = await res.text();
-
-        let data;
         try {
-            data = JSON.parse(text);
-        } catch {
-            throw new Error("Backend không trả về JSON. Kiểm tra lại API URL hoặc route backend.");
+            setLocationLoading(true);
+
+            const token = sessionStorage.getItem("token");
+
+            if (!token) {
+                throw new Error("Bạn chưa đăng nhập");
+            }
+
+            const res = await fetch(`${API_BASE}/api/location/add-location`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    phoneNumber,
+                    address: location,
+                }),
+            });
+
+            const text = await res.text();
+
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch {
+                throw new Error("Backend không trả về JSON. Kiểm tra lại API URL hoặc route backend.");
+            }
+
+            if (!res.ok) {
+                throw new Error(data.message || "Cập nhật địa chỉ thất bại");
+            }
+
+            toast.success(data.message || "Thêm địa chỉ thành công!");
+
+            await fetchMyLocations();
+
+            setPhoneNumber("");
+            setLocation("");
+        } catch (err: any) {
+            setLocationError(err.message || "Cập nhật địa chỉ thất bại");
+            toast.error(err.message || "Cập nhật địa chỉ thất bại");
+        } finally {
+            setLocationLoading(false);
         }
-
-        if (!res.ok) {
-            throw new Error(data.message || "Cập nhật địa chỉ thất bại");
-        }
-
-        toast.success(data.message || "Thêm địa chỉ thành công!");
-
-        await fetchMyLocations();
-
-        setPhoneNumber("");
-        setLocation("");
-    } catch (err: any) {
-        setLocationError(err.message || "Cập nhật địa chỉ thất bại");
-        toast.error(err.message || "Cập nhật địa chỉ thất bại");
-    } finally {
-        setLocationLoading(false);
-    }
-};
+    };
 
 
     return (
@@ -371,7 +377,12 @@ export function AccountSettingsPage() {
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         autoComplete="new-password"
+                                        required
+                                        minLength={8}
                                     />
+                                    <p className="text-xs text-gray-500">
+                                        Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt
+                                    </p>
 
                                     <button
                                         type="button"

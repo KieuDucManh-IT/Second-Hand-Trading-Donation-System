@@ -11,7 +11,6 @@ const {
 
 const { protect } = require('../middlewares/authMiddleware');
 
-// Tất cả route chat đều cần đăng nhập
 router.use(protect);
 
 router.get('/conversations',                getConversations);

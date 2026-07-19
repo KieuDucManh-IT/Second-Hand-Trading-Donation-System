@@ -13,7 +13,6 @@ export function RootLayout() {
 
   const showHeader = !noHeaderPaths.includes(location.pathname);
 
-  // Dashboard layouts
   const isDashboard = location.pathname.startsWith('/manager');
 
   if (isDashboard) {
