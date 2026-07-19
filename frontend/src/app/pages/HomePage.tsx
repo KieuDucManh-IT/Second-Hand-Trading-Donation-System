@@ -44,7 +44,7 @@ export function HomePage() {
         const [featuredRes, donationRes, catRes] = await Promise.all([
           fetchProducts({ limit: 6, sort: 'createdAt' }),
           fetchProducts({ type: 'donate', limit: 3 }),
-          fetchCategories(),
+          fetchCategories()         
         ]);
  
         const featuredList = (featuredRes.data || []).filter(

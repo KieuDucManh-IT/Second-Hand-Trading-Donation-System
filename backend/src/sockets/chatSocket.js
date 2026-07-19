@@ -8,10 +8,6 @@ const { containsProfanity } = require('../utils/profanityFilter');
  
 const MAX_MESSAGE_LENGTH = 2000;
  
-// ── Theo dõi user online trong bộ nhớ ─────────────────────────────────────
-// userId -> số lượng kết nối (1 user có thể mở nhiều tab/thiết bị)
-// Dùng đếm số socket thay vì cờ true/false để tránh báo "offline" nhầm khi
-// user chỉ đóng 1 trong nhiều tab đang mở.
 const onlineUsers = new Map();
  
 const markUserOnline = (io, userId) => {
@@ -32,11 +28,7 @@ const markUserOffline = (io, userId) => {
   }
 };
  
-/**
- * Khởi tạo Socket.IO, gắn middleware xác thực JWT và đăng ký các event chat.
- * @param {import('http').Server} httpServer
- * @returns {import('socket.io').Server}
- */
+//Khỏi tạo soket.io server và thiết lập các sự kiện
 const initChatSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {

@@ -232,16 +232,14 @@ export function MessagesPage() {
     []
   );
  
-  // Sau khi load conversations xong, nếu có selectedConvId từ navigation → load messages
   useEffect(() => {
     if (initialized && selectedConvId) {
       handleSelectConversation(selectedConvId);
     }
-    // chỉ chạy 1 lần khi initialized
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [initialized]);
  
-  /* ── Auto scroll ─────────────────────────────────────────────────────── */
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);

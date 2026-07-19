@@ -3,7 +3,6 @@ import { router } from "./routes";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { CartProvider } from "./contexts/CartContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 
 export default function App() {
@@ -11,10 +10,8 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <CartProvider>
-            <RouterProvider router={router} />
-            <Toaster position="top-right" richColors />
-          </CartProvider>
+          <Toaster position="top-right" richColors />
+          <RouterProvider router={router} />
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
