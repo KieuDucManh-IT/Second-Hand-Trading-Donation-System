@@ -17,10 +17,7 @@ const getSensitiveWords = async () => {
   return [];
 };
  
-/**
- * Kiểm tra văn bản có chứa từ nhạy cảm không
- * @returns {Promise<string|null>} 
- */
+
 const findSensitiveWord = async (text) => {
   if (!text) return null;
   const lower = text.toLowerCase();
@@ -417,7 +414,7 @@ exports.getMyProducts = async (req, res, next) => {
   }
 };
  
-//Manager routes
+
 exports.getPendingProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;

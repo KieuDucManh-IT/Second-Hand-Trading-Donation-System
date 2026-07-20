@@ -2,17 +2,7 @@
  
 const Notification = require("../models/modelNotification");
  
-/**
- * Tạo thông báo + emit socket tới user
- *
- * @param {Object} io           
- * @param {Object} options
- * @param {string} options.userId   
- * @param {string} options.type     
- * @param {string} options.title    
- * @param {string} options.message  
- * @param {Object} [options.data]   
- */
+
 async function sendNotification(io, { userId, type, title, message, data = {} }) {
   try {
     const notification = await Notification.create({

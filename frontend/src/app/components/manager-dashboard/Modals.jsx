@@ -1,0 +1,91 @@
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+
+export function Modals({
+  isCategoryModalOpen,
+  setIsCategoryModalOpen,
+  categoryModalMode,
+  categoryName,
+  setCategoryName,
+  categoryDescription,
+  setCategoryDescription,
+  submitCategoryForm,
+}) {
+  return (
+    <>
+      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+        <DialogContent className="max-w-xl rounded-3xl border-slate-200 bg-white/95 p-0 shadow-2xl dark:border-slate-800 dark:bg-slate-950/95">
+          <div className="bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.18),_transparent_35%),linear-gradient(180deg,_rgba(15,23,42,0.03),_transparent)] px-6 py-6 dark:bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),_transparent_35%),linear-gradient(180deg,_rgba(255,255,255,0.03),_transparent)]">
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-2xl">
+                {categoryModalMode === "create"
+                  ? "Tạo danh mục"
+                  : "Sửa danh mục"}
+              </DialogTitle>
+              <DialogDescription>
+                Đặt tên danh mục ngắn gọn để người dùng dễ dàng tìm kiếm sản
+                phẩm.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={submitCategoryForm} className="mt-6 space-y-4">
+              <Field label="Tên danh mục">
+                <Input
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  pattern="^[^<>]*$"
+                  title="Tên danh mục không được chứa các ký tự < hoặc >"
+                  placeholder="Ví dụ: Thiết bị điện tử"
+                />
+              </Field>
+              <Field label="Mô tả">
+                <Textarea
+                  value={categoryDescription}
+                  onChange={(e) => setCategoryDescription(e.target.value)}
+                  required
+                  minLength={5}
+                  maxLength={500}
+                  className="min-h-28"
+                  placeholder="Mô tả ngắn gọn về danh mục"
+                />
+              </Field>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCategoryModalOpen(false)}
+                >
+                  Hủy
+                </Button>
+                <Button type="submit">
+                  {categoryModalMode === "create" ? "Tạo" : "Lưu thay đổi"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}

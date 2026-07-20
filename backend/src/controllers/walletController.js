@@ -316,7 +316,7 @@ exports.getMyWallet = async (req, res) => {
                 currency: wallet.currency || "VND",
                 status: wallet.status || "active",
 
-                // thêm field này
+                
                 hasWalletPassword
             },
             transactions,
@@ -485,7 +485,7 @@ exports.sendWithdrawOTP = async (req, res) => {
             throw createHttpError(400, "Số dư khả dụng không đủ");
         }
 
-        // Đánh dấu các OTP rút tiền cũ là hết hạn
+        
         await WalletTransaction.updateMany(
             {
                 user: userId,
@@ -859,10 +859,7 @@ exports.confirmWithdrawOTP = async (req, res) => {
 
         verifyOTPOrThrow(otpKey, otp);
 
-        /*
-         * Chuyển trạng thái bằng điều kiện OTP_PENDING.
-         * Điều này ngăn hai request xác nhận cùng một OTP.
-         */
+        
         const reservedTransaction =
             await WalletTransaction.findOneAndUpdate(
                 {
@@ -891,10 +888,7 @@ exports.confirmWithdrawOTP = async (req, res) => {
 
         const withdrawAmount = Number(transaction.amount.toString());
 
-        /*
-         * Khóa tiền bằng một câu lệnh atomic.
-         * Hai yêu cầu đồng thời không thể cùng sử dụng một số dư.
-         */
+        
         const lockedWallet = await Wallet.findOneAndUpdate(
             {
                 user: userId,
@@ -990,11 +984,7 @@ exports.confirmWithdrawOTP = async (req, res) => {
             transaction,
         });
     } catch (error) {
-        /*
-         * Chỉ hoàn tiền khóa nếu payOS chưa tạo payout.
-         * Nếu payOS đã tạo payout thì không được tự mở khóa,
-         * vì tiền có thể đang được chuyển.
-         */
+        
         if (walletLocked && transaction && !payoutCreated) {
             const amount = Number(transaction.amount.toString());
 
