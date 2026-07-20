@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { Wallet, ShoppingCart } from "lucide-react";
+import { Wallet } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 import {
   DropdownMenu,
@@ -400,15 +400,6 @@ export function Header() {
                 >
                   <MessageSquare className="w-5 h-5 mr-2" />
                   Tin nhắn
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  onClick={() => { navigate('/cart'); setMobileMenuOpen(false); }}
-                  className="w-full justify-start"
-                >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Giỏ hàng
                 </Button>
 
                 <Button
