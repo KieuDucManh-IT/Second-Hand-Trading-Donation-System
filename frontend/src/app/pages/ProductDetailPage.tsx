@@ -14,13 +14,11 @@ import {
   Flag,
   ArrowLeft,
   ArrowLeftRight,
-  ShoppingCart,
   Loader2,
   Heart,
   Share2,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { useCart } from "../contexts/CartContext";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -113,7 +111,6 @@ export function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
-  const { addToCart, loading: cartLoading } = useCart();
 
   const routeState = location.state as any;
   const isManager = user?.role === "manager" || routeState?.from === "manager";
@@ -418,25 +415,6 @@ export function ProductDetailPage() {
     }
   };
 
-  // const handleAddToCart = async () => {
-  //   if (!isAuthenticated) {
-  //     toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
-  //     navigate("/login");
-  //     return;
-  //   }
-
-  //   if (!product?._id) {
-  //     toast.error("Không tìm thấy sản phẩm");
-  //     return;
-  //   }
-
-  //   try {
-  //     await addToCart(product._id);
-  //     toast.success("Đã thêm vào giỏ hàng!");
-  //   } catch (error: any) {
-  //     toast.error(error.message || "Không thể thêm vào giỏ hàng");
-  //   }
-  // };
 
   const handleReport = async () => {
     if (!isAuthenticated) {
@@ -686,19 +664,6 @@ export function ProductDetailPage() {
 
                   {product.type === "sell" && (
                     <div className="grid  gap-3">
-                      {/* <Button
-                        onClick={handleAddToCart}
-                        disabled={cartLoading}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        {cartLoading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                        )}
-                        {cartLoading ? "Đang thêm..." : "Thêm vào giỏ"}
-                      </Button> */}
 
                       <Button
                         onClick={openExchangeDialog}
