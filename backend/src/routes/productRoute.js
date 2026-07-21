@@ -7,7 +7,6 @@ const {
   deleteImage,
   getProducts,
   getProductById,
-  // updateProduct,
   deleteProduct,
   getSellerProducts,
   getMyProducts,
@@ -48,7 +47,6 @@ router.get('/:id', getProductById);
 router.post('/', protect, createProduct);
 router.post('/:id/images', protect, uploadProduct.array('images', 8), uploadImages);
 router.delete('/images/:imageId', protect, deleteImage);
-// router.put('/:id', protect, updateProduct);
 router.delete('/:id', protect, deleteProduct);
 router.post('/:id/favorite', protect, toggleFavorite);
 

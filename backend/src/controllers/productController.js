@@ -16,7 +16,7 @@ const getSensitiveWords = async () => {
   }
   return [];
 };
- 
+
 
 const findSensitiveWord = async (text) => {
   if (!text) return null;
@@ -291,6 +291,7 @@ exports.getProductById = async (req, res, next) => {
   }
 };
 
+
 exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -363,7 +364,7 @@ exports.getMyProducts = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 
 exports.getPendingProducts = async (req, res, next) => {
   try {
