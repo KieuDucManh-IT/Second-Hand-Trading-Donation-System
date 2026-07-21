@@ -14,6 +14,8 @@ import { Alert, AlertDescription } from "../components/ui/alert";
 import { Package, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
 
@@ -47,7 +49,7 @@ export function ForgotPasswordPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/forgot-password/send-otp",
+        `${API_BASE}/api/auth/forgot-password/send-otp`,
         {
           method: "POST",
           headers: {
@@ -103,7 +105,7 @@ export function ForgotPasswordPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/forgot-password/verify-otp",
+        `${API_BASE}/api/auth/forgot-password/verify-otp`,
         {
           method: "POST",
           headers: {
