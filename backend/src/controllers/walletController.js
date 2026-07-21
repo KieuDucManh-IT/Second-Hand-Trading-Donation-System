@@ -715,6 +715,8 @@ exports.sendWalletPasswordOTP = async (req, res) => {
 
         saveOTP(otpKey, otp);
 
+        console.log("Preparing to send wallet OTP...");
+
         try {
             await sendEmail({
                 to: user.email,
@@ -729,9 +731,17 @@ exports.sendWalletPasswordOTP = async (req, res) => {
           </div>
         `,
             });
+
+            console.log("Wallet OTP email sent successfully");
         } catch (error) {
-            deleteOTP(otpKey);
-            throw error;
+            console.error("SEND WALLET PASSWORD OTP ERROR:", error);
+
+            return res.status(error.status || 500).json({
+                success: false,
+                message:
+                    error.message ||
+                    "Không thể gửi OTP thiết lập mật khẩu ví",
+            });
         }
 
         return res.json({
