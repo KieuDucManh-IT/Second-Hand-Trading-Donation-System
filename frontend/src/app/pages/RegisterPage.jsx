@@ -15,6 +15,8 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
 
@@ -61,7 +63,7 @@ export function RegisterPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/register/send-otp",
+        `${API_BASE}/api/auth/register/send-otp`,
         {
           method: "POST",
           headers: {
@@ -104,7 +106,7 @@ export function RegisterPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/register/verify-otp",
+        `${API_BASE}/api/auth/register/verify-otp`,
         {
           method: "POST",
           headers: {
