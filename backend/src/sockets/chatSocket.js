@@ -28,11 +28,7 @@ const markUserOffline = (io, userId) => {
   }
 };
  
-/**
- * Khởi tạo Socket.IO, gắn middleware xác thực JWT và đăng ký các event chat.
- * @param {import('http').Server} httpServer
- * @returns {import('socket.io').Server}
- */
+
 const initChatSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {

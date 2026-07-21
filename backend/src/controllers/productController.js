@@ -17,10 +17,7 @@ const getSensitiveWords = async () => {
   return [];
 };
  
-/**
- * Kiểm tra văn bản có chứa từ nhạy cảm không
- * @returns {Promise<string|null>} 
- */
+
 const findSensitiveWord = async (text) => {
   if (!text) return null;
   const lower = text.toLowerCase();
@@ -294,55 +291,6 @@ exports.getProductById = async (req, res, next) => {
   }
 };
  
-exports.updateProduct = async (req, res, next) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product)
-      return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
-    if (product.ownerId.toString() !== req.user._id.toString())
-      return res.status(403).json({ success: false, message: 'Không có quyền' });
- 
-    const textChanged = req.body.title !== undefined || req.body.description !== undefined;
- 
-    if (req.body.title) {
-      const v = await findSensitiveWord(req.body.title);
-      if (v) return res.status(400).json({ success: false, message: `Tiêu đề chứa từ không được phép: "${v}"`, field: 'title' });
-    }
-    if (req.body.description) {
-      const v = await findSensitiveWord(req.body.description);
-      if (v) return res.status(400).json({ success: false, message: `Mô tả chứa từ không được phép: "${v}"`, field: 'description' });
-    }
- 
-    const allowed = ['title', 'description', 'price', 'condition', 'type', 'categoryId', 'status', 'isAvailable'];
-    allowed.forEach((f) => { if (req.body[f] !== undefined) product[f] = req.body[f]; });
- 
-    if (textChanged) {
-      product.status      = 'hidden';
-      product.isAvailable = false;
-      product.pendingApproval = true;
-    }
- 
-    if (req.body.address !== undefined || req.body.longitude !== undefined || req.body.latitude !== undefined) {
-      product.location = {
-        type:        'Point',
-        coordinates: [
-          Number(req.body.longitude ?? product.location.coordinates[0]),
-          Number(req.body.latitude  ?? product.location.coordinates[1]),
-        ],
-        address: req.body.address ?? product.location.address,
-      };
-    }
- 
-    await product.save();
-    res.json({
-      success: true,
-      data: product,
-      message: textChanged ? 'Sản phẩm đã được cập nhật và đang chờ duyệt lại' : 'Đã cập nhật',
-    });
-  } catch (err) {
-    next(err);
-  }
-};
  
 exports.deleteProduct = async (req, res, next) => {
   try {
@@ -417,7 +365,7 @@ exports.getMyProducts = async (req, res, next) => {
   }
 };
  
-//Manager routes
+
 exports.getPendingProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;

@@ -39,10 +39,10 @@ const userSchema = new mongoose.Schema(
       default: "",
       validate: {
         validator: function (value) {
-          // Cho phép password rỗng đối với tài khoản chỉ đăng nhập Google
+          
           if (!value) return true;
 
-          // Khi không sửa password thì không cần kiểm tra lại password đã hash
+          
           if (!this.isModified("password")) return true;
 
           return PASSWORD_REGEX.test(value);

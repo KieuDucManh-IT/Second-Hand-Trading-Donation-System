@@ -217,7 +217,7 @@ const walletTransactionSchema = new mongoose.Schema(
           delete ret.bankInfo.accountName;
         }
 
-        // Không trả toàn bộ dữ liệu payOS cho frontend
+        
         delete ret.providerPayload;
 
         return ret;

@@ -265,7 +265,7 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Trường hợp user chưa có password, ví dụ đăng nhập Google trước
+    
     if (!user.password) {
       user.password = newPassword;
       await user.save();
@@ -275,7 +275,7 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Trường hợp user đã có password thì bắt buộc nhập mật khẩu hiện tại
+    
     if (!currentPassword) {
       return res.status(400).json({
         message: "Vui lòng nhập mật khẩu hiện tại",

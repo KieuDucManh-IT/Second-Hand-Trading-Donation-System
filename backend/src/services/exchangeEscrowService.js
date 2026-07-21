@@ -1050,12 +1050,7 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
         isAvailable: false,
       });
     }
-    /*
-      continue_auto_release:
-      Manager từ chối giải quyết.
-      Giao dịch quay lại active, mở lại auto refund.
-      Tiền vẫn tiếp tục theo mốc autoReleaseAt hiện có.
-    */
+    
     else if (resolution === "continue_auto_release") {
       invoice.status = "active";
       invoice.autoRefundPaused = false;
@@ -1072,10 +1067,7 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       await invoice.save({ session });
     }
 
-    /*
-      Giữ tương thích logic cũ:
-      accept = bên khiếu nại thắng.
-    */
+    
     else if (resolution === "accept") {
       const disputerDeposit = isRequesterDisputer ? requesterDeposit : receiverDeposit;
       const opponentDeposit = isRequesterDisputer ? receiverDeposit : requesterDeposit;
@@ -1197,10 +1189,7 @@ async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = 
       await invoice.save({ session });
     }
 
-    /*
-      Giữ tương thích logic cũ:
-      reject = bác khiếu nại và hoàn cọc 2 bên trừ phí.
-    */
+    
     else if (resolution === "reject") {
       const requesterFee = Math.round(requesterDeposit * invoice.feeRate);
       const receiverFee = Math.round(receiverDeposit * invoice.feeRate);
