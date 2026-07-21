@@ -18,7 +18,7 @@ const orderRoutes = require("./src/routes/orderRoutes");
 const walletRoutes = require("./src/routes/walletRoutes");
 const webhookRoutes = require("./src/routes/webhookRoutes");
 const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
-const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
+
 const donationRoute = require("./src/routes/donationRoute");
 const notificationRoute = require("./src/routes/notificationRoute");
 
@@ -60,7 +60,6 @@ const startServer = async () => {
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     startExchangeAutoReleaseJob();
-    startOrderAutoReleaseJob();
   });
 };
 

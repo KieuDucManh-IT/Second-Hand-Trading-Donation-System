@@ -9,22 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Upload, X, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
- 
+
 const API_URL = 'http://localhost:5000/api';
- 
+
 interface Category {
   _id: string;
   name: string;
 }
- 
+
 export function CreateProductPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
- 
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
- 
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -34,34 +34,34 @@ export function CreateProductPage() {
     type: 'sell' as 'sell' | 'donate',
     address: '',
   });
- 
-  const [imageFiles, setImageFiles]     = useState<File[]>([]);
+
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [forbiddenKeywords, setForbiddenKeywords] = useState<string[]>([]);
- 
-  const [errors, setErrors]   = useState<Record<string, string>>({});
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted]   = useState(false);
- 
+  const [submitted, setSubmitted] = useState(false);
+
   useEffect(() => {
     if (!isAuthReady) return;
     if (!isAuthenticated) navigate('/login');
   }, [isAuthReady, isAuthenticated, navigate]);
- 
+
   useEffect(() => {
     const load = async () => {
       try {
-        const res  = await fetch(`${API_URL}/categories`);
+        const res = await fetch(`${API_URL}/categories`);
         const data = await res.json();
         if (data.success) setCategories(data.data);
       } catch {
         setCategories([
           { _id: 'electronics', name: 'Điện tử' },
-          { _id: 'fashion',     name: 'Thời trang' },
-          { _id: 'furniture',   name: 'Nội thất' },
-          { _id: 'books',       name: 'Sách & Học liệu' },
-          { _id: 'sports',      name: 'Thể thao' },
-          { _id: 'other',       name: 'Khác' },
+          { _id: 'fashion', name: 'Thời trang' },
+          { _id: 'furniture', name: 'Nội thất' },
+          { _id: 'books', name: 'Sách & Học liệu' },
+          { _id: 'sports', name: 'Thể thao' },
+          { _id: 'other', name: 'Khác' },
         ]);
       } finally {
         setLoadingCats(false);
@@ -90,17 +90,17 @@ export function CreateProductPage() {
     const lower = text.toLowerCase();
     return forbiddenKeywords.find((w) => lower.includes(w.toLowerCase())) || null;
   };
- 
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
- 
+
     if (!formData.title.trim()) {
       newErrors.title = 'Vui lòng nhập tiêu đề';
     } else {
       const bad = checkSensitiveDynamic(formData.title);
       if (bad) newErrors.title = `Tiêu đề chứa từ không được phép: "${bad}"`;
     }
- 
+
     if (!formData.description.trim()) {
       newErrors.description = 'Vui lòng nhập mô tả';
     } else if (formData.description.trim().length < 20) {
@@ -109,29 +109,29 @@ export function CreateProductPage() {
       const bad = checkSensitiveDynamic(formData.description);
       if (bad) newErrors.description = `Mô tả chứa từ không được phép: "${bad}"`;
     }
- 
+
     if (!formData.categoryId) newErrors.categoryId = 'Vui lòng chọn danh mục';
-    if (!formData.condition)  newErrors.condition  = 'Vui lòng chọn tình trạng';
- 
+    if (!formData.condition) newErrors.condition = 'Vui lòng chọn tình trạng';
+
     if (formData.type === 'sell') {
       if (!formData.price || Number(formData.price) <= 0)
         newErrors.price = 'Giá bán phải lớn hơn 0';
     }
- 
+
     if (imageFiles.length === 0) newErrors.images = 'Vui lòng chọn ít nhất 1 ảnh';
- 
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
- 
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = 8 - imageFiles.length;
     const toAdd = selected.slice(0, remaining);
- 
+
     if (selected.length > remaining)
       toast.warning(`Chỉ thêm được ${remaining} ảnh nữa (tối đa 8)`);
- 
+
     const oversized = toAdd.filter((f) => f.size > 5 * 1024 * 1024);
     if (oversized.length) {
       toast.error('Một số ảnh quá 5MB và đã bị bỏ qua');
@@ -140,49 +140,49 @@ export function CreateProductPage() {
       setImagePreviews((prev) => [...prev, ...valid.map((f) => URL.createObjectURL(f))]);
       return;
     }
- 
+
     setImageFiles((prev) => [...prev, ...toAdd]);
     setImagePreviews((prev) => [...prev, ...toAdd.map((f) => URL.createObjectURL(f))]);
     setErrors((prev) => ({ ...prev, images: '' }));
   };
- 
+
   const removeImage = (idx: number) => {
     URL.revokeObjectURL(imagePreviews[idx]);
-    setImageFiles((prev)    => prev.filter((_, i) => i !== idx));
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
     setImagePreviews((prev) => prev.filter((_, i) => i !== idx));
   };
- 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
- 
+
     setSubmitting(true);
- 
+
     try {
       const token = sessionStorage.getItem('token');
       if (!token) { navigate('/login'); return; }
- 
+
       const headers = { Authorization: `Bearer ${token}` };
- 
-    
+
+
       const productRes = await fetch(`${API_URL}/products`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title:       formData.title.trim(),
+          title: formData.title.trim(),
           description: formData.description.trim(),
-          price:       formData.type === 'donate' ? 0 : Number(formData.price),
-          condition:   formData.condition,
-          type:        formData.type,
-          categoryId:  formData.categoryId,
-          address:     formData.address.trim(),
+          price: formData.type === 'donate' ? 0 : Number(formData.price),
+          condition: formData.condition,
+          type: formData.type,
+          categoryId: formData.categoryId,
+          address: formData.address.trim(),
         }),
       });
- 
+
       const productData = await productRes.json();
- 
+
       if (!productRes.ok) {
-        
+
         if (productData.field) {
           setErrors((prev) => ({ ...prev, [productData.field]: productData.message }));
         } else {
@@ -190,24 +190,24 @@ export function CreateProductPage() {
         }
         return;
       }
- 
+
       const productId = productData.data._id;
- 
-     
+
+
       const formDataImg = new FormData();
       imageFiles.forEach((f) => formDataImg.append('images', f));
- 
+
       const imgRes = await fetch(`${API_URL}/products/${productId}/images`, {
         method: 'POST',
         headers,
         body: formDataImg,
       });
- 
+
       if (!imgRes.ok) {
         const imgData = await imgRes.json();
         toast.warning(`Sản phẩm đã tạo nhưng upload ảnh lỗi: ${imgData.message}`);
       }
- 
+
       setSubmitted(true);
     } catch (err) {
       toast.error('Lỗi kết nối. Vui lòng thử lại.');
@@ -216,7 +216,7 @@ export function CreateProductPage() {
       setSubmitting(false);
     }
   };
- 
+
   // ── Màn hình thành công ────────
   if (submitted) {
     return (
@@ -236,7 +236,7 @@ export function CreateProductPage() {
               <Button variant="outline" className="flex-1" onClick={() => navigate('/products')}>
                 Xem sản phẩm
               </Button>
-              <Button className="flex-1" onClick={() => { setSubmitted(false); setFormData({ title:'',description:'',price:'',categoryId:'',condition:'',type:'sell',address:'' }); setImageFiles([]); setImagePreviews([]); }}>
+              <Button className="flex-1" onClick={() => { setSubmitted(false); setFormData({ title: '', description: '', price: '', categoryId: '', condition: '', type: 'sell', address: '' }); setImageFiles([]); setImagePreviews([]); }}>
                 Đăng thêm
               </Button>
             </div>
@@ -245,7 +245,7 @@ export function CreateProductPage() {
       </div>
     );
   }
- 
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -259,7 +259,7 @@ export function CreateProductPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
- 
+
               {/* Tiêu đề */}
               <div>
                 <Label>Tiêu đề <span className="text-red-500">*</span></Label>
@@ -279,7 +279,7 @@ export function CreateProductPage() {
                   </p>
                 )}
               </div>
- 
+
               {/* Mô tả */}
               <div>
                 <Label>Mô tả <span className="text-red-500">*</span></Label>
@@ -303,7 +303,7 @@ export function CreateProductPage() {
                   <span className="text-xs text-gray-400">{formData.description.length}/2000</span>
                 </div>
               </div>
- 
+
               {/* Danh mục + Tình trạng */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
@@ -324,7 +324,7 @@ export function CreateProductPage() {
                   </Select>
                   {errors.categoryId && <p className="text-red-500 text-sm mt-1">{errors.categoryId}</p>}
                 </div>
- 
+
                 <div>
                   <Label>Tình trạng <span className="text-red-500">*</span></Label>
                   <Select
@@ -346,7 +346,7 @@ export function CreateProductPage() {
                   {errors.condition && <p className="text-red-500 text-sm mt-1">{errors.condition}</p>}
                 </div>
               </div>
- 
+
               {/* Loại + Giá */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
@@ -364,7 +364,7 @@ export function CreateProductPage() {
                     </SelectContent>
                   </Select>
                 </div>
- 
+
                 {formData.type === 'sell' && (
                   <div>
                     <Label>Giá (VNĐ) <span className="text-red-500">*</span></Label>
@@ -380,7 +380,7 @@ export function CreateProductPage() {
                   </div>
                 )}
               </div>
- 
+
               {/* Địa chỉ */}
               <div>
                 <Label>Địa chỉ / Khu vực</Label>
@@ -391,14 +391,14 @@ export function CreateProductPage() {
                   className="mt-2"
                 />
               </div>
- 
+
               {/* Upload ảnh */}
               <div>
                 <Label>
                   Hình ảnh <span className="text-red-500">*</span>
                   <span className="text-gray-400 font-normal ml-1">({imageFiles.length}/8)</span>
                 </Label>
- 
+
                 {/* Preview ảnh đã chọn */}
                 {imagePreviews.length > 0 && (
                   <div className="mt-2 grid grid-cols-4 gap-2">
@@ -421,7 +421,7 @@ export function CreateProductPage() {
                     ))}
                   </div>
                 )}
- 
+
                 {/* Nút thêm ảnh */}
                 {imageFiles.length < 8 && (
                   <div
@@ -439,7 +439,7 @@ export function CreateProductPage() {
                     <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP · Tối đa 5MB/ảnh</p>
                   </div>
                 )}
- 
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -454,7 +454,7 @@ export function CreateProductPage() {
                   </p>
                 )}
               </div>
- 
+
               {/* Buttons */}
               <div className="flex gap-4 pt-6 border-t">
                 <Button
