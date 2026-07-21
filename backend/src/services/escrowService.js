@@ -97,9 +97,7 @@ async function createWalletTransaction({ wallet, user, type, amount, order, note
   return created[0];
 }
 
-/**
- * Buyer thanh toán đơn hàng bằng ví.
- */
+
 async function payOrderByWallet(orderId, buyerId) {
   const session = await mongoose.startSession();
   try {
@@ -146,9 +144,7 @@ async function payOrderByWallet(orderId, buyerId) {
   }
 }
 
-/**
- * Seller xác nhận đơn hàng.
- */
+
 async function sellerConfirmOrder(orderId, sellerId) {
   const order = await Order.findById(orderId);
   if (!order) throw new Error("Không tìm thấy đơn hàng");
@@ -165,7 +161,7 @@ async function sellerConfirmOrder(orderId, sellerId) {
   order.confirmedAt = new Date();
   await order.save();
 
-  // Thông báo người mua
+  
   sendNotification(getIO(), {
     userId: String(order.buyerId),
     type: "order_confirmed",
@@ -177,9 +173,7 @@ async function sellerConfirmOrder(orderId, sellerId) {
   return order;
 }
 
-/**
- * Seller đánh dấu đang vận chuyển.
- */
+
 async function markOrderShipping(orderId, sellerId, shippingProofImages = []) {
   const order = await Order.findById(orderId);
   if (!order) throw new Error("Không tìm thấy đơn hàng");
@@ -191,7 +185,7 @@ async function markOrderShipping(orderId, sellerId, shippingProofImages = []) {
   if (shippingProofImages && shippingProofImages.length > 0) order.shippingProofImages = shippingProofImages;
   await order.save();
 
-  // Thông báo người mua
+  
   sendNotification(getIO(), {
     userId: String(order.buyerId),
     type: "order_shipping",
@@ -203,12 +197,7 @@ async function markOrderShipping(orderId, sellerId, shippingProofImages = []) {
   return order;
 }
 
-/**
- * Seller đánh dấu đã giao hàng.
- *
- * - Wallet: bắt đầu đếm 7 ngày buyer confirm / auto release
- * - COD: hoàn thành ngay, cộng tiền vào ví seller luôn (vì đã thu tiền mặt)
- */
+
 async function markOrderDelivered(orderId, sellerId) {
   const order = await Order.findById(orderId);
   if (!order) throw new Error("Không tìm thấy đơn hàng");
@@ -218,13 +207,13 @@ async function markOrderDelivered(orderId, sellerId) {
     throw new Error('Đơn hàng phải ở trạng thái "confirmed" hoặc "shipping"');
   }
 
-  // ─── COD: delivered bình thường, chờ buyer bấm "Đã nhận hàng" ──────────
+  
   if (isCOD(order)) {
     setOrderStatus(order, "delivered");
     order.deliveredAt = new Date();
     await order.save();
 
-    // Thông báo người mua: hàng đã giao, bấm xác nhận nhận hàng
+    
     sendNotification(getIO(), {
       userId: String(order.buyerId),
       type: "order_delivered",
@@ -236,7 +225,7 @@ async function markOrderDelivered(orderId, sellerId) {
     return order;
   }
 
-  // ─── WALLET: bắt đầu đếm 7 ngày buyer confirm / auto release ─────────
+  
   const deadline = addDays(new Date(), BUYER_CONFIRM_DAYS);
   setOrderStatus(order, "delivered");
   order.deliveredAt = new Date();
@@ -244,7 +233,7 @@ async function markOrderDelivered(orderId, sellerId) {
   order.autoReleaseAt = deadline;
   await order.save();
 
-  // Thông báo người mua
+  
   sendNotification(getIO(), {
     userId: String(order.buyerId),
     type: "order_delivered",
@@ -256,9 +245,7 @@ async function markOrderDelivered(orderId, sellerId) {
   return order;
 }
 
-/**
- * Buyer xác nhận đã nhận hàng (chỉ áp dụng cho WALLET).
- */
+
 async function buyerConfirmReceived(orderId, buyerId) {
   const session = await mongoose.startSession();
   try {
@@ -275,16 +262,16 @@ async function buyerConfirmReceived(orderId, buyerId) {
       throw new Error("Đơn hàng này đã được xác nhận trước đó");
     }
 
-    // ─── COD: chỉ chuyển status completed, KHÔNG cộng ví ─────────────────
+    
     if (isCOD(order)) {
       setOrderStatus(order, "completed");
       order.completedAt = new Date();
-      order.balanceCredited = false; // COD không qua ví hệ thống
+      order.balanceCredited = false; 
       await order.save({ session });
 
       await Product.findByIdAndUpdate(order.productId, { status: "sold", isAvailable: false }, { session });
 
-      // Thông báo hoàn thành cho cả hai
+      
       sendNotification(getIO(), {
         userId: String(order.buyerId),
         type: "order_completed",
@@ -304,14 +291,14 @@ async function buyerConfirmReceived(orderId, buyerId) {
       return order;
     }
 
-    // ─── WALLET: giải ngân escrow như bình thường ─────────────────────────
+    
     if (getEscrowStatus(order) !== "holding") {
       throw new Error("Tiền escrow không ở trạng thái đang giữ");
     }
 
     await releaseEscrowToSeller(order, "buyer_confirmed", session);
 
-    // Thông báo tiền về ví người bán
+    
     const sellerAmount = getSellerReceives(order);
     sendNotification(getIO(), {
       userId: String(order.sellerId),
@@ -321,7 +308,7 @@ async function buyerConfirmReceived(orderId, buyerId) {
       data: { orderId: order._id, amount: sellerAmount },
     });
 
-    // Thông báo người mua đơn hoàn thành
+    
     sendNotification(getIO(), {
       userId: String(order.buyerId),
       type: "order_completed",
@@ -340,9 +327,7 @@ async function buyerConfirmReceived(orderId, buyerId) {
   }
 }
 
-/**
- * Helper giải ngân escrow cho seller (chỉ dùng với wallet).
- */
+
 async function releaseEscrowToSeller(order, reason, session) {
   const sellerWallet = await ensureWallet(order.sellerId, session);
   const sellerReceives = getSellerReceives(order);
@@ -368,14 +353,11 @@ async function releaseEscrowToSeller(order, reason, session) {
   });
 }
 
-/**
- * Cron job: tự động release wallet orders sau 7 ngày.
- * COD orders bị loại trừ.
- */
+
 async function autoReleaseExpiredOrders() {
   const now = new Date();
   const expiredOrders = await Order.find({
-    paymentMethod: { $ne: "cod" }, // ← COD không auto release
+    paymentMethod: { $ne: "cod" }, 
     $or: [
       { orderStatus: "delivered", escrowStatus: "holding", paymentStatus: "paid", confirmDeadline: { $lte: now } },
       { status: "delivered", balanceCredited: false, autoReleaseAt: { $lte: now } },
@@ -390,7 +372,7 @@ async function autoReleaseExpiredOrders() {
       await buyerConfirmReceived(order._id, order.buyerId);
       success += 1;
 
-      // Thông báo tiền tự động về ví người bán
+      
       const fullOrder = await Order.findById(order._id);
       if (fullOrder) {
         const sellerAmt = getSellerReceives(fullOrder);
@@ -411,10 +393,7 @@ async function autoReleaseExpiredOrders() {
   return { total: expiredOrders.length, success, failed };
 }
 
-/**
- * Hủy đơn hàng và hoàn tiền nếu đã thanh toán qua ví.
- * COD: hủy bình thường, không hoàn tiền qua ví.
- */
+
 async function cancelOrderAndRefund(orderId, userId, reason = "") {
   const session = await mongoose.startSession();
   try {
@@ -435,7 +414,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
     const alreadyPaid = order.paymentStatus === "paid" || ["paid", "confirmed", "shipping", "delivered"].includes(currentStatus);
     const refundAmount = Number(order.escrowAmount || getOrderAmount(order) || 0);
 
-    // Chỉ hoàn tiền ví nếu là wallet và đã thanh toán
+    
     if (!isCOD(order) && alreadyPaid && refundAmount > 0) {
       const buyerWallet = await ensureWallet(order.buyerId, session);
       buyerWallet.balance += refundAmount;
@@ -449,7 +428,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
         metadata: { direction: "credit", reason }, session,
       });
 
-      // Thông báo hoàn tiền ví
+      
       sendNotification(getIO(), {
         userId: String(order.buyerId),
         type: "wallet_refunded",
@@ -466,7 +445,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
 
     await Product.findByIdAndUpdate(order.productId, { status: "available", isAvailable: true }, { session });
 
-    // Thông báo bên còn lại về việc huỷ
+    
     const notifyUserId = isBuyer ? String(order.sellerId) : String(order.buyerId);
     sendNotification(getIO(), {
       userId: notifyUserId,
@@ -486,9 +465,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
   }
 }
 
-/**
- * Mở khiếu nại (chỉ wallet có escrow mới cần dispute).
- */
+
 async function openOrderDispute(orderId, userId, reason = "", evidences = []) {
   const order = await Order.findById(orderId);
   if (!order) throw new Error("Không tìm thấy đơn hàng");
@@ -515,7 +492,7 @@ async function openOrderDispute(orderId, userId, reason = "", evidences = []) {
 
   await order.save();
 
-  // Thông báo người bán
+  
   sendNotification(getIO(), {
     userId: String(order.sellerId),
     type: "order_disputed",
@@ -527,9 +504,7 @@ async function openOrderDispute(orderId, userId, reason = "", evidences = []) {
   return order;
 }
 
-/**
- * Manager giải quyết tranh chấp đơn hàng (Order)
- */
+
 async function resolveOrderDispute(orderId, resolution, note = "") {
   const session = await mongoose.startSession();
   try {
@@ -545,7 +520,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
     }
 
     if (resolution === "accept") {
-      // Hoàn tiền cho buyer (Chấp thuận khiếu nại)
+      
       const refundAmount = Number(order.escrowAmount || getOrderAmount(order) || 0);
       if (refundAmount > 0) {
         const buyerWallet = await ensureWallet(order.buyerId, session);
@@ -582,7 +557,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
 
       await order.save({ session });
 
-      // Trả sản phẩm về trạng thái available
+      
       await Product.findByIdAndUpdate(
         order.productId,
         { status: "available", isAvailable: true },
@@ -590,7 +565,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
       );
 
     } else if (resolution === "reject") {
-      // Giải ngân cho seller (Từ chối khiếu nại)
+      
       await releaseEscrowToSeller(order, `dispute_rejected: ${note}`, session);
 
       if (order.complaint) {
@@ -614,9 +589,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
 }
 
 
-/**
- * Auto cancel wallet orders hết hạn thanh toán 24h.
- */
+
 async function autoCancelExpiredPendingOrders() {
   const now = new Date();
   const expired = await Order.find({

@@ -28,7 +28,6 @@ const markUserOffline = (io, userId) => {
   }
 };
  
-//Khỏi tạo soket.io server và thiết lập các sự kiện
 const initChatSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
