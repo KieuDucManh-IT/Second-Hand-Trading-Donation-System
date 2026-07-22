@@ -48,6 +48,9 @@ import { getOrCreateConversation } from "../api/chatApi";
 import { BuyNowModal } from "../components/BuyNowModal";
 
 const RAW_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_ORIGIN = RAW_API_BASE
+  .replace(/\/api\/?$/, "")
+  .replace(/\/$/, "");
 
 const API_BASE = RAW_API_BASE.endsWith("/api")
   ? RAW_API_BASE
@@ -77,19 +80,81 @@ function getProductPrice(item) {
   return Number(item?.price ?? item?.value ?? 0);
 }
 
+function normalizeImageUrl(value) {
+  if (!value) return "";
+
+  const rawValue =
+    typeof value === "object"
+      ? value.imageUrl ||
+        value.imageURL ||
+        value.secure_url ||
+        value.secureUrl ||
+        value.url ||
+        value.path ||
+        value.src ||
+        ""
+      : value;
+
+  const cleanUrl = String(rawValue)
+    .trim()
+    .replace(/\\/g, "/");
+
+  if (!cleanUrl) return "";
+
+  // Cloudinary hoặc URL đầy đủ
+  if (
+    cleanUrl.startsWith("http://") ||
+    cleanUrl.startsWith("https://") ||
+    cleanUrl.startsWith("data:") ||
+    cleanUrl.startsWith("blob:")
+  ) {
+    return cleanUrl;
+  }
+
+  // URL dạng //res.cloudinary.com/...
+  if (cleanUrl.startsWith("//")) {
+    return `https:${cleanUrl}`;
+  }
+
+  // Backend trả /uploads/...
+  if (cleanUrl.startsWith("/uploads/")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  // Backend trả uploads/...
+  if (cleanUrl.startsWith("uploads/")) {
+    return `${API_ORIGIN}/${cleanUrl}`;
+  }
+  if (
+    cleanUrl.startsWith("productimages/") ||
+    cleanUrl.startsWith("products/")
+  ) {
+    return `${API_ORIGIN}/uploads/${cleanUrl}`;
+  }
+
+  if (cleanUrl.startsWith("/")) {
+    return `${API_ORIGIN}${cleanUrl}`;
+  }
+
+  return `${API_ORIGIN}/${cleanUrl}`;
+}
+
 function getProductImage(item) {
   if (!item) return "";
 
-  if (item.thumbnail) return item.thumbnail;
-  if (item.productImage) return item.productImage;
-  if (item.image) return item.image;
+  const image =
+    item.thumbnail ||
+    item.productImage ||
+    item.image ||
+    item.imageUrl ||
+    item.secure_url ||
+    item.secureUrl ||
+    item.url ||
+    item.path ||
+    item.productImages?.[0] ||
+    item.images?.[0];
 
-  const firstImage = item.images?.[0];
-
-  if (typeof firstImage === "string") return firstImage;
-  if (firstImage?.imageUrl) return firstImage.imageUrl;
-
-  return "";
+  return normalizeImageUrl(image);
 }
 
 function formatMoney(value) {
@@ -119,6 +184,7 @@ export function ProductDetailPage() {
   const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
   const [myProducts, setMyProducts] = useState([]);
   const [selectedOfferProductId, setSelectedOfferProductId] = useState("");
+  const [exchangeLocationId, setExchangeLocationId] = useState("");
   const [exchangeLoading, setExchangeLoading] = useState(false);
 
   const [donationDialogOpen, setDonationDialogOpen] = useState(false);
@@ -128,6 +194,10 @@ export function ProductDetailPage() {
   const [donationEmail, setDonationEmail] = useState("");
   const [donationPhone, setDonationPhone] = useState("");
   const [donationAddress, setDonationAddress] = useState("");
+
+  const [savedLocations, setSavedLocations] = useState([]);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -271,18 +341,70 @@ export function ProductDetailPage() {
       setExchangeDialogOpen(true);
       setExchangeLoading(true);
       setSelectedOfferProductId("");
+      setExchangeLocationId("");
 
-      const data = await api(
-        `/products/my/exchange?excludeProductId=${encodeURIComponent(id)}`,
-      );
+      const [productResponse, locations] = await Promise.all([
+        api(`/products/my/exchange?excludeProductId=${encodeURIComponent(id)}`),
+        fetchSavedLocations(),
+      ]);
 
-      const list = data.products || data.data || [];
+      const list =
+        productResponse.products ||
+        productResponse.data?.products ||
+        productResponse.data ||
+        [];
+
       const filteredList = (Array.isArray(list) ? list : []).filter(
-        (p) => p.status === "available" && p.isAvailable !== false,
+        (item) =>
+          item.status === "available" &&
+          item.isAvailable !== false,
       );
-      setMyProducts(filteredList);
+
+      // Endpoint danh sách thường chỉ trả thông tin cơ bản.
+      // Lấy chi tiết từng sản phẩm để có ảnh từ collection productimages.
+      const productsWithImages = await Promise.all(
+        filteredList.map(async (item) => {
+          const productId = getProductId(item);
+
+          if (!productId) return item;
+
+          try {
+            const detailResponse = await fetchProductById(productId);
+            const detail =
+              detailResponse?.data?.product ||
+              detailResponse?.data ||
+              detailResponse?.product ||
+              null;
+
+            return detail
+              ? {
+                  ...item,
+                  ...detail,
+                  images:
+                    detail.images ||
+                    detail.productImages ||
+                    item.images ||
+                    item.productImages ||
+                    [],
+                }
+              : item;
+          } catch (detailError) {
+            console.error(
+              `Không tải được ảnh sản phẩm ${productId}:`,
+              detailError,
+            );
+            return item;
+          }
+        }),
+      );
+
+      setMyProducts(productsWithImages);
+
+      const firstLocation = locations[0] || null;
+      setExchangeLocationId(firstLocation?._id || "");
     } catch (error) {
-      toast.error(error.message || "Không thể tải sản phẩm của bạn");
+      console.error("OPEN EXCHANGE DIALOG ERROR:", error);
+      toast.error(error.message || "Không thể tải dữ liệu trao đổi");
     } finally {
       setExchangeLoading(false);
     }
@@ -300,6 +422,11 @@ export function ProductDetailPage() {
         return;
       }
 
+      if (!exchangeLocationId) {
+        toast.error("Vui lòng chọn địa chỉ của bạn");
+        return;
+      }
+
       setExchangeLoading(true);
 
       const data = await api("/exchange-escrow/request", {
@@ -307,6 +434,7 @@ export function ProductDetailPage() {
         body: JSON.stringify({
           requesterProductId: selectedOfferProductId,
           receiverProductId: id,
+          locationId: exchangeLocationId,
         }),
       });
 
@@ -314,6 +442,7 @@ export function ProductDetailPage() {
 
       setExchangeDialogOpen(false);
       setSelectedOfferProductId("");
+      setExchangeLocationId("");
 
       navigate("/exchanges");
     } catch (error) {
@@ -322,6 +451,37 @@ export function ProductDetailPage() {
       setExchangeLoading(false);
     }
   };
+
+  async function fetchSavedLocations() {
+    try {
+      setLocationLoading(true);
+
+      const data = await api("/location/my-locations");
+
+      const locationPayload =
+        data.locations ||
+        data.data?.locations ||
+        data.data ||
+        [];
+
+      const locations = Array.isArray(locationPayload)
+        ? locationPayload
+        : [];
+
+      setSavedLocations(locations);
+
+      return locations;
+    } catch (error) {
+      console.error("GET LOCATIONS ERROR:", error);
+      toast.error(error.message || "Không thể tải địa chỉ đã lưu");
+
+      setSavedLocations([]);
+
+      return [];
+    } finally {
+      setLocationLoading(false);
+    }
+  }
 
   const handleOrder = async () => {
     if (!isAuthenticated || !user) {
@@ -350,8 +510,10 @@ export function ProductDetailPage() {
       setDonationMessage("");
       setDonationName(user.name && user.name !== user.email ? user.name : "");
       setDonationEmail(user.email || "");
-      const firstLocation =
-        user.locations && user.locations.length > 0 ? user.locations[0] : null;
+      const locations = await fetchSavedLocations();
+      const firstLocation = locations[0] || null;
+
+      setSelectedLocationId(firstLocation?._id || "");
       setDonationPhone(firstLocation?.phoneNumber || "");
       setDonationAddress(firstLocation?.address || "");
       setDonationDialogOpen(true);
@@ -497,10 +659,26 @@ export function ProductDetailPage() {
     );
   }
 
-  const images =
-    product.images.length > 0
-      ? product.images.map((img) => img.imageUrl)
-      : ["https://placehold.co/800x800?text=No+Image"];
+  const productImages = Array.isArray(product?.images)
+    ? product.images
+      .map((image) => normalizeImageUrl(image))
+      .filter(Boolean)
+    : [];
+
+  const thumbnailUrl = normalizeImageUrl(product?.thumbnail);
+
+  const images = [
+    ...new Set([
+      ...productImages,
+      thumbnailUrl,
+    ].filter(Boolean)),
+  ];
+
+  if (images.length === 0) {
+    images.push(
+      "https://placehold.co/800x800?text=No+Image",
+    );
+  }
 
   const owner = product.ownerId || {};
 
@@ -547,11 +725,10 @@ export function ProductDetailPage() {
                 {images.map((image, idx) => (
                   <div
                     key={idx}
-                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
-                      selectedImage === idx
-                        ? "border-green-500"
-                        : "border-transparent"
-                    }`}
+                    className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${selectedImage === idx
+                      ? "border-green-500"
+                      : "border-transparent"
+                      }`}
                     onClick={() => setSelectedImage(idx)}
                   >
                     <ImageWithFallback
@@ -903,11 +1080,7 @@ export function ProductDetailPage() {
                   >
                     <div className="relative h-48">
                       <ImageWithFallback
-                        src={
-                          relatedProduct.thumbnail ||
-                          relatedProduct.images[0]?.imageUrl ||
-                          ""
-                        }
+                        src={getProductImage(relatedProduct)}
                         alt={relatedProduct.title}
                         className="w-full h-full object-cover"
                       />
@@ -988,6 +1161,59 @@ export function ProductDetailPage() {
               Giá trị: <b>{formatMoney(Number(product.price || 0))}</b>
             </div>
 
+            <div className="rounded-lg border p-3">
+              <Label
+                htmlFor="exchange-location"
+                className="mb-2 block text-sm font-medium"
+              >
+                Địa chỉ của bạn
+              </Label>
+
+              {locationLoading ? (
+                <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Đang tải địa chỉ...
+                </div>
+              ) : savedLocations.length === 0 ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-700">
+                    Bạn chưa có địa chỉ đã lưu.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2 w-full"
+                    onClick={() => navigate("/account-settings")}
+                  >
+                    Thêm địa chỉ
+                  </Button>
+                </div>
+              ) : (
+                <select
+                  id="exchange-location"
+                  name="exchangeLocation"
+                  className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm"
+                  value={exchangeLocationId}
+                  onChange={(event) =>
+                    setExchangeLocationId(event.target.value)
+                  }
+                >
+                  <option value="">-- Chọn địa chỉ --</option>
+                  {savedLocations.map((location, index) => (
+                    <option
+                      key={location._id || index}
+                      value={location._id || ""}
+                    >
+                      {location.address || "Chưa có địa chỉ"}
+                      {location.phoneNumber
+                        ? ` — ${location.phoneNumber}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             {exchangeLoading ? (
               <div className="py-10 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-green-500" />
@@ -1007,11 +1233,10 @@ export function ProductDetailPage() {
                       key={itemId}
                       type="button"
                       onClick={() => setSelectedOfferProductId(itemId)}
-                      className={`w-full rounded-xl border p-3 text-left transition ${
-                        selected
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
+                      className={`w-full rounded-xl border p-3 text-left transition ${selected
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:bg-gray-50"
+                        }`}
                     >
                       <div className="flex gap-3">
                         <ImageWithFallback
@@ -1054,6 +1279,7 @@ export function ProductDetailPage() {
               onClick={() => {
                 setExchangeDialogOpen(false);
                 setSelectedOfferProductId("");
+                setExchangeLocationId("");
               }}
               disabled={exchangeLoading}
             >
@@ -1062,7 +1288,11 @@ export function ProductDetailPage() {
 
             <Button
               onClick={submitExchangeRequest}
-              disabled={exchangeLoading || !selectedOfferProductId}
+              disabled={
+                exchangeLoading ||
+                !selectedOfferProductId ||
+                !exchangeLocationId
+              }
             >
               {exchangeLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1180,35 +1410,71 @@ export function ProductDetailPage() {
                   />
                 </div>
 
-                {user?.locations && user.locations.length > 1 && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">
-                      Chọn địa chỉ đã lưu
-                    </Label>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-500">
+                    Chọn địa chỉ đã lưu
+                  </Label>
+
+                  {locationLoading ? (
+                    <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang tải địa chỉ...
+                    </div>
+                  ) : savedLocations.length === 0 ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm text-amber-700">
+                        Bạn chưa có địa chỉ đã lưu.
+                      </p>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-2 w-full"
+                        onClick={() => navigate("/account-settings")}
+                      >
+                        Thêm địa chỉ
+                      </Button>
+                    </div>
+                  ) : (
                     <select
-                      className="w-full appearance-none border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer h-9"
-                      value={donationAddress}
-                      onChange={(e) => {
-                        const selected = user.locations.find(
-                          (l) => l.address === e.target.value,
+                      className="h-10 w-full cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+                      value={selectedLocationId}
+                      onChange={(event) => {
+                        const locationId = event.target.value;
+
+                        setSelectedLocationId(locationId);
+
+                        const selectedLocation = savedLocations.find(
+                          (location) =>
+                            String(location._id) === String(locationId),
                         );
-                        if (selected) {
-                          setDonationAddress(selected.address);
-                          if (selected.phoneNumber)
-                            setDonationPhone(selected.phoneNumber);
+
+                        if (!selectedLocation) {
+                          setDonationPhone("");
+                          setDonationAddress("");
+                          return;
                         }
+
+                        setDonationPhone(selectedLocation.phoneNumber || "");
+                        setDonationAddress(selectedLocation.address || "");
                       }}
                     >
                       <option value="">-- Chọn địa chỉ đã lưu --</option>
-                      {user.locations.map((loc, idx) => (
-                        <option key={idx} value={loc.address}>
-                          {loc.address}
-                          {loc.phoneNumber ? ` — ${loc.phoneNumber}` : ""}
+
+                      {savedLocations.map((location, index) => (
+                        <option
+                          key={location._id || index}
+                          value={location._id || ""}
+                        >
+                          {location.address || "Chưa có địa chỉ"}
+                          {location.phoneNumber
+                            ? ` — ${location.phoneNumber}`
+                            : ""}
                         </option>
                       ))}
                     </select>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">

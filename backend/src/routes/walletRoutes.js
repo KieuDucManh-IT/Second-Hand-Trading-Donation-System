@@ -6,18 +6,6 @@ const walletController = require("../controllers/walletController");
 
 router.get("/", protect, walletController.getMyWallet);
 
-router.get(
-  "/transactions",
-  protect,
-  walletController.getMyTransactions
-);
-
-router.post(
-  "/deposit",
-  protect,
-  walletController.createDepositRequest
-);
-
 router.post(
   "/password/send-otp",
   protect,
@@ -47,5 +35,10 @@ router.post(
   protect,
   walletController.syncWithdrawStatus
 );
+
+router.get("/transactions", protect, walletController.getMyTransactions);
+router.post("/deposit", protect, walletController.createDepositRequest);
+router.post("/deposit/:orderCode/sync", protect, walletController.syncDepositStatus);
+router.post("/withdraw", protect, walletController.createWithdrawRequest);
 
 module.exports = router;

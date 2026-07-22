@@ -521,6 +521,9 @@ export function ExchangeDetailPage() {
   const [pageError, setPageError] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [acceptLocationId, setAcceptLocationId] = useState("");
+  const [savedLocations, setSavedLocations] = useState([]);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
@@ -570,6 +573,39 @@ export function ExchangeDetailPage() {
       toast.error(message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchSavedLocations() {
+    try {
+      setLocationLoading(true);
+      setLocationError("");
+
+      const data = await api("/location/my-locations");
+      const rawLocations =
+        data?.locations ??
+        data?.data?.locations ??
+        data?.data ??
+        data?.user?.locations ??
+        [];
+
+      const locations = Array.isArray(rawLocations) ? rawLocations : [];
+      setSavedLocations(locations);
+
+      setAcceptLocationId((currentId) => {
+        if (currentId) return currentId;
+        return getId(locations[0]);
+      });
+
+      return locations;
+    } catch (error) {
+      const message = error.message || "Không thể tải địa chỉ đã lưu";
+      console.error("GET SAVED LOCATIONS ERROR:", error);
+      setLocationError(message);
+      setSavedLocations([]);
+      return [];
+    } finally {
+      setLocationLoading(false);
     }
   }
 
@@ -758,7 +794,7 @@ export function ExchangeDetailPage() {
     }
 
     if (invoiceId) {
-      fetchExchangeDetail();
+      Promise.all([fetchExchangeDetail(), fetchSavedLocations()]);
     }
   }, [invoiceId]);
 
@@ -887,6 +923,10 @@ export function ExchangeDetailPage() {
 
   const canAccept = isReceiver && status === "pending_receiver_accept";
   const canReject = isReceiver && status === "pending_receiver_accept";
+
+  const authLocations = Array.isArray(user?.locations) ? user.locations : [];
+  const availableLocations =
+    savedLocations.length > 0 ? savedLocations : authLocations;
 
   const canPayDeposit =
     ["waiting_deposits", "active"].includes(status) &&
@@ -1270,45 +1310,65 @@ export function ExchangeDetailPage() {
                   <div className="rounded-lg border p-3">
                     <p className="mb-2 font-medium">Chọn địa chỉ của bạn</p>
 
-                    {(user?.locations ?? []).length === 0 ? (
-                      <p className="text-sm text-red-600">
-                        Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài
-                        khoản.
-                      </p>
+                    {locationLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Đang tải địa chỉ...
+                      </div>
+                    ) : availableLocations.length === 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-red-600">
+                          {locationError ||
+                            "Bạn chưa có địa chỉ. Vui lòng cập nhật địa chỉ trong tài khoản."}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchSavedLocations}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Tải lại địa chỉ
+                        </Button>
+                      </div>
                     ) : (
                       <div className="max-h-[230px] overflow-y-auto pr-2 space-y-2 overscroll-contain">
-                        {(user?.locations ?? []).map((loc) => (
-                          <label
-                            key={loc._id}
-                            className={`block rounded border p-3 cursor-pointer transition ${
-                              acceptLocationId === loc._id
-                                ? "border-green-500 bg-green-50"
-                                : "border-gray-200 hover:bg-gray-50"
-                            }`}
-                          >
-                            <div className="flex items-start gap-2">
-                              <input
-                                type="radio"
-                                name="acceptLocation"
-                                value={loc._id}
-                                checked={acceptLocationId === loc._id}
-                                onChange={() => setAcceptLocationId(loc._id)}
-                                className="mt-1"
-                              />
+                        {availableLocations.map((loc, index) => {
+                          const locationId = getId(loc);
 
-                              <div className="min-w-0 flex-1 text-sm">
-                                <div className="break-words">
-                                  Số điện thoại:{" "}
-                                  {loc.phoneNumber || "Chưa có số điện thoại"}
-                                </div>
+                          return (
+                            <label
+                              key={locationId || index}
+                              className={`block rounded border p-3 cursor-pointer transition ${
+                                sameIdStr(acceptLocationId, locationId)
+                                  ? "border-green-500 bg-green-50"
+                                  : "border-gray-200 hover:bg-gray-50"
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <input
+                                  type="radio"
+                                  name="acceptLocation"
+                                  value={locationId}
+                                  checked={sameIdStr(acceptLocationId, locationId)}
+                                  onChange={() => setAcceptLocationId(locationId)}
+                                  className="mt-1"
+                                />
 
-                                <div className="mt-1 break-words">
-                                  Địa chỉ: {loc.address || "Chưa có địa chỉ"}
+                                <div className="min-w-0 flex-1 text-sm">
+                                  <div className="break-words">
+                                    Số điện thoại:{" "}
+                                    {loc.phoneNumber || "Chưa có số điện thoại"}
+                                  </div>
+
+                                  <div className="mt-1 break-words">
+                                    Địa chỉ: {loc.address || "Chưa có địa chỉ"}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </label>
-                        ))}
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

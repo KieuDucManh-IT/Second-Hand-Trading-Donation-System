@@ -120,6 +120,7 @@ function normalizeTransaction(item) {
     status: item.status,
     amount: extractAmount(item),
     code: item.code || item.transactionCode || item.transferCode || "",
+    orderCode: Number(item.orderCode || item.order_code || 0) || undefined,
     transferContent:
       item.transferContent ||
       item.description ||
@@ -277,16 +278,56 @@ export default function WalletPage() {
     return data;
   }
 
-  async function fetchWallet() {
+  async function fetchWallet(silent = false) {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+
       const data = await api("/wallet");
       setWallet(data.wallet);
       setTransactions((data.transactions || []).map(normalizeTransaction));
+      return data;
     } catch (error) {
-      alert(error.message || "Không thể tải ví");
+      if (!silent) {
+        alert(error.message || "Không thể tải ví");
+      }
+      throw error;
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  }
+
+  async function syncDepositStatus(orderCode, showMessage = false) {
+    try {
+      const data = await api(`/wallet/deposit/${orderCode}/sync`, {
+        method: "POST",
+      });
+
+      if (data.wallet) {
+        setWallet(data.wallet);
+      }
+
+      await fetchWallet(true);
+
+      const status = data.transaction?.status;
+
+      if (status === "completed") {
+        setDepositPayment((current) =>
+          current?.orderCode === orderCode ? null : current,
+        );
+
+        if (showMessage) {
+          alert("Nạp tiền thành công. Số dư ví đã được cập nhật.");
+        }
+      } else if (showMessage) {
+        alert(`Giao dịch hiện đang ở trạng thái: ${status || "pending"}`);
+      }
+
+      return status;
+    } catch (error) {
+      if (showMessage) {
+        alert(error.message || "Không thể kiểm tra trạng thái nạp tiền");
+      }
+      throw error;
     }
   }
 
@@ -332,7 +373,7 @@ export default function WalletPage() {
         qrCode: payment.qrCode || payment.qr_code || "",
       });
 
-      await fetchWallet();
+      await fetchWallet(true);
     } catch (error) {
       console.error("CREATE DEPOSIT ERROR:", error);
       alert(error.message || "Không thể tạo yêu cầu nạp tiền");
@@ -535,8 +576,61 @@ export default function WalletPage() {
   }
 
   useEffect(() => {
-    fetchWallet();
+    fetchWallet().catch(() => undefined);
+
+    const params = new URLSearchParams(window.location.search);
+    const paymentResult = params.get("payment");
+    const payosStatus = params.get("status");
+    const returnedOrderCode = Number(params.get("orderCode"));
+
+    const returnedFromSuccessfulPayment =
+      paymentResult === "success" || payosStatus === "PAID";
+
+    if (
+      returnedFromSuccessfulPayment &&
+      Number.isSafeInteger(returnedOrderCode) &&
+      returnedOrderCode > 0
+    ) {
+      syncDepositStatus(returnedOrderCode, true).catch(() => undefined);
+    }
+
+    if (paymentResult || payosStatus) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
+
+  useEffect(() => {
+    const orderCode = depositPayment?.orderCode;
+
+    if (!orderCode) return undefined;
+
+    let stopped = false;
+    let attempts = 0;
+    const maxAttempts = 36; // 3 phút, mỗi 5 giây
+
+    const checkPayment = async () => {
+      if (stopped || attempts >= maxAttempts) return;
+      attempts += 1;
+
+      try {
+        const status = await syncDepositStatus(orderCode, false);
+
+        if (["completed", "failed", "expired"].includes(status)) {
+          stopped = true;
+        }
+      } catch {
+        // Lỗi mạng tạm thời: lần kiểm tra tiếp theo sẽ thử lại.
+      }
+    };
+
+    const timer = window.setInterval(checkPayment, 5000);
+    checkPayment();
+
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [depositPayment?.orderCode]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-sky-50 to-indigo-50 px-4 py-8">
@@ -557,7 +651,7 @@ export default function WalletPage() {
           </div>
 
           <button
-            onClick={fetchWallet}
+            onClick={() => fetchWallet()}
             disabled={loading}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
           >
@@ -1098,6 +1192,18 @@ export default function WalletPage() {
                       <StatusIcon status={item.status} />
                       {item.status}
                     </span>
+
+                    {item.type === "deposit" &&
+                      item.status === "pending" &&
+                      item.orderCode && (
+                        <button
+                          onClick={() => syncDepositStatus(item.orderCode, true)}
+                          disabled={loading}
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                        >
+                          Kiểm tra
+                        </button>
+                      )}
 
                     {item.type === "withdraw" && item.status === "pending" && (
                       <button
