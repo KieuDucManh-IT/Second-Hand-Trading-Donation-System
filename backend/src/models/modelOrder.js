@@ -109,6 +109,7 @@ const orderSchema = new mongoose.Schema(
     sellerRating: {
       rating: { type: Number, min: 1, max: 5 },
       comment: { type: String },
+      images: [{ type: String }],
       ratedAt: { type: Date },
     },
   },

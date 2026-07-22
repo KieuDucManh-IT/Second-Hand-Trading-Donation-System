@@ -18,7 +18,7 @@ export async function createOrder(
   return body;
 }
 export async function payOrderByWallet(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/pay-wallet`, {
+  const res = await fetch(`${API_BASE}/api/orders/${orderId}/pay`, {
     method: "POST",
     headers: authHeader(),
   });
@@ -28,7 +28,7 @@ export async function payOrderByWallet(orderId) {
 }
 export async function sellerConfirmOrder(orderId) {
   const res = await fetch(`${API_BASE}/api/orders/${orderId}/confirm`, {
-    method: "PUT",
+    method: "POST",
     headers: authHeader(),
   });
   const body = await res.json();
@@ -36,8 +36,8 @@ export async function sellerConfirmOrder(orderId) {
   return body;
 }
 export async function markShipping(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/shipping`, {
-    method: "PUT",
+  const res = await fetch(`${API_BASE}/api/orders/${orderId}/ship`, {
+    method: "POST",
     headers: authHeader(),
   });
   const body = await res.json();
@@ -45,8 +45,8 @@ export async function markShipping(orderId) {
   return body;
 }
 export async function markDelivered(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/delivered`, {
-    method: "PUT",
+  const res = await fetch(`${API_BASE}/api/orders/${orderId}/deliver`, {
+    method: "POST",
     headers: authHeader(),
   });
   const body = await res.json();
@@ -56,9 +56,9 @@ export async function markDelivered(orderId) {
 }
 export async function buyerConfirmReceived(orderId) {
   const res = await fetch(
-    `${API_BASE}/api/orders/${orderId}/confirm-received`,
+    `${API_BASE}/api/orders/${orderId}/receive`,
     {
-      method: "PUT",
+      method: "POST",
       headers: authHeader(),
     },
   );
@@ -68,7 +68,7 @@ export async function buyerConfirmReceived(orderId) {
 }
 export async function cancelOrder(orderId, reason) {
   const res = await fetch(`${API_BASE}/api/orders/${orderId}/cancel`, {
-    method: "PUT",
+    method: "POST",
     headers: authHeader(),
     body: JSON.stringify({ reason }),
   });

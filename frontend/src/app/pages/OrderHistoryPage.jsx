@@ -187,40 +187,57 @@ export function OrderHistoryPage() {
       toast.error("Cập nhật thất bại");
     }
   };
-  const getStatusBadge = (status) => {
-    const map = {
-      pending: {
-        label: "Chờ thanh toán",
-        className: "bg-yellow-500 text-white",
-      },
-      paid: {
-        label: "Đã thanh toán (Chờ giao hàng)",
-        className: "bg-purple-500 text-white",
-      },
-      confirmed: {
-        label: "Đã xác nhận",
-        className: "bg-orange-500 text-white",
-      },
-      shipping: {
-        label: "Đang giao hàng",
-        className: "bg-blue-500 text-white",
-      },
-      delivered: {
-        label: "Đã giao hàng",
-        className: "bg-indigo-500 text-white",
-      },
-      completed: { label: "Hoàn thành", className: "bg-green-500 text-white" },
-      cancelled: { label: "Đã hủy", className: "bg-red-500 text-white" },
-      disputed: {
-        label: "Đang khiếu nại",
-        className: "bg-pink-500 text-white",
-      },
-    };
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [selectedOrderForRating, setSelectedOrderForRating] = useState(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingComment, setRatingComment] = useState("");
+  const [ratingFiles, setRatingFiles] = useState([]);
 
-    const config = map[status] || {
-      label: status,
-      className: "bg-gray-500 text-white",
-    };
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState(null);
+
+  const submitRating = async () => {
+    try {
+      const token = sessionStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("rating", ratingValue);
+      formData.append("comment", ratingComment);
+      ratingFiles.forEach(file => formData.append("evidenceFiles", file));
+
+      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderForRating._id}/rate-seller`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Đánh giá thất bại");
+      }
+      toast.success("Cảm ơn bạn đã đánh giá!");
+      setRatingModalOpen(false);
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const getStatusBadge = (orderStatus, paymentStatus) => {
+    let config = { label: orderStatus, className: "bg-gray-500 text-white" };
+    if (orderStatus === "pending_seller_confirm") {
+      config = { label: paymentStatus === "paid" ? "Đã thanh toán (Chờ xác nhận)" : "Chờ xác nhận", className: "bg-yellow-500 text-white" };
+    } else if (orderStatus === "confirmed") {
+      config = { label: "Đã xác nhận", className: "bg-orange-500 text-white" };
+    } else if (orderStatus === "shipping") {
+      config = { label: "Đang giao hàng", className: "bg-blue-500 text-white" };
+    } else if (orderStatus === "delivered") {
+      config = { label: "Đã giao hàng", className: "bg-indigo-500 text-white" };
+    } else if (orderStatus === "completed") {
+      config = { label: "Hoàn thành", className: "bg-green-500 text-white" };
+    } else if (orderStatus === "cancelled") {
+      config = { label: "Đã hủy", className: "bg-red-500 text-white" };
+    } else if (orderStatus === "disputed") {
+      config = { label: "Đang khiếu nại", className: "bg-pink-500 text-white" };
+    }
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
@@ -269,22 +286,34 @@ export function OrderHistoryPage() {
 
             <div className="flex flex-col items-end gap-2 w-full md:w-auto">
               <div className="flex items-center gap-2">
-                {getStatusBadge(order.status)}
+                {getStatusBadge(order.orderStatus, order.paymentStatus)}
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {Number(order.totalPrice || 0).toLocaleString("vi-VN")} VND
                 </span>
               </div>
 
               <div className="flex gap-2 mt-2 flex-wrap">
-                {isBuyer && order.status === "pending" && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setSelectedOrderForDetail(order);
+                    setDetailModalOpen(true);
+                  }}
+                >
+                  Chi tiết
+                </Button>
+                {isBuyer && order.orderStatus === "pending_seller_confirm" && (
                   <>
-                    <Button
-                      size="sm"
-                      onClick={() => handleAction(order._id, "pay")}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      Thanh toán ngay
-                    </Button>
+                    {order.paymentMethod === 'wallet' && order.paymentStatus === 'unpaid' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleAction(order._id, "pay")}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        Thanh toán ngay
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -300,7 +329,7 @@ export function OrderHistoryPage() {
                   </>
                 )}
 
-                {isBuyer && ["paid", "confirmed"].includes(order.status) && (
+                {isBuyer && ["confirmed"].includes(order.orderStatus) && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -316,7 +345,7 @@ export function OrderHistoryPage() {
                 )}
 
                 {isBuyer &&
-                  ["shipping", "delivered"].includes(order.status) && (
+                  ["shipping", "delivered"].includes(order.orderStatus) && (
                     <>
                       <Button
                         size="sm"
@@ -339,7 +368,28 @@ export function OrderHistoryPage() {
                     </>
                   )}
 
-                {!isBuyer && order.status === "paid" && (
+                {isBuyer && order.orderStatus === "completed" && !order.sellerRating && (
+                  <Button
+                    size="sm"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                    onClick={() => {
+                      setSelectedOrderForRating(order);
+                      setRatingValue(5);
+                      setRatingComment("");
+                      setRatingFiles([]);
+                      setRatingModalOpen(true);
+                    }}
+                  >
+                    Đánh giá người bán
+                  </Button>
+                )}
+                {isBuyer && order.orderStatus === "completed" && order.sellerRating && (
+                  <span className="text-xs text-green-600 font-medium border border-green-200 bg-green-50 px-2 py-1 rounded">
+                    Đã đánh giá ({order.sellerRating.rating} sao)
+                  </span>
+                )}
+
+                {!isBuyer && order.orderStatus === "pending_seller_confirm" && (
                   <>
                     <Button
                       size="sm"
@@ -363,7 +413,7 @@ export function OrderHistoryPage() {
                   </>
                 )}
 
-                {!isBuyer && order.status === "confirmed" && (
+                {!isBuyer && order.orderStatus === "confirmed" && (
                   <>
                     <Button
                       size="sm"
@@ -387,7 +437,7 @@ export function OrderHistoryPage() {
                   </>
                 )}
 
-                {!isBuyer && order.status === "shipping" && (
+                {!isBuyer && order.orderStatus === "shipping" && (
                   <Button
                     size="sm"
                     onClick={() => handleAction(order._id, "deliver")}
@@ -397,13 +447,13 @@ export function OrderHistoryPage() {
                   </Button>
                 )}
 
-                {!isBuyer && order.status === "delivered" && (
+                {!isBuyer && order.orderStatus === "delivered" && (
                   <span className="text-xs text-gray-500 italic">
                     Chờ người mua xác nhận
                   </span>
                 )}
 
-                {order.status === "disputed" && (
+                {order.orderStatus === "disputed" && (
                   <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800 max-w-xs">
                     <span className="font-semibold">Đang khiếu nại: </span>
                     {order.disputeReason || "Không có lý do chi tiết."}
@@ -726,6 +776,121 @@ export function OrderHistoryPage() {
           </Tabs>
         )}
       </div>
+
+      {ratingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Đánh giá người bán</h2>
+            <div className="mb-4 flex gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button key={star} onClick={() => setRatingValue(star)} className="text-2xl">
+                  {star <= ratingValue ? "⭐" : "☆"}
+                </button>
+              ))}
+            </div>
+            <textarea
+              className="w-full border rounded p-2 mb-4 dark:bg-gray-700 dark:border-gray-600"
+              placeholder="Nhập feedback của bạn..."
+              rows={3}
+              value={ratingComment}
+              onChange={(e) => setRatingComment(e.target.value)}
+            />
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Thêm hình ảnh (tuỳ chọn)</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => setRatingFiles(Array.from(e.target.files))}
+                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRatingModalOpen(false)}>Hủy</Button>
+              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={submitRating}>Gửi đánh giá</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailModalOpen && selectedOrderForDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-2xl my-auto">
+            <h2 className="text-xl font-bold mb-4 border-b pb-2">Chi tiết đơn hàng #{selectedOrderForDetail._id}</h2>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded border dark:border-gray-700">
+                <span className="font-semibold">Trạng thái:</span>
+                {getStatusBadge(selectedOrderForDetail.orderStatus, selectedOrderForDetail.paymentStatus)}
+              </div>
+
+              <div className="flex gap-4 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded border dark:border-gray-700">
+                <ImageWithFallback
+                  src={selectedOrderForDetail.productId?.thumbnail || (selectedOrderForDetail.productId?.images && selectedOrderForDetail.productId.images[0]?.imageUrl) || ""}
+                  alt="product"
+                  className="w-16 h-16 object-cover rounded border dark:border-gray-600"
+                />
+                <div>
+                  <p className="font-semibold">{selectedOrderForDetail.productId?.title}</p>
+                  <p className="text-sm text-gray-500 font-medium">{Number(selectedOrderForDetail.totalPrice || 0).toLocaleString("vi-VN")} VND</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 dark:bg-gray-700/50 p-4 rounded border dark:border-gray-700">
+                <div>
+                  <p className="text-gray-500 mb-1">Phương thức thanh toán</p>
+                  <p className="font-medium">{selectedOrderForDetail.paymentMethod === 'wallet' ? 'Ví điện tử' : 'Thanh toán tiền mặt (COD)'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Thanh toán cho Seller</p>
+                  <p className="font-medium text-green-600">
+                    {selectedOrderForDetail.sellerReceives ? `${Number(selectedOrderForDetail.sellerReceives).toLocaleString("vi-VN")} VND` : 'Chưa tính toán'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Người mua</p>
+                  <p className="font-medium">{selectedOrderForDetail.buyerId?.fullName || selectedOrderForDetail.buyerId?.userName}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Người bán</p>
+                  <p className="font-medium">{selectedOrderForDetail.sellerId?.fullName || selectedOrderForDetail.sellerId?.userName}</p>
+                </div>
+                {selectedOrderForDetail.shippingInfo && (
+                  <div className="col-span-2 mt-2 pt-2 border-t dark:border-gray-600">
+                    <p className="text-gray-500 mb-1">Địa chỉ giao hàng</p>
+                    <p className="font-medium">{selectedOrderForDetail.shippingInfo.name} - {selectedOrderForDetail.shippingInfo.phone}</p>
+                    <p className="font-medium">{selectedOrderForDetail.shippingInfo.address}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-700/50 p-4 rounded border dark:border-gray-700 space-y-1">
+                {selectedOrderForDetail.createdAt && <p>Ngày đặt hàng: <span className="font-medium">{new Date(selectedOrderForDetail.createdAt).toLocaleString("vi-VN")}</span></p>}
+                {selectedOrderForDetail.paidAt && <p>Đã thanh toán: <span className="font-medium">{new Date(selectedOrderForDetail.paidAt).toLocaleString("vi-VN")}</span></p>}
+                {selectedOrderForDetail.shippedAt && <p>Bắt đầu giao: <span className="font-medium">{new Date(selectedOrderForDetail.shippedAt).toLocaleString("vi-VN")}</span></p>}
+                {selectedOrderForDetail.deliveredAt && <p>Đã giao hàng: <span className="font-medium">{new Date(selectedOrderForDetail.deliveredAt).toLocaleString("vi-VN")}</span></p>}
+                {selectedOrderForDetail.completedAt && <p>Hoàn thành: <span className="font-medium text-green-600">{new Date(selectedOrderForDetail.completedAt).toLocaleString("vi-VN")}</span></p>}
+                {selectedOrderForDetail.cancelledAt && (
+                  <p className="text-red-500 mt-2 font-medium">
+                    Đã hủy lúc: {new Date(selectedOrderForDetail.cancelledAt).toLocaleString("vi-VN")} <br />
+                    Lý do: {selectedOrderForDetail.cancelReason}
+                  </p>
+                )}
+                {selectedOrderForDetail.disputeReason && (
+                  <p className="text-pink-500 mt-2 font-medium">
+                    Khiếu nại lúc: {new Date(selectedOrderForDetail.disputedAt || selectedOrderForDetail.updatedAt).toLocaleString("vi-VN")} <br />
+                    Lý do khiếu nại: {selectedOrderForDetail.disputeReason}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
