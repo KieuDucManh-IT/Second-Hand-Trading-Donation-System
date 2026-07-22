@@ -38,8 +38,15 @@ import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { notifyProductCatalogChanged } from "../api/productApi";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
+const RAW_API_BASE = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
+
+const API_BASE = RAW_API_BASE.endsWith("/api")
+  ? RAW_API_BASE
+  : `${RAW_API_BASE}/api`;
+
+const API_ORIGIN = RAW_API_BASE.replace(/\/api$/, "");
 
 function getToken() {
   return (
@@ -142,10 +149,10 @@ function getProductImage(product) {
   if (firstImage && typeof firstImage === "object") {
     return normalizeUrl(
       firstImage.imageUrl ||
-        firstImage.url ||
-        firstImage.secure_url ||
-        firstImage.path ||
-        "",
+      firstImage.url ||
+      firstImage.secure_url ||
+      firstImage.path ||
+      "",
     );
   }
 
@@ -936,9 +943,9 @@ export function ExchangeDetailPage() {
   const canConfirmCompleted =
     status === "active" && myDepositStatus === "paid" && !myConfirmed;
 
-  
-  
-  
+
+
+
   const myAlreadyDisputed =
     sameIdStr(getId(invoice.disputeBy), currentUserId) ||
     sameIdStr(getId(invoice.counterDisputeBy), currentUserId);
@@ -1289,11 +1296,11 @@ export function ExchangeDetailPage() {
                   {(status === "disputed" ||
                     invoice.complaint ||
                     invoice.counterComplaint) && (
-                    <ComplaintDetailBlock
-                      invoice={invoice}
-                      currentUserId={currentUserId}
-                    />
-                  )}
+                      <ComplaintDetailBlock
+                        invoice={invoice}
+                        currentUserId={currentUserId}
+                      />
+                    )}
                 </div>
               </CardContent>
             </Card>
@@ -1339,11 +1346,10 @@ export function ExchangeDetailPage() {
                           return (
                             <label
                               key={locationId || index}
-                              className={`block rounded border p-3 cursor-pointer transition ${
-                                sameIdStr(acceptLocationId, locationId)
+                              className={`block rounded border p-3 cursor-pointer transition ${sameIdStr(acceptLocationId, locationId)
                                   ? "border-green-500 bg-green-50"
                                   : "border-gray-200 hover:bg-gray-50"
-                              }`}
+                                }`}
                             >
                               <div className="flex items-start gap-2">
                                 <input
