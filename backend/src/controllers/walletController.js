@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const Wallet = require("../models/Wallet");
 const WalletTransaction = require("../models/WalletTransaction");
 const payOS = require("../config/payos");
+const { completeDeposit, decimalToNumber } = require("../services/depositService");
 const {
     createSinglePayout,
     getPayoutDetail,
@@ -55,6 +56,23 @@ exports.getMyWallet = async (req, res) => {
         const wallet = await ensureWallet(userId);
 
         const transactions = await WalletTransaction.find({ user: userId })
+            .populate({
+                path: "order",
+                populate: [
+                    { path: "productId", select: "title thumbnail images price" },
+                    { path: "buyerId", select: "fullName email avatar userName" },
+                    { path: "sellerId", select: "fullName email avatar userName" }
+                ]
+            })
+            .populate({
+                path: "exchangeInvoice",
+                populate: [
+                    { path: "requesterProduct", select: "title thumbnail images price" },
+                    { path: "receiverProduct", select: "title thumbnail images price" },
+                    { path: "requester", select: "fullName email avatar userName" },
+                    { path: "receiver", select: "fullName email avatar userName" }
+                ]
+            })
             .sort({ createdAt: -1 })
             .limit(20);
 
@@ -176,6 +194,120 @@ exports.createDepositRequest = async (req, res) => {
             success: false,
             message: "Không thể tạo yêu cầu nạp tiền",
             error: error.message,
+        });
+    }
+};
+
+
+async function syncDepositTransaction(transaction, providerPayloadOverride = null) {
+    if (!transaction) {
+        throw new Error("Không tìm thấy giao dịch nạp tiền");
+    }
+
+    if (transaction.status === "completed") {
+        return transaction;
+    }
+
+    const paymentLink =
+        providerPayloadOverride ||
+        (await payOS.paymentRequests.get(Number(transaction.orderCode)));
+
+    const providerStatus = String(paymentLink?.status || "PENDING").toUpperCase();
+    const expectedAmount = decimalToNumber(transaction.amount);
+    const paidAmount = Number(paymentLink?.amountPaid ?? paymentLink?.amount ?? 0);
+
+    transaction.providerStatus = providerStatus;
+    transaction.providerPayload = paymentLink;
+
+    if (providerStatus === "PAID") {
+        if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) {
+            transaction.status = "failed";
+            transaction.providerStatus = "AMOUNT_MISMATCH";
+            transaction.note = `Số tiền payOS không khớp. Expected ${expectedAmount}, got ${paidAmount}`;
+            await transaction.save();
+            return transaction;
+        }
+
+        const result = await completeDeposit({
+            transactionId: transaction._id,
+            providerPayload: paymentLink,
+            providerStatus,
+            note: "Nạp tiền thành công sau khi đối soát trực tiếp với payOS",
+        });
+
+        return result.transaction;
+    }
+
+    if (["CANCELLED", "EXPIRED", "FAILED"].includes(providerStatus)) {
+        transaction.status = providerStatus === "EXPIRED" ? "expired" : "failed";
+        transaction.note = `Link thanh toán payOS ở trạng thái ${providerStatus}`;
+    } else {
+        transaction.status = "pending";
+        transaction.note = `Đang chờ thanh toán qua payOS: ${providerStatus}`;
+    }
+
+    await transaction.save();
+    return transaction;
+}
+
+exports.syncDepositStatus = async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const orderCode = Number(req.params.orderCode);
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Bạn chưa đăng nhập",
+            });
+        }
+
+        if (!Number.isSafeInteger(orderCode) || orderCode <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Mã đơn nạp không hợp lệ",
+            });
+        }
+
+        const transaction = await WalletTransaction.findOne({
+            user: userId,
+            type: "deposit",
+            orderCode,
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy giao dịch nạp tiền",
+            });
+        }
+
+        const syncedTransaction = await syncDepositTransaction(transaction);
+        const wallet = await ensureWallet(userId);
+
+        return res.json({
+            success: true,
+            message:
+                syncedTransaction.status === "completed"
+                    ? "Nạp tiền thành công"
+                    : "Đã kiểm tra trạng thái nạp tiền",
+            transaction: syncedTransaction,
+            wallet: {
+                id: wallet._id,
+                address: wallet.address,
+                balance: wallet.balance,
+                lockedBalance: wallet.lockedBalance,
+                availableBalance: wallet.balance - wallet.lockedBalance,
+                currency: wallet.currency || "VND",
+                status: wallet.status || "active",
+            },
+        });
+    } catch (error) {
+        console.error("SYNC DEPOSIT ERROR:", error);
+
+        return res.status(400).json({
+            success: false,
+            message: error.message || "Không thể đồng bộ trạng thái nạp tiền",
         });
     }
 };
@@ -436,6 +568,51 @@ exports.syncWithdrawStatus = async (req, res) => {
         return res.status(400).json({
             success: false,
             message: error.message || "Không thể đồng bộ trạng thái rút tiền",
+        });
+    }
+};
+
+exports.getMyTransactions = async (req, res) => {
+    try {
+        const userId = getUserId(req);
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Bạn chưa đăng nhập",
+            });
+        }
+
+        const transactions = await WalletTransaction.find({ user: userId })
+            .populate({
+                path: "order",
+                populate: [
+                    { path: "productId", select: "title thumbnail images price" },
+                    { path: "buyerId", select: "fullName email avatar userName" },
+                    { path: "sellerId", select: "fullName email avatar userName" }
+                ]
+            })
+            .populate({
+                path: "exchangeInvoice",
+                populate: [
+                    { path: "requesterProduct", select: "title thumbnail images price" },
+                    { path: "receiverProduct", select: "title thumbnail images price" },
+                    { path: "requester", select: "fullName email avatar userName" },
+                    { path: "receiver", select: "fullName email avatar userName" }
+                ]
+            })
+            .sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            transactions,
+        });
+    } catch (error) {
+        console.error("GET TRANSACTIONS ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Không thể lấy danh sách lịch sử giao dịch",
+            error: error.message,
         });
     }
 };

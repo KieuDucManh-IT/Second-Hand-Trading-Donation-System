@@ -1,12 +1,11 @@
 const payOS = require("../config/payos");
-const Wallet = require("../models/Wallet");
-const WalletTransaction = require("../models/WalletTransaction");
+const WalletTransaction = require("../models/modelWalletTransaction");
+const { completeDeposit, decimalToNumber } = require("../services/depositService");
 
 exports.handlePayosWebhook = async (req, res) => {
   try {
     console.log("PAYOS WEBHOOK RAW:", JSON.stringify(req.body, null, 2));
 
-    // Cho phép payOS test webhook / curl test rỗng
     if (!req.body || Object.keys(req.body).length === 0) {
       return res.status(200).json({
         success: true,
@@ -14,13 +13,13 @@ exports.handlePayosWebhook = async (req, res) => {
       });
     }
 
-    let verifiedData;
+    let paymentData;
 
     try {
-      verifiedData = payOS.webhooks.verify(req.body);
+      // SDK v2 trả về phần data đã xác minh chữ ký.
+      paymentData = await payOS.webhooks.verify(req.body);
     } catch (verifyError) {
       console.error("PAYOS VERIFY ERROR:", verifyError.message);
-
       return res.status(400).json({
         success: false,
         message: "Webhook không hợp lệ",
@@ -28,21 +27,7 @@ exports.handlePayosWebhook = async (req, res) => {
       });
     }
 
-    console.log(
-      "PAYOS WEBHOOK VERIFIED:",
-      JSON.stringify(verifiedData, null, 2)
-    );
-
-    // Tùy version SDK, verifiedData có thể là data trực tiếp
-    // hoặc payload gốc có field data
-    const paymentData =
-      verifiedData?.orderCode
-        ? verifiedData
-        : verifiedData?.data
-        ? verifiedData.data
-        : req.body?.data;
-
-    if (!paymentData || !paymentData.orderCode) {
+    if (!paymentData?.orderCode) {
       return res.status(200).json({
         success: true,
         message: "Webhook received but no orderCode",
@@ -51,25 +36,17 @@ exports.handlePayosWebhook = async (req, res) => {
 
     const orderCode = Number(paymentData.orderCode);
     const paidAmount = Number(paymentData.amount);
-
-    const paymentCode = paymentData.code || req.body.code;
-    const paymentSuccess = req.body.success !== false && paymentCode === "00";
-
-    console.log("PAYOS PAYMENT DATA:", {
-      orderCode,
-      paidAmount,
-      paymentCode,
-      paymentSuccess,
-    });
+    const paymentCode = String(paymentData.code || req.body.code || "").toUpperCase();
+    const paymentStatus = String(paymentData.status || req.body.status || "").toUpperCase();
 
     const transaction = await WalletTransaction.findOne({
       orderCode,
       type: "deposit",
+      orderCode,
     });
 
     if (!transaction) {
-      console.warn("Không tìm thấy giao dịch với orderCode:", orderCode);
-
+      // Trả 200 để payOS không gửi lặp vô hạn cho order không tồn tại ở hệ thống này.
       return res.status(200).json({
         success: true,
         message: "Transaction not found, webhook ignored",
@@ -83,26 +60,13 @@ exports.handlePayosWebhook = async (req, res) => {
       });
     }
 
-    if (!paymentSuccess) {
+    const expectedAmount = decimalToNumber(transaction.amount);
+
+    if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) {
       transaction.status = "failed";
-      transaction.providerStatus = paymentCode || "failed";
+      transaction.providerStatus = "AMOUNT_MISMATCH";
       transaction.providerPayload = req.body;
-      transaction.note = "payOS báo giao dịch không thành công";
-
-      await transaction.save();
-
-      return res.status(200).json({
-        success: true,
-        message: "Payment failed webhook processed",
-      });
-    }
-
-    if (paidAmount !== Number(transaction.amount)) {
-      transaction.status = "failed";
-      transaction.providerStatus = "amount_mismatch";
-      transaction.providerPayload = req.body;
-      transaction.note = `Số tiền không khớp. Expected ${transaction.amount}, got ${paidAmount}`;
-
+      transaction.note = `Số tiền không khớp. Expected ${expectedAmount}, got ${paidAmount}`;
       await transaction.save();
 
       return res.status(200).json({
@@ -111,39 +75,35 @@ exports.handlePayosWebhook = async (req, res) => {
       });
     }
 
-    // Chống cộng tiền 2 lần nếu payOS retry webhook
-    const updateResult = await WalletTransaction.updateOne(
-      {
-        _id: transaction._id,
-        status: { $ne: "completed" },
-      },
-      {
-        $set: {
-          status: "completed",
-          providerStatus: "paid",
-          providerPayload: req.body,
-          completedAt: new Date(),
-          note: "Nạp tiền tự động thành công qua payOS",
-        },
-      }
-    );
+    // Webhook thanh toán thành công của payOS có code 00.
+    const paymentSuccess =
+      req.body.success === true &&
+      (paymentCode === "00" || paymentStatus === "PAID" || paymentStatus === "SUCCESS");
 
-    if (updateResult.modifiedCount === 1) {
-      await Wallet.updateOne(
-        { _id: transaction.wallet },
-        {
-          $inc: {
-            balance: transaction.amount,
-          },
-        }
-      );
+    if (!paymentSuccess) {
+      transaction.providerStatus = paymentCode || paymentStatus || "WEBHOOK_NOT_SUCCESS";
+      transaction.providerPayload = req.body;
+      transaction.note = "Đã nhận webhook payOS nhưng chưa xác định là thanh toán thành công";
+      await transaction.save();
 
-      console.log("Đã cộng tiền vào ví:", {
-        wallet: transaction.wallet,
-        amount: transaction.amount,
-        orderCode,
+      // Không chuyển failed chỉ vì một payload chưa phải success; API sync vẫn có thể đối soát lại.
+      return res.status(200).json({
+        success: true,
+        message: "Non-success webhook recorded",
       });
     }
+
+    const result = await completeDeposit({
+      transactionId: transaction._id,
+      providerPayload: req.body,
+      providerStatus: "PAID",
+      note: "Nạp tiền tự động thành công qua webhook payOS",
+    });
+
+    console.log("PAYOS WEBHOOK COMPLETED:", {
+      orderCode,
+      wasCompletedNow: result.wasCompletedNow,
+    });
 
     return res.status(200).json({
       success: true,
@@ -151,7 +111,7 @@ exports.handlePayosWebhook = async (req, res) => {
     });
   } catch (error) {
     console.error("PAYOS WEBHOOK ERROR:", error);
-
+    // Trả 500 để payOS có thể gửi lại webhook khi lỗi hệ thống tạm thời.
     return res.status(500).json({
       success: false,
       message: "Webhook server error",

@@ -1,51 +1,29 @@
-require("dotenv").config();
 const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
-// Đảm bảo đọc đúng file backend/.env
-require("dotenv").config({
-  path: path.resolve(__dirname, "../.env"),
-});
-
+const payOS = require("../src/config/payos");
 const webhookUrl = process.argv[2];
 
 if (!webhookUrl) {
-  console.log("Thiếu webhook URL");
-  console.log("Ví dụ:");
-  console.log(
-    "node scripts/confirmPayosWebhook.js https://crept-corporal-frightful.ngrok-free.dev/api/webhooks/payos"
+  console.error("Thiếu webhook URL công khai.");
+  console.error(
+    "Ví dụ: node scripts/confirmPayosWebhook.js https://api.example.com/api/webhooks/payos"
   );
+  process.exit(1);
+}
+
+if (!/^https:\/\//i.test(webhookUrl)) {
+  console.error("Webhook production phải là URL HTTPS công khai.");
   process.exit(1);
 }
 
 async function main() {
   try {
-    console.log("Confirm webhook URL:", webhookUrl);
-
-    const res = await fetch("https://api-merchant.payos.vn/confirm-webhook", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-client-id": process.env.PAYOS_CLIENT_ID,
-        "x-api-key": process.env.PAYOS_API_KEY,
-      },
-      body: JSON.stringify({
-        webhookUrl: webhookUrl,
-      }),
-    });
-
-    const text = await res.text();
-
-    console.log("HTTP status:", res.status);
-    console.log("payOS response:", text);
-
-    if (!res.ok) {
-      console.log("Confirm webhook thất bại");
-      process.exit(1);
-    }
-
-    console.log("Confirm webhook thành công");
+    console.log("Đang đăng ký webhook:", webhookUrl);
+    const result = await payOS.webhooks.confirm(webhookUrl);
+    console.log("Đăng ký webhook thành công:", result);
   } catch (error) {
-    console.error("Lỗi:", error.message);
+    console.error("Đăng ký webhook thất bại:", error.message);
     process.exit(1);
   }
 }
