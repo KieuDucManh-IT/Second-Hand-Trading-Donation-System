@@ -88,11 +88,11 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }) {
                   className={`mt-1 text-sm ${activeTab === tab ? "text-white/80" : "text-muted-foreground"}`}
                 >
                   {tab === "products" && "Hàng đợi kiểm duyệt"}
-                  {tab === "reports" && "Giải quyết khiếu nại"}
+                  {tab === "reports" && "Báo cáo vi phạm"}
                   {tab === "users" && "Quản lý tài khoản"}
                   {tab === "categories" && "Quản lý danh mục"}
                   {tab === "config" && "Cấu hình hệ thống"}
-                  {tab === "disputes" && "Xử lý tranh chấp ví"}
+                  {tab === "disputes" && "Giải quyết khiếu nại đơn hàng"}
                 </p>
               </div>
             </div>

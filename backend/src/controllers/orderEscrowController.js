@@ -217,6 +217,16 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bạn đã đặt đơn hàng cho sản phẩm này rồi" });
     }
 
+    const Wallet = require("../models/modelWallet");
+    if (paymentMethod === "wallet") {
+      const wallet = await Wallet.findOne({ user: userId });
+      const availableBalance = Number(wallet?.balance || 0) - Number(wallet?.lockedBalance || 0);
+      const totalPrice = product.price || 0;
+      if (availableBalance < totalPrice) {
+        return res.status(400).json({ success: false, message: `Số dư ví không đủ. Cần ${totalPrice.toLocaleString("vi-VN")}đ, hiện có ${availableBalance.toLocaleString("vi-VN")}đ. Vui lòng nạp thêm.` });
+      }
+    }
+
     const order = await Order.create({
       buyerId: userId,
       sellerId: sellerId,
@@ -226,24 +236,37 @@ exports.createOrder = async (req, res) => {
       shippingInfo: shippingInfo || undefined,
     });
 
-    product.status = "reserved";
-    product.isAvailable = false;
-    await product.save();
-const { sendNotification } = require("../utils/notificationHelper");
-sendNotification(req.app.get("io"), {
-  userId: String(order.sellerId),
-  type: "order_created",
-  title: "Đơn hàng mới",
-  message: `Bạn có đơn hàng mới từ người mua. Vui lòng xác nhận đơn hàng.`,
-  data: { orderId: order._id },
-});
+    let finalOrder = order;
+
+    if (paymentMethod === "wallet") {
+      try {
+        finalOrder = await escrowService.payOrderByWallet(order._id, userId);
+      } catch (err) {
+        await Order.findByIdAndDelete(order._id);
+        return res.status(400).json({ success: false, message: err.message });
+      }
+    } else {
+      product.status = "reserved";
+      product.isAvailable = false;
+      await product.save();
+    }
+
+    const { sendNotification } = require("../utils/notificationHelper");
+    sendNotification(req.app.get("io"), {
+      userId: String(finalOrder.sellerId),
+      type: "order_created",
+      title: "Đơn hàng mới",
+      message: `Bạn có đơn hàng mới từ người mua. Vui lòng xác nhận đơn hàng.`,
+      data: { orderId: finalOrder._id },
+    });
+    
     res.status(201).json({
       success: true,
       message: paymentMethod === "cod"
         ? "Đặt hàng thành công. Bạn sẽ thanh toán tiền mặt khi nhận hàng."
-        : "Đặt hàng thành công. Vui lòng thanh toán qua ví để hoàn tất.",
-      data: order,
-      order,
+        : "Đặt hàng và thanh toán qua ví thành công.",
+      data: finalOrder,
+      order: finalOrder,
     });
   } catch (error) {
     res.status(400).json({

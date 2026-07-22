@@ -126,7 +126,6 @@ async function payOrderByWallet(orderId, buyerId) {
     order.platformFee = getPlatformFee(order);
     order.sellerReceives = getSellerReceives(order);
     order.paidAt = new Date();
-    setOrderStatus(order, "paid");
     await order.save({ session });
     await Product.findByIdAndUpdate(order.productId, { status: "reserved", isAvailable: false }, { session });
     await createWalletTransaction({

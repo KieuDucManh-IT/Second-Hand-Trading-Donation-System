@@ -105,11 +105,11 @@ export function CreateOrderPage() {
       navigate("/login");
     }
   }, [isAuthenticated, navigate]);
-  
+
   useEffect(() => {
     if (!user) return;
 
-    
+
     setName(user.name || "");
     setEmail(user.email || "");
     if (user.locations && user.locations.length > 0) {
@@ -117,7 +117,7 @@ export function CreateOrderPage() {
       setAddress(user.locations[0].address || "");
     }
 
-    
+
     async function fetchFreshProfile() {
       try {
         const token = getToken();
@@ -137,7 +137,7 @@ export function CreateOrderPage() {
         if (freshPhone) setPhone(freshPhone);
         if (freshAddress) setAddress(freshAddress);
       } catch {
-        
+
       }
     }
 
@@ -199,8 +199,8 @@ export function CreateOrderPage() {
           setWalletBalance(
             Number(
               wallet?.availableBalance ??
-                Number(wallet?.balance || 0) -
-                  Number(wallet?.lockedBalance || 0),
+              Number(wallet?.balance || 0) -
+              Number(wallet?.lockedBalance || 0),
             ),
           );
         }
@@ -268,7 +268,6 @@ export function CreateOrderPage() {
         address,
       });
       if (paymentMethod === "wallet") {
-        await payOrderByWallet(order._id);
         toast.success(
           "Đặt hàng và thanh toán qua ví thành công! Tiền đang được giữ an toàn.",
         );
@@ -338,7 +337,7 @@ export function CreateOrderPage() {
                     Thông tin nhận hàng
                   </h2>
 
-                  {}
+                  { }
                   {phone || address ? (
                     <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-4 py-2.5">
                       <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
@@ -410,7 +409,7 @@ export function CreateOrderPage() {
                     </div>
                   </div>
 
-                  {}
+                  { }
                   <div className="space-y-1.5">
                     <Label className="text-sm">
                       Địa chỉ nhận hàng <span className="text-red-500">*</span>
@@ -470,18 +469,16 @@ export function CreateOrderPage() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("wallet")}
-                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-                        paymentMethod === "wallet"
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === "wallet"
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-muted-foreground"
-                      }`}
+                        }`}
                     >
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          paymentMethod === "wallet"
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "wallet"
                             ? "border-primary"
                             : "border-muted-foreground"
-                        }`}
+                          }`}
                       >
                         {paymentMethod === "wallet" && (
                           <div className="w-2.5 h-2.5 rounded-full bg-primary" />
@@ -514,18 +511,16 @@ export function CreateOrderPage() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod("cod")}
-                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-                        paymentMethod === "cod"
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === "cod"
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-muted-foreground"
-                      }`}
+                        }`}
                     >
                       <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          paymentMethod === "cod"
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMethod === "cod"
                             ? "border-primary"
                             : "border-muted-foreground"
-                        }`}
+                          }`}
                       >
                         {paymentMethod === "cod" && (
                           <div className="w-2.5 h-2.5 rounded-full bg-primary" />
