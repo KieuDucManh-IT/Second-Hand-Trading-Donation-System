@@ -257,38 +257,24 @@ export default function WalletPage() {
 
   async function api(path, options = {}) {
     const token = getToken();
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-    try {
-      const res = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-          ...(options.headers || {}),
-        },
-      });
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+        ...(options.headers || {}),
+      },
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok) {
-        console.error("API lỗi:", data);
-        throw new Error(data.message || data.error || "Có lỗi xảy ra");
-      }
-
-      return data;
-    } catch (error) {
-      if (error.name === "AbortError") {
-        throw new Error(
-          "Connection timeout – Server không phản hồi. Vui lòng thử lại sau vài giây."
-        );
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
+    if (!res.ok) {
+      console.error("API lỗi:", data);
+      throw new Error(data.message || data.error || "Có lỗi xảy ra");
     }
+
+    return data;
   }
 
   async function fetchWallet() {
