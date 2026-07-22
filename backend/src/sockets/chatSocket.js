@@ -32,7 +32,7 @@ const markUserOffline = (io, userId) => {
 const initChatSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || '*',
+      origin: process.env.CLIENT_URL || '*',
       methods: ['GET', 'POST'],
     },
   });

@@ -14,8 +14,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
 export function OrderHistoryPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -41,10 +39,10 @@ export function OrderHistoryPage() {
       const token = sessionStorage.getItem("token");
 
       const [buyingRes, sellingRes] = await Promise.all([
-        fetch(`${API_BASE}/api/orders/my/buying`, {
+        fetch("http://localhost:5000/api/orders/my/buying", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_BASE}/api/orders/my/selling`, {
+        fetch("http://localhost:5000/api/orders/my/selling", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -69,7 +67,7 @@ export function OrderHistoryPage() {
     try {
       const token = sessionStorage.getItem("token");
 
-      const response = await fetch(`${API_BASE}/api/donations`, {
+      const response = await fetch("http://localhost:5000/api/donations", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -95,7 +93,7 @@ export function OrderHistoryPage() {
   const handleAction = async (orderId, action, reason) => {
     try {
       const token = sessionStorage.getItem("token");
-      const url = `${API_BASE}/api/orders/${orderId}/${action}`;
+      const url = `http://localhost:5000/api/orders/${orderId}/${action}`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -121,7 +119,7 @@ export function OrderHistoryPage() {
   const handleAcceptDonation = async (id) => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/donations/accept/${id}`,
+        `http://localhost:5000/api/donations/accept/${id}`,
         {
           method: "PUT",
         },
@@ -148,7 +146,7 @@ export function OrderHistoryPage() {
 
     try {
       const res = await fetch(
-        `${API_BASE}/api/donations/reject/${id}`,
+        `http://localhost:5000/api/donations/reject/${id}`,
         {
           method: "PUT",
           headers: {
@@ -172,7 +170,7 @@ export function OrderHistoryPage() {
   };
   const updateDeliveryStatus = async (id, deliveryStatus) => {
     try {
-      await fetch(`${API_BASE}/api/donations/delivery/${id}`, {
+      await fetch(`http://localhost:5000/api/donations/delivery/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
