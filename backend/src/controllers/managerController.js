@@ -266,6 +266,10 @@ const getCategories = async (req, res) => {
   }
 };
 
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
 const createCategory = async (req, res) => {
   try {
     let { name, description } = req.body;
@@ -276,10 +280,13 @@ const createCategory = async (req, res) => {
       return res.status(400).json({ message: valError.message });
     }
 
-    const existing = await Category.findOne({ name });
+    const cleanName = name.trim();
+    const existing = await Category.findOne({
+      name: { $regex: new RegExp(`^${escapeRegExp(cleanName)}$`, "i") },
+    });
     if (existing) return res.status(400).json({ message: "Danh mục này đã tồn tại" });
 
-    const category = new Category({ name, description });
+    const category = new Category({ name: cleanName, description });
     await category.save();
     res.status(201).json({ message: "Tạo danh mục thành công", category });
   } catch (error) {
@@ -300,7 +307,15 @@ const updateCategory = async (req, res) => {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ message: "Không tìm thấy danh mục" });
 
-    if (name !== undefined) category.name = name;
+    if (name !== undefined) {
+      const cleanName = name.trim();
+      const existing = await Category.findOne({
+        name: { $regex: new RegExp(`^${escapeRegExp(cleanName)}$`, "i") },
+        _id: { $ne: req.params.id },
+      });
+      if (existing) return res.status(400).json({ message: "Danh mục này đã tồn tại" });
+      category.name = cleanName;
+    }
     if (description !== undefined) category.description = description;
 
     await category.save();

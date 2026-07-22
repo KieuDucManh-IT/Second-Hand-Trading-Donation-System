@@ -633,8 +633,10 @@ const getSellerReviews = async (req, res) => {
     const Order = require("../models/modelOrder");
     const ProductImage = require("../models/modelProductImage");
     const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-    const reviews = await Order.find({
+    const allReviews = await Order.find({
       sellerId: userId,
       "sellerRating.rating": { $exists: true, $gt: 0 }
     })
@@ -642,7 +644,15 @@ const getSellerReviews = async (req, res) => {
       .populate("buyerId", "fullName avatar email userName")
       .sort({ "sellerRating.ratedAt": -1 });
 
-    const productIds = reviews.map(r => r.productId?._id).filter(Boolean);
+    const totalReviews = allReviews.length;
+    const averageRating = totalReviews > 0
+      ? allReviews.reduce((sum, r) => sum + (r.sellerRating?.rating || 0), 0) / totalReviews
+      : 0;
+
+    const totalPages = Math.ceil(totalReviews / limit) || 1;
+    const pagedReviews = allReviews.slice((page - 1) * limit, page * limit);
+
+    const productIds = pagedReviews.map(r => r.productId?._id).filter(Boolean);
     const images = await ProductImage.find({ productId: { $in: productIds } }).sort({ order: 1 });
 
     const imageMap = {};
@@ -652,7 +662,7 @@ const getSellerReviews = async (req, res) => {
       imageMap[pid].push(img);
     }
 
-    const reviewsWithImages = reviews.map(r => {
+    const reviewsWithImages = pagedReviews.map(r => {
       const obj = r.toObject();
       if (obj.productId) {
         obj.productId.images = imageMap[String(obj.productId._id)] || [];
@@ -662,7 +672,15 @@ const getSellerReviews = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      reviews: reviewsWithImages
+      reviews: reviewsWithImages,
+      totalReviews,
+      averageRating,
+      pagination: {
+        page,
+        limit,
+        totalPages,
+        totalReviews
+      }
     });
   } catch (error) {
     return res.status(500).json({
