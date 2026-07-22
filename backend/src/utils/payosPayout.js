@@ -159,8 +159,40 @@ async function getPayoutBalance() {
   return data.data;
 }
 
+function getPayoutConfig() {
+  const clientId = process.env.PAYOS_PAYOUT_CLIENT_ID?.trim();
+  const apiKey = process.env.PAYOS_PAYOUT_API_KEY?.trim();
+  const checksumKey = process.env.PAYOS_PAYOUT_CHECKSUM_KEY?.trim();
+
+  // Thêm đoạn kiểm tra tại đây
+  console.log("PAYOS PAYOUT ENV CHECK:", {
+    clientId: clientId
+      ? `${clientId.slice(0, 6)}...${clientId.slice(-4)}`
+      : "MISSING",
+    apiKey: apiKey
+      ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)}`
+      : "MISSING",
+    checksumKey: checksumKey
+      ? `${checksumKey.slice(0, 6)}...${checksumKey.slice(-4)}`
+      : "MISSING",
+  });
+
+  if (!clientId || !apiKey || !checksumKey) {
+    throw new Error(
+      "Thiếu PAYOS_PAYOUT_CLIENT_ID / PAYOS_PAYOUT_API_KEY / PAYOS_PAYOUT_CHECKSUM_KEY trong .env"
+    );
+  }
+
+  return {
+    clientId,
+    apiKey,
+    checksumKey,
+  };
+}
+
 module.exports = {
   createSinglePayout,
   getPayoutDetail,
   getPayoutBalance,
+  getPayoutConfig
 };

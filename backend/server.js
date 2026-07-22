@@ -3,6 +3,8 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const http = require("http");
 const path = require("path");
+const dns = require("node:dns");
+dns.setDefaultResultOrder("ipv4first");
 
 dotenv.config();
 
