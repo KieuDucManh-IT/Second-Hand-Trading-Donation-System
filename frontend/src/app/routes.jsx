@@ -1,0 +1,66 @@
+import { createBrowserRouter } from "react-router-dom";
+
+import { RootLayout } from "./components/layouts/RootLayout";
+import { HomePage } from "./pages/HomePage";
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { EmailVerificationPage } from "./pages/EmailVerificationPage";
+import { ProductListingPage } from "./pages/ProductListingPage";
+import { ProductDetailPage } from "./pages/ProductDetailPage";
+import { CreateProductPage } from "./pages/CreateProductPage";
+import { MessagesPage } from "./pages/MessagesPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { OrderHistoryPage } from "./pages/OrderHistoryPage";
+import { DonationPage } from "./pages/DonationPage";
+import { ManagerDashboard } from "./pages/ManagerDashboard";
+import { ExchangeRequestsPage } from "./pages/ExchangeRequestsPage";
+import { ExchangeDetailPage } from "./pages/ExchangeDetailPage";
+import { ExchangeHistoryPage } from "./pages/ExchangeHistoryPage";
+import { CreateOrderPage } from "./pages/CreateOrderPage";
+<<<<<<< Updated upstream:frontend/src/app/routes.tsx
+import { TransactionDetailPage } from "./pages/TransactionDetailPage";
+import { TransactionHistoryPage } from "./pages/TransactionHistoryPage";
+=======
+
+>>>>>>> Stashed changes:frontend/src/app/routes.jsx
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { AccountSettingsPage } from "./pages/AccountSettingsPage";
+import WalletPage from "./pages/WalletPage";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+      { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "verify-email", element: <EmailVerificationPage /> },
+      { path: "products", element: <ProductListingPage /> },
+      { path: "products/:id", element: <ProductDetailPage /> },
+      { path: "create-product", element: <CreateProductPage /> },
+      { path: "donations", element: <DonationPage /> },
+      { path: "messages", element: <MessagesPage /> },
+      { path: "profile/:userId", element: <ProfilePage /> },
+      { path: "orders", element: <OrderHistoryPage /> },
+      { path: "exchanges", element: <ExchangeRequestsPage /> },
+      { path: "exchanges/:id", element: <ExchangeDetailPage /> },
+      { path: "exchange-history", element: <ExchangeHistoryPage /> },
+<<<<<<< Updated upstream:frontend/src/app/routes.tsx
+      { path: "create-order", element: <CreateOrderPage /> },
+      { path: "transactions", element: <TransactionHistoryPage /> },
+      { path: "transactions/:id", element: <TransactionDetailPage /> },
+=======
+
+>>>>>>> Stashed changes:frontend/src/app/routes.jsx
+      { path: "manager", element: <ManagerDashboard /> },
+      { path: "*", element: <NotFoundPage /> },
+      { path: "account-settings", element: <AccountSettingsPage /> },
+      { path: "forgot-password/verify-otp", element: <ForgotPasswordPage /> },
+      { path: "/wallet", element: <WalletPage /> },
+      { path: "*", element: <NotFoundPage /> }
+    ],
+  },
+]);

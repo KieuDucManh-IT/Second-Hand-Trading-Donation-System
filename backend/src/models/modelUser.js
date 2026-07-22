@@ -40,6 +40,22 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       default: "",
+<<<<<<< Updated upstream
+=======
+      validate: {
+        validator: function (value) {
+          
+          if (!value) return true;
+
+          
+          if (!this.isModified("password")) return true;
+
+          return PASSWORD_REGEX.test(value);
+        },
+        message:
+          "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt, không chứa khoảng trắng",
+      },
+>>>>>>> Stashed changes
     },
 
     phone: {

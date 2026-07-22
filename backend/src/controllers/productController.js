@@ -20,11 +20,16 @@ const SENSITIVE_WORDS = [
   'weapon', 'gun', 'knife', 'explosive', 'drug', 'stolen', 'counterfeit',
 ];
  
+<<<<<<< Updated upstream
 /**
  * Kiểm tra văn bản có chứa từ nhạy cảm không
  * @returns {string|null} từ vi phạm đầu tiên, hoặc null nếu sạch
  */
 const findSensitiveWord = (text) => {
+=======
+
+const findSensitiveWord = async (text) => {
+>>>>>>> Stashed changes
   if (!text) return null;
   const lower = text.toLowerCase();
   return SENSITIVE_WORDS.find((word) => lower.includes(word.toLowerCase())) || null;
@@ -275,6 +280,7 @@ exports.getProductById = async (req, res, next) => {
   }
 };
  
+<<<<<<< Updated upstream
 // PUT /api/products/:id
 exports.updateProduct = async (req, res, next) => {
   try {
@@ -326,6 +332,8 @@ exports.updateProduct = async (req, res, next) => {
     next(err);
   }
 };
+=======
+>>>>>>> Stashed changes
  
 // DELETE /api/products/:id
 exports.deleteProduct = async (req, res, next) => {
@@ -398,9 +406,13 @@ exports.getMyProducts = async (req, res, next) => {
   }
 };
  
+<<<<<<< Updated upstream
 // ── Manager routes ────────────────────────────────────────────────────────────
  
 // GET /api/products/pending  (manager only — cần thêm vào route file)
+=======
+
+>>>>>>> Stashed changes
 exports.getPendingProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;

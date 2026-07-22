@@ -533,6 +533,687 @@ async function autoReleaseExpiredExchangeInvoices() {
   };
 }
 
+<<<<<<< Updated upstream
+=======
+async function resolveExchangeDispute(invoiceId, resolution, hasReturnedGoods = false, note = "") {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const invoice = await ExchangeInvoice.findById(invoiceId).session(session);
+
+    if (!invoice) {
+      throw new Error("Không tìm thấy hóa đơn trao đổi");
+    }
+
+    if (invoice.status !== "disputed") {
+      throw new Error("Giao dịch không ở trạng thái tranh chấp");
+    }
+
+    const allowedResolutions = [
+      "accept",
+      "reject",
+      "refund_a",
+      "refund_b",
+      "continue_auto_release",
+    ];
+
+    if (!allowedResolutions.includes(resolution)) {
+      throw new Error("Loại giải quyết tranh chấp không hợp lệ");
+    }
+
+    const requesterDeposit = Number(invoice.requesterDepositAmount || 0);
+    const receiverDeposit = Number(invoice.receiverDepositAmount || 0);
+    const totalDeposit = requesterDeposit + receiverDeposit;
+
+    const feeRate = Number(invoice.feeRate ?? EXCHANGE_FEE_RATE ?? 0.1);
+    const totalFee = Math.round(totalDeposit * feeRate);
+    const netRefundAmount = Math.max(totalDeposit - totalFee, 0);
+
+    const requesterWallet = await ensureWallet(invoice.requester, session);
+    const receiverWallet = await ensureWallet(invoice.receiver, session);
+
+    const disputerId = invoice.disputeBy;
+    const isRequesterDisputer = sameId(invoice.requester, disputerId);
+
+    const disputer = isRequesterDisputer ? invoice.requester : invoice.receiver;
+    const opponent = isRequesterDisputer ? invoice.receiver : invoice.requester;
+
+    const disputerWallet = isRequesterDisputer ? requesterWallet : receiverWallet;
+    const opponentWallet = isRequesterDisputer ? receiverWallet : requesterWallet;
+
+    const markComplaintResolved = (status, resolutionNote) => {
+      if (invoice.complaint) {
+        invoice.complaint.status = status;
+        invoice.complaint.resolvedAt = new Date();
+        invoice.complaint.resolutionNote = resolutionNote;
+      }
+
+      if (invoice.counterComplaint) {
+        invoice.counterComplaint.status = status;
+        invoice.counterComplaint.resolvedAt = new Date();
+        invoice.counterComplaint.resolutionNote = resolutionNote;
+      }
+    };
+
+    if (resolution === "refund_a") {
+      disputerWallet.balance += netRefundAmount;
+      await disputerWallet.save({ session });
+
+      if (isRequesterDisputer) {
+        invoice.requesterRefundAmount = netRefundAmount;
+        invoice.receiverRefundAmount = 0;
+
+        invoice.requesterFee = totalFee;
+        invoice.receiverFee = 0;
+
+        invoice.requesterDepositStatus = "refunded";
+        invoice.receiverDepositStatus = "forfeited";
+      } else {
+        invoice.requesterRefundAmount = 0;
+        invoice.receiverRefundAmount = netRefundAmount;
+
+        invoice.requesterFee = 0;
+        invoice.receiverFee = totalFee;
+
+        invoice.requesterDepositStatus = "forfeited";
+        invoice.receiverDepositStatus = "refunded";
+      }
+
+      invoice.status = "completed";
+      invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
+
+      markComplaintResolved(
+        "resolved",
+        note || "Manager quyết định hoàn giá trị cho bên A sau khi trừ phí giao dịch"
+      );
+
+      await invoice.save({ session });
+
+      await createWalletTransaction({
+        wallet: disputerWallet._id,
+        user: disputer,
+        type: "exchange_refund",
+        amount: netRefundAmount,
+        exchangeInvoice: invoice._id,
+        note: `Manager hoàn tiền cho bên A sau khi trừ phí ${Math.round(
+          feeRate * 100
+        )}%: ${note}`,
+        metadata: {
+          direction: "credit",
+          reason: "manager_refund_a",
+          requesterDeposit,
+          receiverDeposit,
+          totalDeposit,
+          feeRate,
+          fee: totalFee,
+          netRefundAmount,
+        },
+        session,
+      });
+
+      await createWalletTransaction({
+        wallet: disputerWallet._id,
+        user: disputer,
+        type: "exchange_fee",
+        amount: totalFee,
+        exchangeInvoice: invoice._id,
+        note: `Phí giao dịch ${Math.round(feeRate * 100)}% khi Manager hoàn tiền cho bên A`,
+        metadata: {
+          direction: "fee",
+          reason: "manager_refund_a_fee",
+          totalDeposit,
+          feeRate,
+          fee: totalFee,
+        },
+        session,
+      });
+
+      await Product.findByIdAndUpdate(invoice.requesterProduct, {
+        status: "sold",
+        isAvailable: false,
+        exchangeStatus: "none",
+      });
+
+      await Product.findByIdAndUpdate(invoice.receiverProduct, {
+        status: "sold",
+        isAvailable: false,
+        exchangeStatus: "none",
+      });
+    }
+
+    else if (resolution === "refund_b") {
+      opponentWallet.balance += netRefundAmount;
+      await opponentWallet.save({ session });
+
+      if (isRequesterDisputer) {
+        invoice.requesterRefundAmount = 0;
+        invoice.receiverRefundAmount = netRefundAmount;
+
+        invoice.requesterFee = 0;
+        invoice.receiverFee = totalFee;
+
+        invoice.requesterDepositStatus = "forfeited";
+        invoice.receiverDepositStatus = "refunded";
+      } else {
+        invoice.requesterRefundAmount = netRefundAmount;
+        invoice.receiverRefundAmount = 0;
+
+        invoice.requesterFee = totalFee;
+        invoice.receiverFee = 0;
+
+        invoice.requesterDepositStatus = "refunded";
+        invoice.receiverDepositStatus = "forfeited";
+      }
+
+      invoice.status = "completed";
+      invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
+
+      markComplaintResolved(
+        "resolved",
+        note || "Manager quyết định hoàn giá trị cho bên B sau khi trừ phí giao dịch"
+      );
+
+      await invoice.save({ session });
+
+      await createWalletTransaction({
+        wallet: opponentWallet._id,
+        user: opponent,
+        type: "exchange_refund",
+        amount: netRefundAmount,
+        exchangeInvoice: invoice._id,
+        note: `Manager hoàn tiền cho bên B sau khi trừ phí ${Math.round(
+          feeRate * 100
+        )}%: ${note}`,
+        metadata: {
+          direction: "credit",
+          reason: "manager_refund_b",
+          requesterDeposit,
+          receiverDeposit,
+          totalDeposit,
+          feeRate,
+          fee: totalFee,
+          netRefundAmount,
+        },
+        session,
+      });
+
+      await createWalletTransaction({
+        wallet: opponentWallet._id,
+        user: opponent,
+        type: "exchange_fee",
+        amount: totalFee,
+        exchangeInvoice: invoice._id,
+        note: `Phí giao dịch ${Math.round(feeRate * 100)}% khi Manager hoàn tiền cho bên B`,
+        metadata: {
+          direction: "fee",
+          reason: "manager_refund_b_fee",
+          totalDeposit,
+          feeRate,
+          fee: totalFee,
+        },
+        session,
+      });
+
+      await Product.findByIdAndUpdate(invoice.requesterProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+
+      await Product.findByIdAndUpdate(invoice.receiverProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+    }
+    
+    else if (resolution === "continue_auto_release") {
+      invoice.status = "active";
+      invoice.autoRefundPaused = false;
+
+      if (!invoice.autoReleaseAt) {
+        invoice.autoReleaseAt = addDays(new Date(), 7);
+      }
+
+      markComplaintResolved(
+        "rejected",
+        note || "Manager từ chối giải quyết, giao dịch tiếp tục cơ chế tự động hoàn tiền"
+      );
+
+      await invoice.save({ session });
+    }
+
+    
+    else if (resolution === "accept") {
+      const disputerDeposit = isRequesterDisputer ? requesterDeposit : receiverDeposit;
+      const opponentDeposit = isRequesterDisputer ? receiverDeposit : requesterDeposit;
+
+      if (hasReturnedGoods) {
+        disputerWallet.balance += disputerDeposit;
+        opponentWallet.balance += opponentDeposit;
+
+        await disputerWallet.save({ session });
+        await opponentWallet.save({ session });
+
+        invoice.requesterRefundAmount = invoice.requesterDepositAmount;
+        invoice.receiverRefundAmount = invoice.receiverDepositAmount;
+        invoice.requesterDepositStatus = "refunded";
+        invoice.receiverDepositStatus = "refunded";
+
+        await createWalletTransaction({
+          wallet: disputerWallet._id,
+          user: disputer,
+          type: "exchange_refund",
+          amount: disputerDeposit,
+          exchangeInvoice: invoice._id,
+          note: `Hoàn tiền cọc trao đổi do chấp thuận khiếu nại, đã trả hàng: ${note}`,
+          metadata: {
+            direction: "credit",
+            depositAmount: disputerDeposit,
+            reason: "dispute_accepted_returned",
+          },
+          session,
+        });
+
+        await createWalletTransaction({
+          wallet: opponentWallet._id,
+          user: opponent,
+          type: "exchange_refund",
+          amount: opponentDeposit,
+          exchangeInvoice: invoice._id,
+          note: `Hoàn tiền cọc trao đổi do chấp thuận khiếu nại, đã nhận lại hàng: ${note}`,
+          metadata: {
+            direction: "credit",
+            depositAmount: opponentDeposit,
+            reason: "dispute_accepted_returned",
+          },
+          session,
+        });
+
+        await Product.findByIdAndUpdate(invoice.requesterProduct, {
+          status: "available",
+          isAvailable: true,
+        });
+
+        await Product.findByIdAndUpdate(invoice.receiverProduct, {
+          status: "available",
+          isAvailable: true,
+        });
+      } else {
+        opponentWallet.balance += opponentDeposit + disputerDeposit;
+        await opponentWallet.save({ session });
+
+        if (isRequesterDisputer) {
+          invoice.requesterRefundAmount = 0;
+          invoice.receiverRefundAmount = opponentDeposit + disputerDeposit;
+          invoice.requesterDepositStatus = "forfeited";
+          invoice.receiverDepositStatus = "refunded";
+        } else {
+          invoice.requesterRefundAmount = opponentDeposit + disputerDeposit;
+          invoice.receiverRefundAmount = 0;
+          invoice.requesterDepositStatus = "refunded";
+          invoice.receiverDepositStatus = "forfeited";
+        }
+
+        await createWalletTransaction({
+          wallet: opponentWallet._id,
+          user: opponent,
+          type: "exchange_refund",
+          amount: opponentDeposit,
+          exchangeInvoice: invoice._id,
+          note: `Hoàn tiền cọc trao đổi của bạn: ${note}`,
+          metadata: {
+            direction: "credit",
+            depositAmount: opponentDeposit,
+            reason: "dispute_accepted_not_returned",
+          },
+          session,
+        });
+
+        await createWalletTransaction({
+          wallet: opponentWallet._id,
+          user: opponent,
+          type: "exchange_refund",
+          amount: disputerDeposit,
+          exchangeInvoice: invoice._id,
+          note: `Bồi thường từ cọc của đối phương do không hoàn trả hàng: ${note}`,
+          metadata: {
+            direction: "credit",
+            depositAmount: disputerDeposit,
+            reason: "dispute_compensation",
+          },
+          session,
+        });
+
+        await Product.findByIdAndUpdate(invoice.requesterProduct, {
+          status: "sold",
+          isAvailable: false,
+        });
+
+        await Product.findByIdAndUpdate(invoice.receiverProduct, {
+          status: "sold",
+          isAvailable: false,
+        });
+      }
+
+      invoice.status = "completed";
+      invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
+
+      markComplaintResolved("resolved", note);
+
+      await invoice.save({ session });
+    }
+
+    
+    else if (resolution === "reject") {
+      const requesterFee = Math.round(requesterDeposit * invoice.feeRate);
+      const receiverFee = Math.round(receiverDeposit * invoice.feeRate);
+
+      const requesterRefund = requesterDeposit - requesterFee;
+      const receiverRefund = receiverDeposit - receiverFee;
+
+      requesterWallet.balance += requesterRefund;
+      receiverWallet.balance += receiverRefund;
+
+      await requesterWallet.save({ session });
+      await receiverWallet.save({ session });
+
+      invoice.requesterFee = requesterFee;
+      invoice.receiverFee = receiverFee;
+      invoice.requesterRefundAmount = requesterRefund;
+      invoice.receiverRefundAmount = receiverRefund;
+
+      invoice.requesterDepositStatus = "refunded";
+      invoice.receiverDepositStatus = "refunded";
+      invoice.status = "completed";
+      invoice.completedAt = new Date();
+      invoice.autoRefundPaused = false;
+
+      markComplaintResolved("rejected", note);
+
+      await invoice.save({ session });
+
+      await Product.findByIdAndUpdate(invoice.requesterProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+
+      await Product.findByIdAndUpdate(invoice.receiverProduct, {
+        status: "sold",
+        isAvailable: false,
+      });
+
+      await createWalletTransaction({
+        wallet: requesterWallet._id,
+        user: invoice.requester,
+        type: "exchange_refund",
+        amount: requesterRefund,
+        exchangeInvoice: invoice._id,
+        note: `Hoàn tiền bảo hiểm trao đổi sau khi bác bỏ khiếu nại: ${note}`,
+        metadata: {
+          direction: "credit",
+          depositAmount: requesterDeposit,
+          fee: requesterFee,
+          reason: "dispute_rejected",
+        },
+        session,
+      });
+
+      await createWalletTransaction({
+        wallet: receiverWallet._id,
+        user: invoice.receiver,
+        type: "exchange_refund",
+        amount: receiverRefund,
+        exchangeInvoice: invoice._id,
+        note: `Hoàn tiền bảo hiểm trao đổi sau khi bác bỏ khiếu nại: ${note}`,
+        metadata: {
+          direction: "credit",
+          depositAmount: receiverDeposit,
+          fee: receiverFee,
+          reason: "dispute_rejected",
+        },
+        session,
+      });
+    }
+
+    await session.commitTransaction();
+    return invoice;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+}
+
+async function repairExchangeProductStatuses() {
+  const results = {
+    fixed: 0,
+    skipped: 0,
+    errors: 0,
+    details: [],
+  };
+
+  async function updateProductIfNeeded({
+    invoiceId,
+    productId,
+    targetStatus,
+    targetAvailable,
+    targetExchangeStatus = "none",
+    reason,
+    allowStatuses = [],
+  }) {
+    if (!productId) return;
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      results.skipped++;
+      results.details.push({
+        invoiceId,
+        productId,
+        action: "skipped",
+        reason: "product_not_found",
+      });
+      return;
+    }
+
+    const currentStatus = product.status;
+    const currentAvailable = product.isAvailable;
+    const currentExchangeStatus = product.exchangeStatus;
+
+    if (
+      allowStatuses.length > 0 &&
+      !allowStatuses.includes(currentStatus)
+    ) {
+      results.skipped++;
+      results.details.push({
+        invoiceId,
+        productId,
+        action: "skipped",
+        reason: "status_not_allowed_to_repair",
+        currentStatus,
+        currentAvailable,
+        currentExchangeStatus,
+      });
+      return;
+    }
+
+    if (
+      currentStatus === targetStatus &&
+      currentAvailable === targetAvailable &&
+      currentExchangeStatus === targetExchangeStatus
+    ) {
+      results.skipped++;
+      return;
+    }
+
+    await Product.findByIdAndUpdate(productId, {
+      $set: {
+        status: targetStatus,
+        isAvailable: targetAvailable,
+        exchangeStatus: targetExchangeStatus,
+      },
+    });
+
+    results.fixed++;
+    results.details.push({
+      invoiceId,
+      productId,
+      action: "fixed",
+      reason,
+      from: {
+        status: currentStatus,
+        isAvailable: currentAvailable,
+        exchangeStatus: currentExchangeStatus,
+      },
+      to: {
+        status: targetStatus,
+        isAvailable: targetAvailable,
+        exchangeStatus: targetExchangeStatus,
+      },
+    });
+  }
+
+  const completedInvoices = await ExchangeInvoice.find({
+    status: "completed",
+  }).lean();
+
+  for (const invoice of completedInvoices) {
+    try {
+      const complaintStatus = invoice.complaint?.status;
+
+      const requesterFullRefund =
+        Number(invoice.requesterRefundAmount || 0) ===
+        Number(invoice.requesterDepositAmount || 0);
+
+      const receiverFullRefund =
+        Number(invoice.receiverRefundAmount || 0) ===
+        Number(invoice.receiverDepositAmount || 0);
+
+      const bothGotFullRefund = requesterFullRefund && receiverFullRefund;
+
+      const targetStatus =
+        complaintStatus === "resolved" && bothGotFullRefund
+          ? "available"
+          : "sold";
+
+      const targetAvailable = targetStatus === "available";
+
+      await updateProductIfNeeded({
+        invoiceId: invoice._id,
+        productId: invoice.requesterProduct,
+        targetStatus,
+        targetAvailable,
+        targetExchangeStatus: "none",
+        reason: "completed_invoice_repair",
+        allowStatuses: ["available", "reserved", "sold"],
+      });
+
+      await updateProductIfNeeded({
+        invoiceId: invoice._id,
+        productId: invoice.receiverProduct,
+        targetStatus,
+        targetAvailable,
+        targetExchangeStatus: "none",
+        reason: "completed_invoice_repair",
+        allowStatuses: ["available", "reserved", "sold"],
+      });
+    } catch (err) {
+      results.errors++;
+      console.error(
+        "REPAIR COMPLETED ERROR invoice",
+        invoice._id,
+        err.message
+      );
+    }
+  }
+
+  const cancelledInvoices = await ExchangeInvoice.find({
+    status: "cancelled",
+  }).lean();
+
+  for (const invoice of cancelledInvoices) {
+    try {
+      const productIds = uniqueIds([
+        invoice.requesterProduct,
+        invoice.receiverProduct,
+      ]);
+
+      if (productIds.length === 0) {
+        results.skipped++;
+        results.details.push({
+          invoiceId: invoice._id,
+          action: "skipped",
+          reason: "cancelled_invoice_has_no_products",
+        });
+        continue;
+      }
+
+      const beforeProducts = await Product.find({
+        _id: { $in: productIds },
+      }).select("_id title status isAvailable exchangeStatus");
+
+      const updateResult = await Product.updateMany(
+        {
+          _id: { $in: productIds },
+          status: { $ne: "sold" },
+        },
+        {
+          $set: {
+            status: "available",
+            isAvailable: true,
+            exchangeStatus: "none",
+          },
+        }
+      );
+
+      const afterProducts = await Product.find({
+        _id: { $in: productIds },
+      }).select("_id title status isAvailable exchangeStatus");
+
+      const modifiedCount =
+        updateResult.modifiedCount ?? updateResult.nModified ?? 0;
+
+      results.fixed += modifiedCount;
+
+      results.details.push({
+        invoiceId: invoice._id,
+        action: "force_unlock_cancelled_invoice_products",
+        matchedCount: updateResult.matchedCount ?? updateResult.n ?? 0,
+        modifiedCount,
+        before: beforeProducts.map((p) => ({
+          productId: String(p._id),
+          title: p.title,
+          status: p.status,
+          isAvailable: p.isAvailable,
+          exchangeStatus: p.exchangeStatus,
+        })),
+        after: afterProducts.map((p) => ({
+          productId: String(p._id),
+          title: p.title,
+          status: p.status,
+          isAvailable: p.isAvailable,
+          exchangeStatus: p.exchangeStatus,
+        })),
+      });
+    } catch (err) {
+      results.errors++;
+      console.error(
+        "REPAIR CANCELLED ERROR invoice",
+        invoice._id,
+        err.message
+      );
+    }
+  }
+
+  return results;
+}
+
+>>>>>>> Stashed changes
 module.exports = {
   createExchangeRequest,
   acceptExchangeRequest,
