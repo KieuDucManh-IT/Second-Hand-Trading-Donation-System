@@ -3,9 +3,9 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const http = require("http");
 const path = require("path");
- 
+
 dotenv.config();
- 
+
 const connectDB = require("./src/config/db");
 const authRoute = require("./src/routes/authRoute");
 const managerRoute = require("./src/routes/managerRoute");
@@ -17,21 +17,21 @@ const orderRoutes = require("./src/routes/orderRoutes");
 const walletRoutes = require("./src/routes/walletRoutes");
 const webhookRoutes = require("./src/routes/webhookRoutes");
 const exchangeEscrowRoutes = require("./src/routes/exchangeEscrowRoutes");
-const { startOrderAutoReleaseJob } = require("./src/jobs/orderAutoReleaseJob");
+
 const donationRoute = require("./src/routes/donationRoute");
 const notificationRoute = require("./src/routes/notificationRoute");
- 
+
 const { initChatSocket } = require("./src/sockets/chatSocket");
 const { startExchangeAutoReleaseJob } = require("./src/jobs/exchangeAutoReleaseJob");
- 
+
 const app = express();
- 
+
 app.use(cors());
 app.use(express.json());
- 
+
 app.get("/", (req, res) => res.send("Backend API is running"));
 app.get("/api/health", (req, res) => res.status(200).json({ success: true, service: "backend", timestamp: new Date().toISOString() }));
- 
+
 app.use("/api/auth", authRoute);
 app.use("/api/manager", managerRoute);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -46,21 +46,20 @@ app.use("/api/exchange-escrow", exchangeEscrowRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/donations", donationRoute);
 app.use("/api/notifications", notificationRoute);
- 
+
 const PORT = process.env.PORT || 5000;
 const httpServer = http.createServer(app);
- 
+
 const io = initChatSocket(httpServer);
 app.set("io", io);
 global.__io = io;
- 
+
 const startServer = async () => {
   await connectDB();
   httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     startExchangeAutoReleaseJob();
-    startOrderAutoReleaseJob();
   });
 };
- 
+
 startServer();

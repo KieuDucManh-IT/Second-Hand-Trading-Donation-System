@@ -31,10 +31,10 @@ const productSchema = new mongoose.Schema(
       default: 'available',      
     },
     location: {
-      type: { type: String, enum: ['Point'], default: 'Point' },
-      coordinates: { type: [Number], default: [0, 0] },
-      address: { type: String, default: '' },
-    },
+  type: String,
+  required: true,
+  trim: true,
+},
     exchangeStatus: {
       type: String,
       enum: ["none", "pending", "locked"],

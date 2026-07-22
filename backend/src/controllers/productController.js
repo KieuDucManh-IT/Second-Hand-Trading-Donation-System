@@ -1,9 +1,9 @@
-const Product      = require('../models/modelProduct');
+const Product = require('../models/modelProduct');
 const ProductImage = require('../models/modelProductImage');
 const ExchangeInvoice = require('../models/modelExchangeInvoice');
 const { deleteFromCloudinary } = require('../config/cloudinary');
 const SystemConfig = require('../models/modelSystemConfig');
- 
+
 
 const getSensitiveWords = async () => {
   try {
@@ -16,7 +16,7 @@ const getSensitiveWords = async () => {
   }
   return [];
 };
- 
+
 
 const findSensitiveWord = async (text) => {
   if (!text) return null;
@@ -33,7 +33,7 @@ exports.getSensitiveWordsRoute = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 
 const attachImages = async (products) => {
   const ids = products.map((p) => p._id);
@@ -46,7 +46,7 @@ const attachImages = async (products) => {
   });
   return products.map((p) => ({
     ...p,
-    images:    map[p._id.toString()] || [],
+    images: map[p._id.toString()] || [],
     thumbnail: map[p._id.toString()]?.[0]?.imageUrl || null,
   }));
 };
@@ -67,27 +67,27 @@ const getExchangeLockedProductIds = async () => {
 
   return [...new Set([...requesterProductIds, ...receiverProductIds].map(String))];
 };
- 
- 
+
+
 exports.createProduct = async (req, res, next) => {
   try {
     const { title, description, price, condition, type, categoryId, address, longitude, latitude } = req.body;
- 
+
     if (!title || !description || !condition || !type || !categoryId) {
       return res.status(400).json({
         success: false,
         message: 'Thiếu thông tin bắt buộc: title, description, condition, type, categoryId',
       });
     }
- 
+
     if (!['sell', 'donate'].includes(type)) {
       return res.status(400).json({ success: false, message: 'type phải là "sell" hoặc "donate"' });
     }
- 
+
     if (type === 'sell' && (!price || Number(price) <= 0)) {
       return res.status(400).json({ success: false, message: 'Giá bán phải lớn hơn 0' });
     }
- 
+
     const violationInTitle = await findSensitiveWord(title);
     if (violationInTitle) {
       return res.status(400).json({
@@ -96,7 +96,7 @@ exports.createProduct = async (req, res, next) => {
         field: 'title',
       });
     }
- 
+
     const violationInDesc = await findSensitiveWord(description);
     if (violationInDesc) {
       return res.status(400).json({
@@ -105,22 +105,22 @@ exports.createProduct = async (req, res, next) => {
         field: 'description',
       });
     }
- 
+
     const product = await Product.create({
       ownerId: req.user._id,
       categoryId,
       title,
       description,
-      price:    type === 'donate' ? 0 : Number(price) || 0,
+      price: type === 'donate' ? 0 : Number(price) || 0,
       condition,
       type,
-      status:   'available',     
-      isAvailable: true,         
-      pendingApproval: false,    
+      status: 'available',
+      isAvailable: true,
+      pendingApproval: false,
       location: {
-        type:        'Point',
+        type: 'Point',
         coordinates: [Number(longitude) || 0, Number(latitude) || 0],
-        address:     address || '',
+        address: address || '',
       },
     });
 
@@ -133,7 +133,7 @@ exports.createProduct = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 exports.uploadImages = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -143,26 +143,26 @@ exports.uploadImages = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Không có quyền' });
     if (!req.files?.length)
       return res.status(400).json({ success: false, message: 'Chưa chọn ảnh' });
- 
+
     const existing = await ProductImage.countDocuments({ productId: product._id });
     if (existing + req.files.length > 8)
       return res.status(400).json({ success: false, message: `Tối đa 8 ảnh (đã có ${existing})` });
- 
+
     const images = await ProductImage.insertMany(
       req.files.map((f, i) => ({
         productId: product._id,
-        imageUrl:  f.path,
-        publicId:  f.filename,
-        order:     existing + i,
+        imageUrl: f.path,
+        publicId: f.filename,
+        order: existing + i,
       }))
     );
- 
+
     res.status(201).json({ success: true, data: images });
   } catch (err) {
     next(err);
   }
 };
- 
+
 exports.deleteImage = async (req, res, next) => {
   try {
     const image = await ProductImage.findById(req.params.imageId).populate('productId');
@@ -170,16 +170,16 @@ exports.deleteImage = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Ảnh không tồn tại' });
     if (image.productId.ownerId.toString() !== req.user._id.toString())
       return res.status(403).json({ success: false, message: 'Không có quyền' });
- 
+
     await deleteFromCloudinary(image.publicId);
     await image.deleteOne();
- 
+
     res.json({ success: true, message: 'Đã xoá ảnh' });
   } catch (err) {
     next(err);
   }
 };
- 
+
 exports.getProducts = async (req, res, next) => {
   try {
     const {
@@ -194,62 +194,62 @@ exports.getProducts = async (req, res, next) => {
     if (lockedProductIds.length > 0) {
       filter._id = { $nin: lockedProductIds };
     }
-    if (keyword)    filter.$text      = { $search: keyword };
+    if (keyword) filter.$text = { $search: keyword };
     if (categoryId) filter.categoryId = categoryId;
-    if (type)       filter.type       = type;
-    if (condition)  filter.condition  = { $in: condition.split(',').map((c) => c.trim()) };
+    if (type) filter.type = type;
+    if (condition) filter.condition = { $in: condition.split(',').map((c) => c.trim()) };
     if (minPrice || maxPrice) {
       filter.price = {};
       if (minPrice) filter.price.$gte = Number(minPrice);
       if (maxPrice) filter.price.$lte = Number(maxPrice);
     }
- 
-    const skip   = (Number(page) - 1) * Number(limit);
-    const lim    = Number(limit);
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const lim = Number(limit);
     const sortMap = {
-      createdAt:  { createdAt: -1 },
-      price_asc:  { price: 1 },
+      createdAt: { createdAt: -1 },
+      price_asc: { price: 1 },
       price_desc: { price: -1 },
     };
- 
+
     if (lat && lng) {
       const radiusM = (Number(radius) || 10) * 1000;
       const geoStage = {
         $geoNear: {
-          near:          { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+          near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
           distanceField: 'distance',
-          maxDistance:   radiusM,
-          spherical:     true,
-          query:         filter,
+          maxDistance: radiusM,
+          spherical: true,
+          query: filter,
         },
       };
       const sortStage = sort === 'distance'
         ? { $sort: { distance: 1 } }
         : { $sort: sortMap[sort] || { createdAt: -1 } };
- 
+
       const pipeline = [
         geoStage, sortStage,
         { $skip: skip }, { $limit: lim },
-        { $lookup: { from: 'users',      localField: 'ownerId',    foreignField: '_id', as: 'owner',    pipeline: [{ $project: { fullName: 1, avatar: 1, rating: 1, isVerified: 1 } }] } },
+        { $lookup: { from: 'users', localField: 'ownerId', foreignField: '_id', as: 'owner', pipeline: [{ $project: { fullName: 1, avatar: 1, rating: 1, isVerified: 1 } }] } },
         { $lookup: { from: 'categories', localField: 'categoryId', foreignField: '_id', as: 'category', pipeline: [{ $project: { name: 1 } }] } },
-        { $unwind: { path: '$owner',    preserveNullAndEmpty: true } },
+        { $unwind: { path: '$owner', preserveNullAndEmpty: true } },
         { $unwind: { path: '$category', preserveNullAndEmpty: true } },
       ];
- 
+
       const [products, countResult] = await Promise.all([
         Product.aggregate(pipeline),
         Product.aggregate([geoStage, { $count: 'total' }]),
       ]);
       const withImages = await attachImages(products);
       const total = countResult[0]?.total || 0;
- 
+
       return res.json({
         success: true,
         data: withImages,
         pagination: { total, page: Number(page), limit: lim, totalPages: Math.ceil(total / lim) },
       });
     }
- 
+
     const [raw, total] = await Promise.all([
       Product.find(filter)
         .sort(sortMap[sort] || { createdAt: -1 })
@@ -260,7 +260,7 @@ exports.getProducts = async (req, res, next) => {
       Product.countDocuments(filter),
     ]);
     const products = await attachImages(raw);
- 
+
     res.json({
       success: true,
       data: products,
@@ -270,28 +270,28 @@ exports.getProducts = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 exports.getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id)
-      .populate('ownerId',    'fullName avatar phone rating isVerified location createdAt')
+      .populate('ownerId', 'fullName avatar phone rating isVerified location createdAt')
       .populate('categoryId', 'name description')
       .lean();
- 
+
     if (!product)
       return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
- 
+
     const images = await ProductImage.find({ productId: product._id }).sort({ order: 1 });
-    product.images    = images;
+    product.images = images;
     product.thumbnail = images[0]?.imageUrl || null;
- 
+
     res.json({ success: true, data: product });
   } catch (err) {
     next(err);
   }
 };
- 
- 
+
+
 exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -299,24 +299,24 @@ exports.deleteProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
     if (product.ownerId.toString() !== req.user._id.toString())
       return res.status(403).json({ success: false, message: 'Không có quyền' });
- 
+
     const images = await ProductImage.find({ productId: product._id });
     await Promise.all(images.map((img) => deleteFromCloudinary(img.publicId)));
     await ProductImage.deleteMany({ productId: product._id });
     await product.deleteOne();
- 
+
     res.json({ success: true, message: 'Đã xoá sản phẩm' });
   } catch (err) {
     next(err);
   }
 };
- 
+
 exports.getSellerProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
-    const lim  = Number(limit);
- 
+    const lim = Number(limit);
+
     const query = {
       ownerId: req.params.userId,
       status: { $in: ['available', 'sold', 'reserved'] },
@@ -329,7 +329,7 @@ exports.getSellerProducts = async (req, res, next) => {
       Product.countDocuments(query),
     ]);
     const products = await attachImages(raw);
- 
+
     res.json({
       success: true,
       data: products,
@@ -339,22 +339,22 @@ exports.getSellerProducts = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 exports.getMyProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
-    const skip   = (Number(page) - 1) * Number(limit);
-    const lim    = Number(limit);
+    const skip = (Number(page) - 1) * Number(limit);
+    const lim = Number(limit);
     const filter = { ownerId: req.user._id };
     if (status) filter.status = status;
- 
+
     const [raw, total] = await Promise.all([
       Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(lim)
         .populate('categoryId', 'name').lean(),
       Product.countDocuments(filter),
     ]);
     const products = await attachImages(raw);
- 
+
     res.json({
       success: true,
       data: products,
@@ -364,25 +364,25 @@ exports.getMyProducts = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 
 exports.getPendingProducts = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
-    const lim  = Number(limit);
- 
+    const lim = Number(limit);
+
     const filter = { pendingApproval: true };
     const [raw, total] = await Promise.all([
       Product.find(filter)
         .sort({ createdAt: -1 }).skip(skip).limit(lim)
-        .populate('ownerId',    'fullName email avatar')
+        .populate('ownerId', 'fullName email avatar')
         .populate('categoryId', 'name')
         .lean(),
       Product.countDocuments(filter),
     ]);
     const products = await attachImages(raw);
- 
+
     res.json({
       success: true,
       data: products,
@@ -392,37 +392,37 @@ exports.getPendingProducts = async (req, res, next) => {
     next(err);
   }
 };
- 
+
 exports.approveProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product)
       return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
- 
-    product.status          = 'available';
-    product.isAvailable     = true;
+
+    product.status = 'available';
+    product.isAvailable = true;
     product.pendingApproval = false;
     await product.save();
- 
+
     res.json({ success: true, message: 'Đã duyệt sản phẩm', data: product });
   } catch (err) {
     next(err);
   }
 };
- 
+
 exports.rejectProduct = async (req, res, next) => {
   try {
     const { reason } = req.body;
     const product = await Product.findById(req.params.id);
     if (!product)
       return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm' });
- 
-    product.status          = 'hidden';
-    product.isAvailable     = false;
+
+    product.status = 'hidden';
+    product.isAvailable = false;
     product.pendingApproval = false;
-    product.rejectReason    = reason || 'Vi phạm quy định';
+    product.rejectReason = reason || 'Vi phạm quy định';
     await product.save();
- 
+
     res.json({ success: true, message: 'Đã từ chối sản phẩm', data: product });
   } catch (err) {
     next(err);
@@ -493,8 +493,8 @@ exports.getProductReviews = async (req, res, next) => {
       productId: id,
       "sellerRating.rating": { $exists: true, $gt: 0 }
     })
-    .populate("buyerId", "fullName avatar email userName")
-    .sort({ "sellerRating.ratedAt": -1 });
+      .populate("buyerId", "fullName avatar email userName")
+      .sort({ "sellerRating.ratedAt": -1 });
 
     res.json({ success: true, reviews });
   } catch (err) {

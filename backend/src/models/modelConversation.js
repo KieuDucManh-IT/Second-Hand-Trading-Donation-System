@@ -31,7 +31,6 @@ const conversationSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
-
     unreadCounts: {
       type: Map,
       of: Number,

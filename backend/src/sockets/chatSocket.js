@@ -28,7 +28,6 @@ const markUserOffline = (io, userId) => {
   }
 };
  
-
 const initChatSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
