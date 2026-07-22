@@ -832,54 +832,55 @@ export function ProductDetailPage() {
                       isAuthenticated &&
                       String(donorId) === String(currentUserId);
 
-                    if (product.type === "donate" && isOwner) {
+                    if (isOwner) {
                       return (
                         <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-center font-medium text-sm">
-                          Đây là sản phẩm của bạn — bạn không thể tự yêu cầu
-                          nhận đồ.
+                          Đây là sản phẩm của bạn.
                         </div>
                       );
                     }
 
                     return (
-                      <Button
-                        onClick={handleOrder}
-                        className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
-                      >
-                        <Heart className="w-5 h-5 mr-2" />
-                        {product.type === "donate"
-                          ? "Yêu cầu nhận đồ"
-                          : "Mua ngay"}
-                      </Button>
+                      <>
+                        <Button
+                          onClick={handleOrder}
+                          className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-lg h-12"
+                        >
+                          <Heart className="w-5 h-5 mr-2" />
+                          {product.type === "donate"
+                            ? "Yêu cầu nhận đồ"
+                            : "Mua ngay"}
+                        </Button>
+
+                        {product.type === "sell" && (
+                          <div className="grid  gap-3">
+                            <Button
+                              onClick={openExchangeDialog}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              <ArrowLeftRight className="w-4 h-4 mr-2" />
+                              Đề xuất trao đổi
+                            </Button>
+                          </div>
+                        )}
+
+                        <Button
+                          onClick={handleContact}
+                          disabled={contacting}
+                          variant="outline"
+                          className="w-full h-12"
+                        >
+                          {contacting ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          ) : (
+                            <MessageCircle className="w-5 h-5 mr-2" />
+                          )}
+                          Liên hệ người bán
+                        </Button>
+                      </>
                     );
                   })()}
-
-                  {product.type === "sell" && (
-                    <div className="grid  gap-3">
-                      <Button
-                        onClick={openExchangeDialog}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <ArrowLeftRight className="w-4 h-4 mr-2" />
-                        Đề xuất trao đổi
-                      </Button>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={handleContact}
-                    disabled={contacting}
-                    variant="outline"
-                    className="w-full h-12"
-                  >
-                    {contacting ? (
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    ) : (
-                      <MessageCircle className="w-5 h-5 mr-2" />
-                    )}
-                    Liên hệ người bán
-                  </Button>
                 </div>
               )
             ) : (
