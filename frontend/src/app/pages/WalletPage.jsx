@@ -12,11 +12,9 @@ import {
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 
-const RAW_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { getApiBase } from "../config/apiConfig";
 
-const API_BASE = RAW_API_BASE.endsWith("/api")
-  ? RAW_API_BASE
-  : `${RAW_API_BASE}/api`;
+const getApiBaseUrl = () => getApiBase();
 
 const WALLET_PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s])\S{8,}$/;
@@ -261,7 +259,7 @@ export default function WalletPage() {
     const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
+      const res = await fetch(`${getApiBaseUrl()}${path}`, {
         ...options,
         signal: controller.signal,
         headers: {

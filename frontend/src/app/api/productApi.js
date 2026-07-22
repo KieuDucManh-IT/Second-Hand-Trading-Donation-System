@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { getApiBase } from "../config/apiConfig";
+
+const getBase = () => getApiBase();
 export const PRODUCT_CATALOG_UPDATED_KEY = "products:last-updated";
 
 export function notifyProductCatalogChanged() {
@@ -16,14 +18,14 @@ export async function fetchProducts(params = {}) {
   if (params.page) query.set("page", String(params.page));
   if (params.limit) query.set("limit", String(params.limit));
   if (params.sort) query.set("sort", params.sort);
-  const res = await fetch(`${API_BASE}/api/products?${query.toString()}`, {
+  const res = await fetch(`${getBase()}/products?${query.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Không thể tải danh sách sản phẩm");
   return res.json();
 }
 export async function fetchProductById(id) {
-  const res = await fetch(`${API_BASE}/api/products/${id}`, {
+  const res = await fetch(`${getBase()}/products/${id}`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -33,7 +35,7 @@ export async function fetchProductById(id) {
   return res.json();
 }
 export async function fetchCategories() {
-  const res = await fetch(`${API_BASE}/api/categories`, {
+  const res = await fetch(`${getBase()}/categories`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Không thể tải danh mục");
@@ -50,7 +52,7 @@ export const CONDITION_LABELS = {
 export async function toggleProductFavorite(id) {
   const token =
     sessionStorage.getItem("token") || localStorage.getItem("token");
-  const res = await fetch(`${API_BASE}/api/products/${id}/favorite`, {
+  const res = await fetch(`${getBase()}/products/${id}/favorite`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -67,7 +69,7 @@ export async function toggleProductFavorite(id) {
 export async function fetchFavoriteProducts() {
   const token =
     sessionStorage.getItem("token") || localStorage.getItem("token");
-  const res = await fetch(`${API_BASE}/api/products/favorites`, {
+  const res = await fetch(`${getBase()}/products/favorites`, {
     headers: {
       "Content-Type": "application/json",
       Authorization: token ? `Bearer ${token}` : "",

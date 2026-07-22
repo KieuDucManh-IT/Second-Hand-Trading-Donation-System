@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { getApiBase } from "../config/apiConfig";
 
 const AuthContext = createContext(undefined);
 
-const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
+const getAuthApiUrl = () => `${getApiBase()}/auth`;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -66,36 +67,56 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const response = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    let response;
+    try {
+      response = await fetch(`${getAuthApiUrl()}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (netErr) {
+      throw new Error("Không thể kết nối tới máy chủ Backend. Vui lòng kiểm tra lại mạng hoặc server.");
+    }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonErr) {
+      throw new Error(`Máy chủ không phản hồi đúng định dạng JSON (Mã trạng thái: ${response.status})`);
+    }
 
     if (!response.ok) {
-      throw new Error(data.message || "Login failed");
+      throw new Error(data.message || "Đăng nhập thất bại");
     }
 
     saveAuthData(data.token, data.user);
   };
 
   const loginWithGoogle = async (credential) => {
-    const response = await fetch(`${API_URL}/google-login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ credential }),
-    });
+    let response;
+    try {
+      response = await fetch(`${getAuthApiUrl()}/google-login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ credential }),
+      });
+    } catch (netErr) {
+      throw new Error("Không thể kết nối tới máy chủ Backend cho Google login.");
+    }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonErr) {
+      throw new Error(`Máy chủ không phản hồi đúng định dạng JSON (Mã trạng thái: ${response.status})`);
+    }
 
     if (!response.ok) {
-      throw new Error(data.message || "Google login failed");
+      throw new Error(data.message || "Đăng nhập Google thất bại");
     }
 
     saveAuthData(data.token, data.user);

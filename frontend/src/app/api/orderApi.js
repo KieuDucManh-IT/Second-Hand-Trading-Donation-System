@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { getApiBase } from "../config/apiConfig";
+
+const getBase = () => getApiBase();
 const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${sessionStorage.getItem("token") ?? ""}`,
@@ -8,7 +10,7 @@ export async function createOrder(
   paymentMethod = "wallet",
   shippingInfo,
 ) {
-  const res = await fetch(`${API_BASE}/api/orders`, {
+  const res = await fetch(`${getBase()}/orders`, {
     method: "POST",
     headers: authHeader(),
     body: JSON.stringify({ productId, paymentMethod, shippingInfo }),
@@ -18,7 +20,7 @@ export async function createOrder(
   return body;
 }
 export async function payOrderByWallet(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/pay-wallet`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}/pay-wallet`, {
     method: "POST",
     headers: authHeader(),
   });
@@ -27,7 +29,7 @@ export async function payOrderByWallet(orderId) {
   return body;
 }
 export async function sellerConfirmOrder(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/confirm`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}/confirm`, {
     method: "PUT",
     headers: authHeader(),
   });
@@ -36,7 +38,7 @@ export async function sellerConfirmOrder(orderId) {
   return body;
 }
 export async function markShipping(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/shipping`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}/shipping`, {
     method: "PUT",
     headers: authHeader(),
   });
@@ -45,7 +47,7 @@ export async function markShipping(orderId) {
   return body;
 }
 export async function markDelivered(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/delivered`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}/delivered`, {
     method: "PUT",
     headers: authHeader(),
   });
@@ -56,7 +58,7 @@ export async function markDelivered(orderId) {
 }
 export async function buyerConfirmReceived(orderId) {
   const res = await fetch(
-    `${API_BASE}/api/orders/${orderId}/confirm-received`,
+    `${getBase()}/orders/${orderId}/confirm-received`,
     {
       method: "PUT",
       headers: authHeader(),
@@ -67,7 +69,7 @@ export async function buyerConfirmReceived(orderId) {
   return body;
 }
 export async function cancelOrder(orderId, reason) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/cancel`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}/cancel`, {
     method: "PUT",
     headers: authHeader(),
     body: JSON.stringify({ reason }),
@@ -84,7 +86,7 @@ export async function openDispute(orderId, reason, files = []) {
   });
 
   const token = sessionStorage.getItem("token");
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}/dispute`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}/dispute`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -94,7 +96,7 @@ export async function openDispute(orderId, reason, files = []) {
   return body;
 }
 export async function fetchMyPurchases() {
-  const res = await fetch(`${API_BASE}/api/orders/my-purchases`, {
+  const res = await fetch(`${getBase()}/orders/my-purchases`, {
     headers: authHeader(),
   });
   const body = await res.json();
@@ -102,7 +104,7 @@ export async function fetchMyPurchases() {
   return body;
 }
 export async function fetchMySales() {
-  const res = await fetch(`${API_BASE}/api/orders/my-sales`, {
+  const res = await fetch(`${getBase()}/orders/my-sales`, {
     headers: authHeader(),
   });
   const body = await res.json();
@@ -110,7 +112,7 @@ export async function fetchMySales() {
   return body;
 }
 export async function fetchOrderById(orderId) {
-  const res = await fetch(`${API_BASE}/api/orders/${orderId}`, {
+  const res = await fetch(`${getBase()}/orders/${orderId}`, {
     headers: authHeader(),
   });
   const body = await res.json();

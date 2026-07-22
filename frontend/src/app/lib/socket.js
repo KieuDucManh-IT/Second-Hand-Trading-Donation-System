@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
+import { getApiOrigin } from "../config/apiConfig";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const getSocketUrl = () => getApiOrigin();
 
 let socket = null;
 
@@ -8,7 +9,7 @@ export function getSocket() {
   const token = sessionStorage.getItem("token") || "";
 
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    socket = io(getSocketUrl(), {
       autoConnect: false,
       auth: { token },
       transports: ["websocket", "polling"],

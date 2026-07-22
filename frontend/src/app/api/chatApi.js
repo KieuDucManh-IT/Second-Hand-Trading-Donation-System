@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { getApiBase } from "../config/apiConfig";
+
+const getBase = () => getApiBase();
 
 function authHeaders() {
   const token = sessionStorage.getItem("token");
@@ -17,14 +19,14 @@ async function handle(res) {
 }
 
 export async function fetchConversations() {
-  const res = await fetch(`${API_BASE}/api/chat/conversations`, {
+  const res = await fetch(`${getBase()}/chat/conversations`, {
     headers: authHeaders(),
   });
   return handle(res);
 }
 
 export async function getOrCreateConversation(participantId, productId) {
-  const res = await fetch(`${API_BASE}/api/chat/conversations`, {
+  const res = await fetch(`${getBase()}/chat/conversations`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ participantId, productId }),
@@ -34,7 +36,7 @@ export async function getOrCreateConversation(participantId, productId) {
 
 export async function fetchMessages(conversationId, page = 1, limit = 30) {
   const res = await fetch(
-    `${API_BASE}/api/chat/conversations/${conversationId}/messages?page=${page}&limit=${limit}`,
+    `${getBase()}/chat/conversations/${conversationId}/messages?page=${page}&limit=${limit}`,
     { headers: authHeaders() },
   );
   return handle(res);
@@ -42,7 +44,7 @@ export async function fetchMessages(conversationId, page = 1, limit = 30) {
 
 export async function sendMessageRest(conversationId, content) {
   const res = await fetch(
-    `${API_BASE}/api/chat/conversations/${conversationId}/messages`,
+    `${getBase()}/chat/conversations/${conversationId}/messages`,
     {
       method: "POST",
       headers: authHeaders(),
@@ -54,7 +56,7 @@ export async function sendMessageRest(conversationId, content) {
 
 export async function markConversationAsRead(conversationId) {
   const res = await fetch(
-    `${API_BASE}/api/chat/conversations/${conversationId}/read`,
+    `${getBase()}/chat/conversations/${conversationId}/read`,
     {
       method: "PUT",
       headers: authHeaders(),
