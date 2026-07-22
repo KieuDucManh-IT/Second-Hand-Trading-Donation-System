@@ -193,6 +193,39 @@ export function OrderHistoryPage() {
   const [ratingComment, setRatingComment] = useState("");
   const [ratingFiles, setRatingFiles] = useState([]);
 
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [selectedOrderForDispute, setSelectedOrderForDispute] = useState(null);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeFiles, setDisputeFiles] = useState([]);
+
+  const submitDispute = async () => {
+    if (!disputeReason.trim()) {
+      toast.error("Vui lòng nhập lý do khiếu nại");
+      return;
+    }
+    try {
+      const token = sessionStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("reason", disputeReason);
+      disputeFiles.forEach(file => formData.append("evidenceFiles", file));
+
+      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderForDispute._id}/dispute`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Khiếu nại thất bại");
+      }
+      toast.success("Đã gửi yêu cầu khiếu nại!");
+      setDisputeModalOpen(false);
+      fetchOrders();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState(null);
 
@@ -305,15 +338,6 @@ export function OrderHistoryPage() {
                 </Button>
                 {isBuyer && order.orderStatus === "pending_seller_confirm" && (
                   <>
-                    {order.paymentMethod === 'wallet' && order.paymentStatus === 'unpaid' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleAction(order._id, "pay")}
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
-                      >
-                        Thanh toán ngay
-                      </Button>
-                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -358,9 +382,10 @@ export function OrderHistoryPage() {
                         size="sm"
                         variant="destructive"
                         onClick={() => {
-                          const reason = prompt("Nhập lý do khiếu nại:");
-                          if (reason !== null)
-                            handleAction(order._id, "dispute", reason);
+                          setSelectedOrderForDispute(order);
+                          setDisputeReason("");
+                          setDisputeFiles([]);
+                          setDisputeModalOpen(true);
                         }}
                       >
                         Khiếu nại
@@ -368,7 +393,7 @@ export function OrderHistoryPage() {
                     </>
                   )}
 
-                {isBuyer && order.orderStatus === "completed" && !order.sellerRating && (
+                {isBuyer && order.orderStatus === "completed" && !order.sellerRating?.rating && (
                   <Button
                     size="sm"
                     className="bg-yellow-500 hover:bg-yellow-600 text-white"
@@ -383,21 +408,27 @@ export function OrderHistoryPage() {
                     Đánh giá người bán
                   </Button>
                 )}
-                {isBuyer && order.orderStatus === "completed" && order.sellerRating && (
-                  <span className="text-xs text-green-600 font-medium border border-green-200 bg-green-50 px-2 py-1 rounded">
+                {isBuyer && order.orderStatus === "completed" && order.sellerRating?.rating && (
+                  <span className="block w-full max-w-[150px] text-center truncate text-[11px] text-green-600 font-medium border border-green-200 bg-green-50 px-3 py-1.5 rounded-full" title={`Đã đánh giá (${order.sellerRating.rating} sao)`}>
                     Đã đánh giá ({order.sellerRating.rating} sao)
                   </span>
                 )}
 
                 {!isBuyer && order.orderStatus === "pending_seller_confirm" && (
                   <>
-                    <Button
-                      size="sm"
-                      onClick={() => handleAction(order._id, "confirm")}
-                      className="bg-orange-600 hover:bg-orange-700 text-white"
-                    >
-                      Xác nhận đơn hàng
-                    </Button>
+                    {order.paymentMethod === 'wallet' && order.paymentStatus === 'unpaid' ? (
+                      <span className="text-xs text-yellow-600 font-medium border border-yellow-200 bg-yellow-50 px-2 py-1 rounded">
+                        Chờ người mua thanh toán
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleAction(order._id, "confirm")}
+                        className="bg-orange-600 hover:bg-orange-700 text-white"
+                      >
+                        Xác nhận đơn hàng
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -454,9 +485,8 @@ export function OrderHistoryPage() {
                 )}
 
                 {order.orderStatus === "disputed" && (
-                  <div className="text-xs text-red-500 bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800 max-w-xs">
-                    <span className="font-semibold">Đang khiếu nại: </span>
-                    {order.disputeReason || "Không có lý do chi tiết."}
+                  <div className="block w-full max-w-[150px] text-center truncate text-[11px] text-pink-600 font-medium border border-pink-200 bg-pink-50 px-3 py-1.5 rounded-full" title={order.disputeReason || order.complaint?.reason || "Không có lý do chi tiết."}>
+                    Khiếu nại: {order.disputeReason || order.complaint?.reason || "Không có lý do chi tiết."}
                   </div>
                 )}
               </div>
@@ -804,6 +834,26 @@ export function OrderHistoryPage() {
                 onChange={(e) => setRatingFiles(Array.from(e.target.files))}
                 className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              {ratingFiles.length > 0 && (
+                <div className="mt-2 flex gap-2 overflow-x-auto p-1">
+                  {ratingFiles.map((file, index) => (
+                    <div key={index} className="relative flex-shrink-0">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`preview-${index}`}
+                        className="w-16 h-16 object-cover rounded border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRatingFiles(files => files.filter((_, i) => i !== index))}
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setRatingModalOpen(false)}>Hủy</Button>
@@ -869,24 +919,97 @@ export function OrderHistoryPage() {
                 {selectedOrderForDetail.paidAt && <p>Đã thanh toán: <span className="font-medium">{new Date(selectedOrderForDetail.paidAt).toLocaleString("vi-VN")}</span></p>}
                 {selectedOrderForDetail.shippedAt && <p>Bắt đầu giao: <span className="font-medium">{new Date(selectedOrderForDetail.shippedAt).toLocaleString("vi-VN")}</span></p>}
                 {selectedOrderForDetail.deliveredAt && <p>Đã giao hàng: <span className="font-medium">{new Date(selectedOrderForDetail.deliveredAt).toLocaleString("vi-VN")}</span></p>}
-                {selectedOrderForDetail.completedAt && <p>Hoàn thành: <span className="font-medium text-green-600">{new Date(selectedOrderForDetail.completedAt).toLocaleString("vi-VN")}</span></p>}
-                {selectedOrderForDetail.cancelledAt && (
-                  <p className="text-red-500 mt-2 font-medium">
-                    Đã hủy lúc: {new Date(selectedOrderForDetail.cancelledAt).toLocaleString("vi-VN")} <br />
-                    Lý do: {selectedOrderForDetail.cancelReason}
-                  </p>
-                )}
-                {selectedOrderForDetail.disputeReason && (
-                  <p className="text-pink-500 mt-2 font-medium">
-                    Khiếu nại lúc: {new Date(selectedOrderForDetail.disputedAt || selectedOrderForDetail.updatedAt).toLocaleString("vi-VN")} <br />
-                    Lý do khiếu nại: {selectedOrderForDetail.disputeReason}
-                  </p>
+                {selectedOrderForDetail.completedAt && <div className="hidden">Completed parsed below</div>}
+
+                <div className="flex gap-2 flex-wrap mt-4 border-t dark:border-gray-600 pt-4">
+                  {selectedOrderForDetail.cancelledAt && (
+                    <div className="flex-1 min-w-[140px] bg-red-50 border border-red-100 dark:bg-red-950/20 dark:border-red-900/30 rounded-xl p-3 text-red-600 text-center flex flex-col justify-center items-center gap-1 shadow-sm">
+                      <span className="font-bold uppercase text-[10px] tracking-wider bg-red-100 dark:bg-red-900/50 px-2 py-0.5 rounded-full mb-1">Đã hủy</span>
+                      <span className="text-xs font-medium">{new Date(selectedOrderForDetail.cancelledAt).toLocaleString("vi-VN")}</span>
+                      <span className="text-[11px] opacity-80 line-clamp-2" title={selectedOrderForDetail.cancelReason}>{selectedOrderForDetail.cancelReason || "Người dùng hủy đơn"}</span>
+                    </div>
+                  )}
+                  {(selectedOrderForDetail.disputeReason || selectedOrderForDetail.complaint?.reason) && (
+                    <div className="flex-1 min-w-[140px] bg-pink-50 border border-pink-100 dark:bg-pink-950/20 dark:border-pink-900/30 rounded-xl p-3 text-pink-600 text-center flex flex-col justify-center items-center gap-1 shadow-sm">
+                      <span className="font-bold uppercase text-[10px] tracking-wider bg-pink-100 dark:bg-pink-900/50 px-2 py-0.5 rounded-full mb-1">Khiếu nại</span>
+                      <span className="text-xs font-medium">{new Date(selectedOrderForDetail.disputedAt || selectedOrderForDetail.complaint?.createdAt || selectedOrderForDetail.updatedAt).toLocaleString("vi-VN")}</span>
+                      <span className="text-[11px] opacity-80 line-clamp-2" title={selectedOrderForDetail.disputeReason || selectedOrderForDetail.complaint?.reason}>{selectedOrderForDetail.disputeReason || selectedOrderForDetail.complaint?.reason}</span>
+                    </div>
+                  )}
+                  {selectedOrderForDetail.completedAt && (
+                    <div className="flex-1 min-w-[140px] bg-green-50 border border-green-100 dark:bg-green-950/20 dark:border-green-900/30 rounded-xl p-3 text-green-600 text-center flex flex-col justify-center items-center gap-1 shadow-sm">
+                      <span className="font-bold uppercase text-[10px] tracking-wider bg-green-100 dark:bg-green-900/50 px-2 py-0.5 rounded-full mb-1">Hoàn thành</span>
+                      <span className="text-xs font-medium">{new Date(selectedOrderForDetail.completedAt).toLocaleString("vi-VN")}</span>
+                      <span className="text-[11px] opacity-80 line-clamp-2">Giao dịch thành công</span>
+                    </div>
+                  )}
+                </div>
+
+                {(selectedOrderForDetail.disputeReason || selectedOrderForDetail.complaint?.reason) && selectedOrderForDetail.complaint?.evidences && selectedOrderForDetail.complaint.evidences.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium mb-2 text-gray-500">Bằng chứng khiếu nại:</p>
+                    <div className="flex gap-2 overflow-x-auto">
+                      {selectedOrderForDetail.complaint.evidences.map((img, i) => (
+                        <img key={i} src={img.url} alt="evidence" className="w-16 h-16 object-cover rounded-lg border shadow-sm dark:border-gray-600" />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
 
             <div className="mt-6 flex justify-end">
               <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {disputeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4 text-red-600">Khiếu nại đơn hàng</h2>
+            <p className="text-sm text-gray-500 mb-4">Vui lòng nhập lý do và cung cấp hình ảnh bằng chứng (nếu có) để Manager xử lý.</p>
+            <textarea
+              className="w-full border rounded p-2 mb-4 dark:bg-gray-700 dark:border-gray-600"
+              placeholder="Nhập lý do khiếu nại (VD: Hàng lỗi, sai sản phẩm...)"
+              rows={3}
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+            />
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Thêm hình ảnh bằng chứng</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => setDisputeFiles(Array.from(e.target.files))}
+                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+              />
+              {disputeFiles.length > 0 && (
+                <div className="mt-2 flex gap-2 overflow-x-auto p-1">
+                  {disputeFiles.map((file, index) => (
+                    <div key={index} className="relative flex-shrink-0">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`preview-${index}`}
+                        className="w-16 h-16 object-cover rounded border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDisputeFiles(files => files.filter((_, i) => i !== index))}
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDisputeModalOpen(false)}>Hủy</Button>
+              <Button variant="destructive" onClick={submitDispute}>Gửi khiếu nại</Button>
             </div>
           </div>
         </div>

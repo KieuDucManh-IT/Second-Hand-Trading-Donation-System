@@ -1,8 +1,8 @@
 
 const mongoose = require('mongoose');
- 
+
 const PLATFORM_FEE_RATE = Number(process.env.PLATFORM_FEE_RATE || 0.1);
- 
+
 const orderSchema = new mongoose.Schema(
   {
     buyerId: {
@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
- 
+
     totalPrice: {
       type: Number,
       required: true,
@@ -38,7 +38,7 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
- 
+
     paymentMethod: {
       type: String,
       enum: ["wallet", "cod"],
@@ -49,7 +49,7 @@ const orderSchema = new mongoose.Schema(
       enum: ["unpaid", "paid", "released", "refunded"],
       default: "unpaid",
     },
- 
+
     escrowStatus: {
       type: String,
       enum: ["none", "holding", "released", "refunded", "disputed"],
@@ -60,7 +60,7 @@ const orderSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
- 
+
     orderStatus: {
       type: String,
       enum: [
@@ -74,25 +74,51 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "pending_seller_confirm",
     },
- 
+
     shippingInfo: {
       name: String,
       email: String,
       phone: String,
       address: String,
     },
- 
+
     paidAt: Date,
     sellerConfirmedAt: Date,
     shippedAt: Date,
     deliveredAt: Date,
-    confirmDeadline: Date, 
+    confirmDeadline: Date,
     releasedAt: Date,
     refundedAt: Date,
     cancelledAt: Date,
- 
+
     cancelReason: String,
     releaseReason: String,
+
+    disputedAt: Date,
+    disputeReason: String,
+    disputeBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    autoReleaseAt: Date,
+    complaint: {
+      reason: String,
+      evidences: [
+        {
+          url: String,
+          publicId: String,
+          type: { type: String },
+          resourceType: String,
+          originalName: String,
+          mimeType: String,
+          size: Number,
+        }
+      ],
+      status: { type: String, default: "pending" },
+      createdAt: Date,
+      resolvedAt: Date,
+      resolutionNote: String,
+    },
 
     shippingProofImages: [
       {
@@ -102,10 +128,10 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-   
+
     paymentDeadline: Date,
 
-    
+
     sellerRating: {
       rating: { type: Number, min: 1, max: 5 },
       comment: { type: String },
@@ -117,15 +143,15 @@ const orderSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
- 
+
 
 orderSchema.pre("validate", function () {
   if (this.isNew && this.totalPrice != null) {
     const rate = this.platformFeeRate ?? PLATFORM_FEE_RATE;
-    this.platformFee    = Math.round(this.totalPrice * rate);
+    this.platformFee = Math.round(this.totalPrice * rate);
     this.sellerReceives = this.totalPrice - this.platformFee;
 
-    
+
     if (!this.paymentDeadline && this.paymentMethod === "wallet") {
       const deadline = new Date();
       deadline.setHours(deadline.getHours() + 24);
@@ -133,11 +159,11 @@ orderSchema.pre("validate", function () {
     }
   }
 });
- 
+
 orderSchema.index({ buyerId: 1, createdAt: -1 });
 orderSchema.index({ sellerId: 1, createdAt: -1 });
 orderSchema.index({ productId: 1 });
 orderSchema.index({ orderStatus: 1 });
-orderSchema.index({ confirmDeadline: 1, orderStatus: 1 }); 
- 
+orderSchema.index({ confirmDeadline: 1, orderStatus: 1 });
+
 module.exports = mongoose.model("Order", orderSchema);
