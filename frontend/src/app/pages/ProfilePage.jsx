@@ -101,7 +101,7 @@ export function ProfilePage() {
         setReviewsLoading(true);
         setReviewsError(null);
         const res = await fetch(
-          `${API_BASE}/api/orders/seller/${userId}/reviews?page=${reviewsPage}&limit=${REVIEWS_PER_PAGE}`,
+          `${API_BASE}/api/auth/profile/${userId}/reviews?page=${reviewsPage}&limit=${REVIEWS_PER_PAGE}`,
         );
         if (!res.ok) {
           throw new Error("Could not load reviews");
@@ -171,6 +171,8 @@ export function ProfilePage() {
       ? profileUser.locations[0].address
       : "Chưa cập nhật địa chỉ";
   const isOwnProfile = currentUser?.id === profileUser.id;
+  const effectiveRating =
+    averageRating > 0 ? averageRating : profileUser?.rating ?? 5;
   const isActiveListing = (product) =>
     product.status === "available" || product.status === "reserved";
   const isTradedListing = (product) => product.status === "sold";
@@ -214,7 +216,7 @@ export function ProfilePage() {
                       <Star
                         key={i}
                         className={`w-5 h-5 ${
-                          i < Math.round(averageRating)
+                          i < Math.round(effectiveRating)
                             ? "fill-yellow-400 text-yellow-400"
                             : "text-gray-300"
                         }`}
@@ -222,10 +224,10 @@ export function ProfilePage() {
                     ))}
                   </div>
                   <span className="font-semibold">
-                    {averageRating.toFixed(1)}
+                    {Number(effectiveRating).toFixed(1)}
                   </span>
                   <span className="text-gray-600 dark:text-gray-400">
-                    ({totalReviews} {totalReviews === 1 ? "review" : "reviews"})
+                    ({totalReviews} {totalReviews === 1 ? "đánh giá" : "đánh giá"})
                   </span>
                 </div>
 
