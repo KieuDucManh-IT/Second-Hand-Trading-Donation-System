@@ -3,8 +3,6 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const http = require("http");
 const path = require("path");
-const dns = require("node:dns");
-dns.setDefaultResultOrder("ipv4first");
 
 dotenv.config();
 
@@ -32,6 +30,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => res.send("Backend API is running"));
+app.get("/api/health", (req, res) => res.status(200).json({ success: true, service: "backend", timestamp: new Date().toISOString() }));
 
 app.use("/api/auth", authRoute);
 app.use("/api/manager", managerRoute);
