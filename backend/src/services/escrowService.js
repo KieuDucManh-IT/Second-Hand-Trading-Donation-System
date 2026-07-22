@@ -614,7 +614,7 @@ async function autoCancelExpiredPendingOrders() {
   return { cancelled, total: expired.length };
 }
 
-async function rateSeller(orderId, buyerId, rating, comment) {
+async function rateSeller(orderId, buyerId, rating, comment, uploadedImages = []) {
   const order = await Order.findById(orderId);
   if (!order) throw new Error("Không tìm thấy đơn hàng");
   if (!sameId(order.buyerId, buyerId)) throw new Error("Bạn không phải người mua đơn này");
@@ -622,7 +622,7 @@ async function rateSeller(orderId, buyerId, rating, comment) {
   if (currentStatus !== "completed") throw new Error("Chỉ có thể đánh giá sau khi đơn hàng hoàn thành");
   if (order.sellerRating && order.sellerRating.rating) throw new Error("Bạn đã đánh giá đơn hàng này rồi");
   if (!rating || rating < 1 || rating > 5) throw new Error("Điểm đánh giá phải từ 1 đến 5");
-  order.sellerRating = { rating, comment: comment || "", ratedAt: new Date() };
+  order.sellerRating = { rating, comment: comment || "", images: uploadedImages, ratedAt: new Date() };
   await order.save();
   const User = require("../models/modelUser");
   const ratedOrders = await Order.find({ sellerId: order.sellerId, "sellerRating.rating": { $exists: true, $gt: 0 } });

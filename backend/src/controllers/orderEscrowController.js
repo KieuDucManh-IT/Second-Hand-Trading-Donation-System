@@ -145,7 +145,17 @@ exports.rateSeller = async (req, res) => {
     const userId = getUserId(req);
     const { orderId } = req.params;
     const { rating, comment } = req.body;
-    const order = await escrowService.rateSeller(orderId, userId, rating, comment);
+
+    let uploadedImages = [];
+    if (req.files && req.files.length > 0) {
+      const uploadToCloudinary = require("../utils/uploadToCloudinary");
+      for (const file of req.files) {
+        const result = await uploadToCloudinary(file.buffer, { folder: "rating-images" });
+        uploadedImages.push(result.secure_url);
+      }
+    }
+
+    const order = await escrowService.rateSeller(orderId, userId, rating, comment, uploadedImages);
     res.json({ success: true, message: "Đã đánh giá người bán thành công", order });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message || "Không thể đánh giá" });

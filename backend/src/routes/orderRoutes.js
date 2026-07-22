@@ -34,6 +34,6 @@ router.post("/:orderId/dispute", protect, uploadComplaintEvidence.array("evidenc
 
 router.post("/auto-release", protect, orderEscrowController.manualRunAutoRelease);
 router.post("/auto-cancel-pending", protect, orderEscrowController.manualRunAutoCancelPending);
-router.post("/:orderId/rate-seller", protect, orderEscrowController.rateSeller);
+router.post("/:orderId/rate-seller", protect, uploadShippingProof.array("evidenceFiles", 5), orderEscrowController.rateSeller);
 
 module.exports = router;
