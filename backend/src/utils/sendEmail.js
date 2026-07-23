@@ -2,7 +2,7 @@ const BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email";
 
 const sendEmail = async ({ to, subject, html }) => {
   const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  const senderEmail = process.env.EMAIL_USER;
   const senderName =
     process.env.BREVO_SENDER_NAME || "SecondLife";
 
@@ -11,7 +11,7 @@ const sendEmail = async ({ to, subject, html }) => {
   }
 
   if (!senderEmail) {
-    throw new Error("Thiếu biến môi trường BREVO_SENDER_EMAIL");
+    throw new Error("Thiếu biến môi trường EMAIL_USER");
   }
 
   const recipients = (Array.isArray(to) ? to : [to]).map(
