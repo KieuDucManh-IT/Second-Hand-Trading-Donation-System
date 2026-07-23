@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { API_BASE } from "../config/api";
 import {
   Card,
   CardContent,
@@ -61,7 +62,7 @@ export function RegisterPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/register/send-otp",
+        `${API_BASE}/auth/register/send-otp`,
         {
           method: "POST",
           headers: {
@@ -70,7 +71,7 @@ export function RegisterPage() {
           body: JSON.stringify({
             email: formData.email,
           }),
-        },
+        }
       );
 
       const data = await response.json();
@@ -104,7 +105,7 @@ export function RegisterPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/register/verify-otp",
+        `${API_BASE}/auth/register/verify-otp`,
         {
           method: "POST",
           headers: {
@@ -116,7 +117,7 @@ export function RegisterPage() {
             password: formData.password,
             otp,
           }),
-        },
+        }
       );
 
       const data = await response.json();
