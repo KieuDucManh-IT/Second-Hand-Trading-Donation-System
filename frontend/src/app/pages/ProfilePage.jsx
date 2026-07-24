@@ -215,11 +215,10 @@ export function ProfilePage() {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-5 h-5 ${
-                          i < Math.round(effectiveRating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-gray-300"
-                        }`}
+                        className={`w-5 h-5 ${i < Math.round(effectiveRating)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-gray-300"
+                          }`}
                       />
                     ))}
                   </div>
@@ -227,7 +226,7 @@ export function ProfilePage() {
                     {Number(effectiveRating).toFixed(1)}
                   </span>
                   <span className="text-gray-600 dark:text-gray-400">
-                    ({totalReviews} {totalReviews === 1 ? "đánh giá" : "đánh giá"})
+                    ({totalReviews} đánh giá)
                   </span>
                 </div>
 
@@ -552,11 +551,10 @@ export function ProfilePage() {
                               {[...Array(5)].map((_, i) => (
                                 <Star
                                   key={i}
-                                  className={`w-4 h-4 ${
-                                    i < review.rating
-                                      ? "fill-yellow-400 text-yellow-400"
-                                      : "text-gray-300"
-                                  }`}
+                                  className={`w-4 h-4 ${i < review.rating
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
+                                    }`}
                                 />
                               ))}
                             </div>

@@ -342,6 +342,7 @@ const deleteCategory = async (req, res) => {
   }
 };
 
+//manager dashboard - tab products
 const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find()
