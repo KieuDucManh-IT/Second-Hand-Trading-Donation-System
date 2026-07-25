@@ -39,13 +39,13 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }) {
       </div>
       <nav className="mt-6 space-y-2">
         {[
-          "products",
+          "revenue",
           "reports",
+          "disputes",
           "users",
+          "products",
           "categories",
           "config",
-          "disputes",
-          "revenue",
         ].map((tab) => (
           <button
             key={tab}
@@ -65,24 +65,24 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }) {
                     : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 }`}
               >
-                {tab === "products" && <Package className="h-4 w-4" />}
+                {tab === "revenue" && <Coins className="h-4 w-4" />}
                 {tab === "reports" && <Flag className="h-4 w-4" />}
+                {tab === "disputes" && <CircleAlert className="h-4 w-4" />}
                 {tab === "users" && <Users className="h-4 w-4" />}
+                {tab === "products" && <Package className="h-4 w-4" />}
                 {tab === "categories" && <FolderPlus className="h-4 w-4" />}
                 {tab === "config" && <Settings className="h-4 w-4" />}
-                {tab === "disputes" && <CircleAlert className="h-4 w-4" />}
-                {tab === "revenue" && <Coins className="h-4 w-4" />}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium">
-                    {tab === "products" && "Sản phẩm"}
+                    {tab === "revenue" && "Doanh thu"}
                     {tab === "reports" && "Báo cáo"}
+                    {tab === "disputes" && "Tranh chấp"}
                     {tab === "users" && "Người dùng"}
+                    {tab === "products" && "Sản phẩm"}
                     {tab === "categories" && "Danh mục"}
                     {tab === "config" && "Cấu hình"}
-                    {tab === "disputes" && "Tranh chấp"}
-                    {tab === "revenue" && "Doanh thu"}
                   </span>
                   {activeTab === tab ? (
                     <ArrowRight className="h-4 w-4 shrink-0" />
@@ -91,13 +91,13 @@ export function Sidebar({ user, activeTab, setActiveTab, logout }) {
                 <p
                   className={`mt-1 text-sm ${activeTab === tab ? "text-white/80" : "text-muted-foreground"}`}
                 >
-                  {tab === "products" && "Hàng đợi kiểm duyệt"}
-                  {tab === "reports" && "Giải quyết khiếu nại"}
-                  {tab === "users" && "Quản lý tài khoản"}
-                  {tab === "categories" && "Quản lý danh mục"}
-                  {tab === "config" && "Cấu hình hệ thống"}
-                  {tab === "disputes" && "Xử lý tranh chấp ví"}
                   {tab === "revenue" && "Báo cáo tài chính & dòng tiền"}
+                  {tab === "reports" && "Giải quyết khiếu nại vi phạm"}
+                  {tab === "disputes" && "Xử lý tranh chấp ví & tiền cọc"}
+                  {tab === "users" && "Quản lý tài khoản"}
+                  {tab === "products" && "Xem chi tiết & tra cứu sản phẩm"}
+                  {tab === "categories" && "Quản lý danh mục hàng hóa"}
+                  {tab === "config" && "Cấu hình hệ thống"}
                 </p>
               </div>
             </div>

@@ -91,7 +91,7 @@ export function useManagerDashboard() {
       keys.forEach((key) => sessionStorage.removeItem(key));
     }
 
-    return "products";
+    return "revenue";
   });
 
   useEffect(() => {
