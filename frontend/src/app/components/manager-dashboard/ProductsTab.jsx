@@ -235,8 +235,8 @@ export function ProductsTab({ productViewList }) {
                         size="icon"
                         variant="outline"
                         onClick={() =>
-                          navigate(`/products/${product.id}`, {
-                            state: { from: "manager" },
+                          navigate(`/manager/products/${product.id}`, {
+                            state: { from: "manager", tab: "products" },
                           })
                         }
                         title="Xem chi tiết sản phẩm"

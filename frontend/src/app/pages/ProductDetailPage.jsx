@@ -101,7 +101,6 @@ function normalizeImageUrl(value) {
 
   if (!cleanUrl) return "";
 
-  // Cloudinary hoặc URL đầy đủ
   if (
     cleanUrl.startsWith("http://") ||
     cleanUrl.startsWith("https://") ||
@@ -111,17 +110,14 @@ function normalizeImageUrl(value) {
     return cleanUrl;
   }
 
-  // URL dạng //res.cloudinary.com/...
   if (cleanUrl.startsWith("//")) {
     return `https:${cleanUrl}`;
   }
 
-  // Backend trả /uploads/...
   if (cleanUrl.startsWith("/uploads/")) {
     return `${API_ORIGIN}${cleanUrl}`;
   }
 
-  // Backend trả uploads/...
   if (cleanUrl.startsWith("uploads/")) {
     return `${API_ORIGIN}/${cleanUrl}`;
   }
@@ -360,8 +356,6 @@ export function ProductDetailPage() {
           item.isAvailable !== false,
       );
 
-      // Endpoint danh sách thường chỉ trả thông tin cơ bản.
-      // Lấy chi tiết từng sản phẩm để có ảnh từ collection productimages.
       const productsWithImages = await Promise.all(
         filteredList.map(async (item) => {
           const productId = getProductId(item);

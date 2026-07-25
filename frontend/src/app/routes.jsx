@@ -21,6 +21,7 @@ import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { DonationPage } from "./pages/DonationPage";
 
 import { ManagerDashboard } from "./pages/ManagerDashboard";
+import { ManagerProductDetailPage } from "./pages/ManagerProductDetailPage";
 
 import { ExchangeRequestsPage } from "./pages/ExchangeRequestsPage";
 import { ExchangeDetailPage } from "./pages/ExchangeDetailPage";
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
       { path: "exchange-history", element: <ExchangeHistoryPage /> },
 
       { path: "manager", element: <ManagerDashboard /> },
+      { path: "manager/products/:id", element: <ManagerProductDetailPage /> },
       { path: "account-settings", element: <AccountSettingsPage /> },
       { path: "wallet", element: <WalletPage /> },
       { path: "checkout", element: <CreateOrderPage /> },
