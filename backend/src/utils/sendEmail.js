@@ -4,7 +4,7 @@ const sendEmail = async ({ to, subject, html }) => {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.EMAIL_USER;
   const senderName =
-    process.env.BREVO_SENDER_NAME || "SecondLife";
+    process.env.BREVO_SENDER_NAME || "Second-Hand Trading and Donation System";
 
   if (!apiKey) {
     throw new Error("Thiếu biến môi trường BREVO_API_KEY");
@@ -44,11 +44,11 @@ const sendEmail = async ({ to, subject, html }) => {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      console.error("BREVO ERROR:", data);
+      console.error("Lỗi khi gửi email:", data);
 
       throw new Error(
         data.message ||
-          `Brevo trả về lỗi HTTP ${response.status}`
+          `Lỗi HTTP ${response.status}`
       );
     }
 
@@ -58,11 +58,11 @@ const sendEmail = async ({ to, subject, html }) => {
   } catch (error) {
     if (error.name === "AbortError") {
       throw new Error(
-        "Dịch vụ gửi email không phản hồi trong 15 giây"
+        "Dịch vụ gửi email không phản hồi"
       );
     }
 
-    console.error("Send email failed:", error);
+    console.error("Lỗi khi gửi email:", error);
     throw error;
   } finally {
     clearTimeout(timeoutId);
