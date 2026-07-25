@@ -148,7 +148,7 @@ export function ReportsTab({ data, updateReportStatus, updateProductStatus }) {
                                 variant="outline"
                                 className="h-9 w-9 rounded-xl border-slate-200 hover:bg-slate-50 dark:border-slate-800"
                                 onClick={() =>
-                                  navigate(`/products/${group.targetId}`, {
+                                  navigate(`/manager/products/${group.targetId}`, {
                                     state: { from: "manager", tab: "reports" },
                                   })
                                 }

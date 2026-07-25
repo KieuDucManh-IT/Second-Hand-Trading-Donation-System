@@ -458,7 +458,7 @@ export function DisputesTab({ disputesData, resolveDispute }) {
                         <button
                           onClick={() =>
                             navigate(
-                              `/products/${dispute.productId?._id || dispute.productId}`,
+                              `/manager/products/${dispute.productId?._id || dispute.productId}`,
                               {
                                 state: { from: "manager", tab: "disputes" },
                               },
@@ -479,7 +479,7 @@ export function DisputesTab({ disputesData, resolveDispute }) {
                           <button
                             onClick={() =>
                               navigate(
-                                `/products/${dispute.requesterProduct?._id || dispute.requesterProduct}`,
+                                `/manager/products/${dispute.requesterProduct?._id || dispute.requesterProduct}`,
                                 {
                                   state: { from: "manager", tab: "disputes" },
                                 },
@@ -503,7 +503,7 @@ export function DisputesTab({ disputesData, resolveDispute }) {
                           <button
                             onClick={() =>
                               navigate(
-                                `/products/${dispute.receiverProduct?._id || dispute.receiverProduct}`,
+                                `/manager/products/${dispute.receiverProduct?._id || dispute.receiverProduct}`,
                                 {
                                   state: { from: "manager", tab: "disputes" },
                                 },
