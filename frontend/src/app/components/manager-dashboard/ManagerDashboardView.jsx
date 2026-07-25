@@ -11,11 +11,13 @@ import { CategoriesTab } from "./CategoriesTab";
 import { Modals } from "./Modals";
 import { ConfigTab } from "./ConfigTab";
 import { DisputesTab } from "./DisputesTab";
+import { RevenueTab } from "./RevenueTab";
 
 export function ManagerDashboardView(props) {
   const {
     user,
     logout,
+    loading,
     error,
     activeTab,
     setActiveTab,
@@ -40,6 +42,8 @@ export function ManagerDashboardView(props) {
     disputesData,
     resolveDispute,
     repairExchangeProducts,
+    revenueData,
+    fetchRevenueData,
   } = props;
 
   if (!user) return null;
@@ -83,7 +87,7 @@ export function ManagerDashboardView(props) {
                   onValueChange={(value) => setActiveTab(value)}
                 >
                   <div className="overflow-x-auto">
-                    <TabsList className="grid h-auto w-full min-w-[900px] grid-cols-6 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                    <TabsList className="grid h-auto w-full min-w-[900px] grid-cols-7 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
                       {[
                         "products",
                         "reports",
@@ -91,6 +95,7 @@ export function ManagerDashboardView(props) {
                         "categories",
                         "config",
                         "disputes",
+                        "revenue",
                       ].map((tab) => (
                         <TabsTrigger
                           key={tab}
@@ -103,6 +108,7 @@ export function ManagerDashboardView(props) {
                           {tab === "categories" && "Danh mục"}
                           {tab === "config" && "Cấu hình"}
                           {tab === "disputes" && "Tranh chấp"}
+                          {tab === "revenue" && "Doanh thu"}
                         </TabsTrigger>
                       ))}
                     </TabsList>
@@ -145,6 +151,14 @@ export function ManagerDashboardView(props) {
                     <DisputesTab
                       disputesData={disputesData}
                       resolveDispute={resolveDispute}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="revenue" className="mt-6 space-y-6">
+                    <RevenueTab
+                      revenueData={revenueData}
+                      loading={loading}
+                      onRefresh={fetchRevenueData}
                     />
                   </TabsContent>
                 </Tabs>

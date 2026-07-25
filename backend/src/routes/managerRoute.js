@@ -23,6 +23,7 @@ const {
   getDisputes,
   resolveDispute,
   repairExchangeProducts,
+  getRevenueStats,
 } = require("../controllers/managerController");
 
 const { protect, authorize } = require("../middlewares/authMiddleware");
@@ -31,6 +32,7 @@ router.use(protect, authorize("manager"));
 
 router.get("/dashboard", getDashboard);
 router.get("/statistics", getStatistics);
+router.get("/revenue", getRevenueStats);
 
 router.put("/users/:id", updateUser);
 router.patch("/users/:id/status", updateUserStatus);
