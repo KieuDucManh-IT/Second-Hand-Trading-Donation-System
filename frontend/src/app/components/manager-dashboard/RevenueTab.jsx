@@ -330,14 +330,14 @@ export function RevenueTab({ revenueData, loading, onRefresh }) {
 
           <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 font-bold border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3 px-4">Mã Giao Dịch</th>
-                  <th className="py-3 px-4">Người thực hiện</th>
-                  <th className="py-3 px-4">Loại giao dịch</th>
-                  <th className="py-3 px-4 text-right">Số tiền</th>
-                  <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4 text-right">Thời gian</th>
+                  <th className="py-3 px-4 font-bold">Mã Giao Dịch</th>
+                  <th className="py-3 px-4 font-bold">Người thực hiện</th>
+                  <th className="py-3 px-4 font-bold">Loại giao dịch</th>
+                  <th className="py-3 px-4 text-right font-bold">Số tiền</th>
+                  <th className="py-3 px-4 font-bold">Trạng thái</th>
+                  <th className="py-3 px-4 text-right font-bold">Thời gian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
