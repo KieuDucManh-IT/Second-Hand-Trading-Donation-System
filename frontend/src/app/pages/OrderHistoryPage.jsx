@@ -776,7 +776,7 @@ export function OrderHistoryPage() {
  
                           {donation.status === "pending" && (
                             <p className="text-yellow-600 mt-2">
-                              ⏳ Đang chờ người tặng xác nhận...
+                               Đang chờ người tặng xác nhận...
                             </p>
                           )}
  
