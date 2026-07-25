@@ -343,7 +343,7 @@ export function DisputesTab({ disputesData, resolveDispute }) {
   };
 
   const formatCurrency = (val) => {
-    return `${vndFormatter.format(val || 0)} VNĐ`;
+    return `${vndFormatter.format(val || 0)} VND`;
   };
 
   const getResolutionButtonClass = () => {

@@ -434,7 +434,7 @@ export function CreateProductPage() {
                 {formData.type === "sell" && (
                   <div>
                     <Label>
-                      Giá (VNĐ) <span className="text-red-500">*</span>
+                      Giá (VND) <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       type="number"

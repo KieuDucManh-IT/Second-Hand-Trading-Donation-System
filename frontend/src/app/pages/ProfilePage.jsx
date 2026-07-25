@@ -335,7 +335,7 @@ export function ProfilePage() {
                           </span>
                         ) : (
                           <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                            {product.price.toLocaleString("vi-VN")} VND
+                            {`${new Intl.NumberFormat("vi-VN").format(product.price || 0)} VND`}
                           </span>
                         )}
                       </CardContent>
@@ -395,7 +395,7 @@ export function ProfilePage() {
                           </span>
                         ) : (
                           <span className="text-xl font-bold text-slate-500 dark:text-slate-400 line-through">
-                            {product.price.toLocaleString("vi-VN")} VND
+                            {`${new Intl.NumberFormat("vi-VN").format(product.price || 0)} VND`}
                           </span>
                         )}
                       </CardContent>
@@ -473,7 +473,7 @@ export function ProfilePage() {
                             </div>
                           ) : (
                             <div className="text-xl font-bold text-slate-500 dark:text-slate-400">
-                              {product.price.toLocaleString("vi-VN")} VND
+                              {`${new Intl.NumberFormat("vi-VN").format(product.price || 0)} VND`}
                             </div>
                           )}
                           {product.rejectReason && (

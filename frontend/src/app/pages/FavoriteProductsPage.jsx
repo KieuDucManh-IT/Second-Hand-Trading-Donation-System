@@ -198,7 +198,7 @@ export function FavoriteProductsPage() {
                       </span>
                     ) : (
                       <span className="text-lg font-bold text-gray-900 dark:text-white">
-                        {product.price.toLocaleString("vi-VN")} VND
+                        {`${new Intl.NumberFormat("vi-VN").format(product.price || 0)} VND`}
                       </span>
                     )}
                   </div>

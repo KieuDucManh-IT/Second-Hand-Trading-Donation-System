@@ -2,7 +2,7 @@ import { Card, CardContent } from "../ui/card";
 import { CircleAlert, Flag, Package, Users, Coins } from "lucide-react";
 
 const vndFormatter = new Intl.NumberFormat("vi-VN");
-const formatVND = (amt) => `${vndFormatter.format(amt || 0)} VNĐ`;
+const formatVND = (amt) => `${vndFormatter.format(amt || 0)} VND`;
 
 export function MetricCards({
   data,

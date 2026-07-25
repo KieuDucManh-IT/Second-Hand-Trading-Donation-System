@@ -218,7 +218,7 @@ export function ProductsTab({ productViewList }) {
                         Miễn phí
                       </Badge>
                     ) : (
-                      `${vndFormatter.format(product.price || 0)} VNĐ`
+                      `${vndFormatter.format(product.price || 0)} VND`
                     )}
                   </TableCell>
                   <TableCell className="align-top">
