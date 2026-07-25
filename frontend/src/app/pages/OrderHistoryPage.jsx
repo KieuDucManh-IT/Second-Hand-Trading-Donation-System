@@ -13,40 +13,42 @@ import { Package, Truck, RefreshCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
+ 
+const API_URL = import.meta.env.VITE_API_URL;
+ 
 export function OrderHistoryPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-
+ 
   const [buyingOrders, setBuyingOrders] = useState([]);
   const [sellingOrders, setSellingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [donations, setDonations] = useState([]);
-
+ 
   const receivedDonations = donations.filter(
     (donation) => donation.donorId?._id === user?.id,
   );
-
+ 
   const myDonations = donations.filter(
     (donation) => donation.requesterId?._id === user?.id,
   );
-
+ 
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setError(null);
       const token = sessionStorage.getItem("token");
-
+ 
       const [buyingRes, sellingRes] = await Promise.all([
-        fetch("http://localhost:5000/api/orders/my/buying", {
+        fetch(`${API_URL}/api/orders/my/buying`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://localhost:5000/api/orders/my/selling", {
+        fetch(`${API_URL}/api/orders/my/selling`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
-
+ 
       if (buyingRes.ok && sellingRes.ok) {
         const buyingData = await buyingRes.json();
         const sellingData = await sellingRes.json();
@@ -62,38 +64,38 @@ export function OrderHistoryPage() {
       setLoading(false);
     }
   };
-
+ 
   const fetchDonations = async () => {
     try {
       const token = sessionStorage.getItem("token");
-
-      const response = await fetch("http://localhost:5000/api/donations", {
+ 
+      const response = await fetch(`${API_URL}/api/donations`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
+ 
       const data = await response.json();
       setDonations(data);
     } catch (err) {
       console.error(err);
     }
   };
-
+ 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/login");
       return;
     }
-
+ 
     fetchOrders();
     fetchDonations();
   }, [isAuthenticated, navigate, user]);
-
+ 
   const handleAction = async (orderId, action, reason) => {
     try {
       const token = sessionStorage.getItem("token");
-      const url = `http://localhost:5000/api/orders/${orderId}/${action}`;
+      const url = `${API_URL}/api/orders/${orderId}/${action}`;
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -102,12 +104,12 @@ export function OrderHistoryPage() {
         },
         body: reason ? JSON.stringify({ reason }) : undefined,
       });
-
+ 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.message || `Action failed`);
       }
-
+ 
       toast.success(data.message || "Cập nhật đơn hàng thành công!");
       fetchOrders();
     } catch (err) {
@@ -115,38 +117,38 @@ export function OrderHistoryPage() {
       toast.error(err.message || "Không thể cập nhật đơn hàng");
     }
   };
-
+ 
   const handleAcceptDonation = async (id) => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/donations/accept/${id}`,
+        `${API_URL}/api/donations/accept/${id}`,
         {
           method: "PUT",
         },
       );
-
+ 
       if (!res.ok) {
         throw new Error("Accept failed");
       }
-
+ 
       toast.success("Đã đồng ý yêu cầu quyên góp");
-
+ 
       fetchDonations();
     } catch (err) {
       toast.error(err.message);
     }
   };
-
+ 
   const handleRejectDonation = async (id) => {
     const reason = prompt(
       "Lý do từ chối?\n\nVí dụ:\n- Địa chỉ quá xa\n- Sản phẩm không còn sẵn\n- Không đủ điều kiện",
     );
-
+ 
     if (!reason) return;
-
+ 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/donations/reject/${id}`,
+        `${API_URL}/api/donations/reject/${id}`,
         {
           method: "PUT",
           headers: {
@@ -157,11 +159,11 @@ export function OrderHistoryPage() {
           }),
         },
       );
-
+ 
       if (!res.ok) {
         throw new Error("Reject failed");
       }
-
+ 
       toast.success("Đã từ chối yêu cầu quyên góp");
       fetchDonations();
     } catch (err) {
@@ -170,7 +172,7 @@ export function OrderHistoryPage() {
   };
   const updateDeliveryStatus = async (id, deliveryStatus) => {
     try {
-      await fetch(`http://localhost:5000/api/donations/delivery/${id}`, {
+      await fetch(`${API_URL}/api/donations/delivery/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -179,9 +181,9 @@ export function OrderHistoryPage() {
           deliveryStatus,
         }),
       });
-
+ 
       fetchDonations();
-
+ 
       toast.success("Đã cập nhật trạng thái giao hàng");
     } catch (err) {
       toast.error("Cập nhật thất bại");
@@ -192,12 +194,12 @@ export function OrderHistoryPage() {
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState("");
   const [ratingFiles, setRatingFiles] = useState([]);
-
+ 
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [selectedOrderForDispute, setSelectedOrderForDispute] = useState(null);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeFiles, setDisputeFiles] = useState([]);
-
+ 
   const submitDispute = async () => {
     if (!disputeReason.trim()) {
       toast.error("Vui lòng nhập lý do khiếu nại");
@@ -208,8 +210,8 @@ export function OrderHistoryPage() {
       const formData = new FormData();
       formData.append("reason", disputeReason);
       disputeFiles.forEach(file => formData.append("evidenceFiles", file));
-
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderForDispute._id}/dispute`, {
+ 
+      const res = await fetch(`${API_URL}/api/orders/${selectedOrderForDispute._id}/dispute`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -225,10 +227,10 @@ export function OrderHistoryPage() {
       toast.error(err.message);
     }
   };
-
+ 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState(null);
-
+ 
   const submitRating = async () => {
     try {
       const token = sessionStorage.getItem("token");
@@ -236,8 +238,8 @@ export function OrderHistoryPage() {
       formData.append("rating", ratingValue);
       formData.append("comment", ratingComment);
       ratingFiles.forEach(file => formData.append("evidenceFiles", file));
-
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderForRating._id}/rate-seller`, {
+ 
+      const res = await fetch(`${API_URL}/api/orders/${selectedOrderForRating._id}/rate-seller`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -253,7 +255,7 @@ export function OrderHistoryPage() {
       toast.error(err.message);
     }
   };
-
+ 
   const getStatusBadge = (orderStatus, paymentStatus) => {
     let config = { label: orderStatus, className: "bg-gray-500 text-white" };
     if (orderStatus === "pending_seller_confirm") {
@@ -273,12 +275,12 @@ export function OrderHistoryPage() {
     }
     return <Badge className={config.className}>{config.label}</Badge>;
   };
-
+ 
   const renderOrderCard = (order, role) => {
     const product = order.productId || {};
     const partner = role === "buyer" ? order.sellerId : order.buyerId;
     const isBuyer = role === "buyer";
-
+ 
     return (
       <Card
         key={order._id}
@@ -296,7 +298,7 @@ export function OrderHistoryPage() {
                 alt={product.title || "Product"}
                 className="w-20 h-20 object-cover rounded-lg border dark:border-gray-700"
               />
-
+ 
               <div>
                 <h3 className="font-semibold text-lg line-clamp-1">
                   {product.title || "Sản phẩm không rõ"}
@@ -316,7 +318,7 @@ export function OrderHistoryPage() {
                 </p>
               </div>
             </div>
-
+ 
             <div className="flex flex-col items-end gap-2 w-full md:w-auto">
               <div className="flex items-center gap-2">
                 {getStatusBadge(order.orderStatus, order.paymentStatus)}
@@ -324,7 +326,7 @@ export function OrderHistoryPage() {
                   {Number(order.totalPrice || 0).toLocaleString("vi-VN")} VND
                 </span>
               </div>
-
+ 
               <div className="flex gap-2 mt-2 flex-wrap">
                 <Button
                   size="sm"
@@ -352,7 +354,7 @@ export function OrderHistoryPage() {
                     </Button>
                   </>
                 )}
-
+ 
                 {isBuyer && ["confirmed"].includes(order.orderStatus) && (
                   <Button
                     size="sm"
@@ -367,7 +369,7 @@ export function OrderHistoryPage() {
                     Yêu cầu hủy
                   </Button>
                 )}
-
+ 
                 {isBuyer &&
                   ["shipping", "delivered"].includes(order.orderStatus) && (
                     <>
@@ -392,7 +394,7 @@ export function OrderHistoryPage() {
                       </Button>
                     </>
                   )}
-
+ 
                 {isBuyer && order.orderStatus === "completed" && !order.sellerRating?.rating && (
                   <Button
                     size="sm"
@@ -413,7 +415,7 @@ export function OrderHistoryPage() {
                     Đã đánh giá ({order.sellerRating.rating} sao)
                   </span>
                 )}
-
+ 
                 {!isBuyer && order.orderStatus === "pending_seller_confirm" && (
                   <>
                     {order.paymentMethod === 'wallet' && order.paymentStatus === 'unpaid' ? (
@@ -443,7 +445,7 @@ export function OrderHistoryPage() {
                     </Button>
                   </>
                 )}
-
+ 
                 {!isBuyer && order.orderStatus === "confirmed" && (
                   <>
                     <Button
@@ -467,7 +469,7 @@ export function OrderHistoryPage() {
                     </Button>
                   </>
                 )}
-
+ 
                 {!isBuyer && order.orderStatus === "shipping" && (
                   <Button
                     size="sm"
@@ -477,13 +479,13 @@ export function OrderHistoryPage() {
                     Đánh dấu đã giao
                   </Button>
                 )}
-
+ 
                 {!isBuyer && order.orderStatus === "delivered" && (
                   <span className="text-xs text-gray-500 italic">
                     Chờ người mua xác nhận
                   </span>
                 )}
-
+ 
                 {order.orderStatus === "disputed" && (
                   <div className="block w-full max-w-[150px] text-center truncate text-[11px] text-pink-600 font-medium border border-pink-200 bg-pink-50 px-3 py-1.5 rounded-full" title={order.disputeReason || order.complaint?.reason || "Không có lý do chi tiết."}>
                     Khiếu nại: {order.disputeReason || order.complaint?.reason || "Không có lý do chi tiết."}
@@ -496,14 +498,14 @@ export function OrderHistoryPage() {
       </Card>
     );
   };
-
+ 
   const allOrders = [
     ...buyingOrders.map((o) => ({ ...o, role: "buyer" })),
     ...sellingOrders.map((o) => ({ ...o, role: "seller" })),
   ].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
-
+ 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -523,13 +525,13 @@ export function OrderHistoryPage() {
             <RefreshCw className="w-4 h-4 mr-2" /> Làm mới
           </Button>
         </div>
-
+ 
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg">
             {error}
           </div>
         )}
-
+ 
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <p className="text-gray-500 animate-pulse">Đang tải đơn hàng...</p>
@@ -540,20 +542,20 @@ export function OrderHistoryPage() {
               <TabsTrigger value="all">
                 Tất cả đơn ({allOrders.length})
               </TabsTrigger>
-
+ 
               <TabsTrigger value="buying">
                 Mua hàng ({buyingOrders.length})
               </TabsTrigger>
-
+ 
               <TabsTrigger value="selling">
                 Bán hàng ({sellingOrders.length})
               </TabsTrigger>
-
+ 
               <TabsTrigger value="donations">
                 Quyên góp ({donations.length})
               </TabsTrigger>
             </TabsList>
-
+ 
             <TabsContent value="all" className="space-y-4 mt-0">
               {allOrders.length === 0 ? (
                 <Card>
@@ -566,7 +568,7 @@ export function OrderHistoryPage() {
                 allOrders.map((order) => renderOrderCard(order, order.role))
               )}
             </TabsContent>
-
+ 
             <TabsContent value="buying" className="space-y-4 mt-0">
               {buyingOrders.length === 0 ? (
                 <Card>
@@ -579,7 +581,7 @@ export function OrderHistoryPage() {
                 buyingOrders.map((order) => renderOrderCard(order, "buyer"))
               )}
             </TabsContent>
-
+ 
             <TabsContent value="selling" className="space-y-4 mt-0">
               {sellingOrders.length === 0 ? (
                 <Card>
@@ -592,19 +594,19 @@ export function OrderHistoryPage() {
                 sellingOrders.map((order) => renderOrderCard(order, "seller"))
               )}
             </TabsContent>
-
+ 
             <TabsContent value="donations" className="mt-0">
               <Tabs defaultValue="received">
                 <TabsList className="mb-6">
                   <TabsTrigger value="received">
                     Yêu cầu đã nhận ({receivedDonations.length})
                   </TabsTrigger>
-
+ 
                   <TabsTrigger value="my">
                     Yêu cầu của tôi ({myDonations.length})
                   </TabsTrigger>
                 </TabsList>
-
+ 
                 <TabsContent value="received" className="space-y-4">
                   {receivedDonations.length === 0 ? (
                     <Card>
@@ -621,13 +623,13 @@ export function OrderHistoryPage() {
                               <h3 className="font-semibold text-lg">
                                 {donation.productId?.title}
                               </h3>
-
+ 
                               <p className="text-sm text-gray-500">
                                 Người yêu cầu:{" "}
                                 {donation.requesterId?.fullName ||
                                   donation.requesterId?.userName}
                               </p>
-
+ 
                               <p className="mt-2">
                                 Trạng thái:
                                 <span className="font-semibold ml-2">
@@ -640,7 +642,7 @@ export function OrderHistoryPage() {
                                         : donation.status}
                                 </span>
                               </p>
-
+ 
                               {donation.status === "accepted" && (
                                 <p className="text-green-600 mt-2">
                                   Trạng thái giao hàng:
@@ -653,7 +655,7 @@ export function OrderHistoryPage() {
                                   </span>
                                 </p>
                               )}
-
+ 
                               {donation.status === "rejected" && (
                                 <p className="text-red-500 mt-2">
                                   Lý do từ chối:
@@ -663,7 +665,7 @@ export function OrderHistoryPage() {
                                 </p>
                               )}
                             </div>
-
+ 
                             <div>
                               {donation.status === "pending" && (
                                 <div className="flex gap-2">
@@ -675,7 +677,7 @@ export function OrderHistoryPage() {
                                   >
                                     Đồng ý
                                   </Button>
-
+ 
                                   <Button
                                     variant="destructive"
                                     onClick={() =>
@@ -686,7 +688,7 @@ export function OrderHistoryPage() {
                                   </Button>
                                 </div>
                               )}
-
+ 
                               {donation.status === "accepted" && (
                                 <div className="flex gap-2">
                                   <Button
@@ -708,7 +710,7 @@ export function OrderHistoryPage() {
                                   >
                                     Vận chuyển
                                   </Button>
-
+ 
                                   <Button
                                     size="sm"
                                     disabled={
@@ -737,7 +739,7 @@ export function OrderHistoryPage() {
                     ))
                   )}
                 </TabsContent>
-
+ 
                 <TabsContent value="my" className="space-y-4">
                   {myDonations.length === 0 ? (
                     <Card>
@@ -752,13 +754,13 @@ export function OrderHistoryPage() {
                           <h3 className="font-semibold text-lg">
                             {donation.productId?.title}
                           </h3>
-
+ 
                           <p className="text-sm text-gray-500">
                             Người tặng:{" "}
                             {donation.donorId?.fullName ||
                               donation.donorId?.userName}
                           </p>
-
+ 
                           <p className="mt-2">
                             Trạng thái:
                             <span className="font-semibold ml-2">
@@ -771,13 +773,13 @@ export function OrderHistoryPage() {
                                     : donation.status}
                             </span>
                           </p>
-
+ 
                           {donation.status === "pending" && (
                             <p className="text-yellow-600 mt-2">
                               ⏳ Đang chờ người tặng xác nhận...
                             </p>
                           )}
-
+ 
                           {donation.status === "accepted" && (
                             <p className="text-green-600 mt-2">
                               {donation.deliveryStatus === "shipping"
@@ -787,7 +789,7 @@ export function OrderHistoryPage() {
                                   : "Chờ vận chuyển"}
                             </p>
                           )}
-
+ 
                           {donation.status === "rejected" && (
                             <p className="text-red-500 mt-2">
                               Lý do từ chối:
@@ -806,7 +808,7 @@ export function OrderHistoryPage() {
           </Tabs>
         )}
       </div>
-
+ 
       {ratingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
@@ -862,18 +864,18 @@ export function OrderHistoryPage() {
           </div>
         </div>
       )}
-
+ 
       {detailModalOpen && selectedOrderForDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-2xl my-auto">
             <h2 className="text-xl font-bold mb-4 border-b pb-2">Chi tiết đơn hàng #{selectedOrderForDetail._id}</h2>
-
+ 
             <div className="space-y-4">
               <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded border dark:border-gray-700">
                 <span className="font-semibold">Trạng thái:</span>
                 {getStatusBadge(selectedOrderForDetail.orderStatus, selectedOrderForDetail.paymentStatus)}
               </div>
-
+ 
               <div className="flex gap-4 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded border dark:border-gray-700">
                 <ImageWithFallback
                   src={selectedOrderForDetail.productId?.thumbnail || (selectedOrderForDetail.productId?.images && selectedOrderForDetail.productId.images[0]?.imageUrl) || ""}
@@ -885,7 +887,7 @@ export function OrderHistoryPage() {
                   <p className="text-sm text-gray-500 font-medium">{Number(selectedOrderForDetail.totalPrice || 0).toLocaleString("vi-VN")} VND</p>
                 </div>
               </div>
-
+ 
               <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 dark:bg-gray-700/50 p-4 rounded border dark:border-gray-700">
                 <div>
                   <p className="text-gray-500 mb-1">Phương thức thanh toán</p>
@@ -913,14 +915,14 @@ export function OrderHistoryPage() {
                   </div>
                 )}
               </div>
-
+ 
               <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-700/50 p-4 rounded border dark:border-gray-700 space-y-1">
                 {selectedOrderForDetail.createdAt && <p>Ngày đặt hàng: <span className="font-medium">{new Date(selectedOrderForDetail.createdAt).toLocaleString("vi-VN")}</span></p>}
                 {selectedOrderForDetail.paidAt && <p>Đã thanh toán: <span className="font-medium">{new Date(selectedOrderForDetail.paidAt).toLocaleString("vi-VN")}</span></p>}
                 {selectedOrderForDetail.shippedAt && <p>Bắt đầu giao: <span className="font-medium">{new Date(selectedOrderForDetail.shippedAt).toLocaleString("vi-VN")}</span></p>}
                 {selectedOrderForDetail.deliveredAt && <p>Đã giao hàng: <span className="font-medium">{new Date(selectedOrderForDetail.deliveredAt).toLocaleString("vi-VN")}</span></p>}
                 {selectedOrderForDetail.completedAt && <div className="hidden">Completed parsed below</div>}
-
+ 
                 <div className="flex gap-2 flex-wrap mt-4 border-t dark:border-gray-600 pt-4">
                   {selectedOrderForDetail.cancelledAt && (
                     <div className="flex-1 min-w-[140px] bg-red-50 border border-red-100 dark:bg-red-950/20 dark:border-red-900/30 rounded-xl p-3 text-red-600 text-center flex flex-col justify-center items-center gap-1 shadow-sm">
@@ -944,7 +946,7 @@ export function OrderHistoryPage() {
                     </div>
                   )}
                 </div>
-
+ 
                 {(selectedOrderForDetail.disputeReason || selectedOrderForDetail.complaint?.reason) && selectedOrderForDetail.complaint?.evidences && selectedOrderForDetail.complaint.evidences.length > 0 && (
                   <div className="mt-3">
                     <p className="text-xs font-medium mb-2 text-gray-500">Bằng chứng khiếu nại:</p>
@@ -957,14 +959,14 @@ export function OrderHistoryPage() {
                 )}
               </div>
             </div>
-
+ 
             <div className="mt-6 flex justify-end">
               <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
             </div>
           </div>
         </div>
       )}
-
+ 
       {disputeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
