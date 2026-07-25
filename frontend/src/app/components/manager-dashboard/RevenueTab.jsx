@@ -20,7 +20,7 @@ import { Pagination } from "./Pagination";
 const vndFormatter = new Intl.NumberFormat("vi-VN");
 
 const formatVND = (amount) => {
-  return `${vndFormatter.format(amount || 0)} VNĐ`;
+  return `${vndFormatter.format(amount || 0)} VND`;
 };
 
 const getTypeBadge = (type) => {

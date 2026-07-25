@@ -166,7 +166,7 @@ function getProductValue(product) {
 }
 
 function formatMoney(value) {
-  return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + " VND";
+  return `${new Intl.NumberFormat("vi-VN").format(Number(value || 0))} VND`;
 }
 
 function formatDate(value) {

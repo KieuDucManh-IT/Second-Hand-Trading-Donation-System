@@ -150,7 +150,7 @@ function NotificationCard({ noti, onRead, onDelete, onNavigate }) {
 
             {noti.data?.amount != null && (
               <p className="text-sm font-semibold text-emerald-600 mt-1">
-                +{noti.data.amount.toLocaleString("vi-VN")} VND
+                +{`${new Intl.NumberFormat("vi-VN").format(noti.data.amount || 0)} VND`}
               </p>
             )}
           </div>

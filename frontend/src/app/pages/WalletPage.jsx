@@ -48,7 +48,7 @@ function toNumber(value) {
 }
 
 function formatMoney(value) {
-  return new Intl.NumberFormat("vi-VN").format(toNumber(value)) + " VND";
+  return `${new Intl.NumberFormat("vi-VN").format(toNumber(value))} VND`;
 }
 
 function getToken() {
