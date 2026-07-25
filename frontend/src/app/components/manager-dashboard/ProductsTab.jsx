@@ -16,6 +16,8 @@ import { Eye, Search } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { Pagination } from "./Pagination";
 
+const vndFormatter = new Intl.NumberFormat("vi-VN");
+
 export function ProductsTab({ productViewList }) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -216,7 +218,7 @@ export function ProductsTab({ productViewList }) {
                         Miễn phí
                       </Badge>
                     ) : (
-                      `${product.price.toLocaleString("vi-VN")} VND`
+                      `${vndFormatter.format(product.price || 0)} VNĐ`
                     )}
                   </TableCell>
                   <TableCell className="align-top">
