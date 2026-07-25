@@ -160,7 +160,7 @@ async function sellerConfirmOrder(orderId, sellerId) {
   order.confirmedAt = new Date();
   await order.save();
 
-  
+
   sendNotification(getIO(), {
     userId: String(order.buyerId),
     type: "order_confirmed",
@@ -184,7 +184,7 @@ async function markOrderShipping(orderId, sellerId, shippingProofImages = []) {
   if (shippingProofImages && shippingProofImages.length > 0) order.shippingProofImages = shippingProofImages;
   await order.save();
 
-  
+
   sendNotification(getIO(), {
     userId: String(order.buyerId),
     type: "order_shipping",
@@ -206,13 +206,13 @@ async function markOrderDelivered(orderId, sellerId) {
     throw new Error('Đơn hàng phải ở trạng thái "confirmed" hoặc "shipping"');
   }
 
-  
+
   if (isCOD(order)) {
     setOrderStatus(order, "delivered");
     order.deliveredAt = new Date();
     await order.save();
 
-    
+
     sendNotification(getIO(), {
       userId: String(order.buyerId),
       type: "order_delivered",
@@ -224,7 +224,7 @@ async function markOrderDelivered(orderId, sellerId) {
     return order;
   }
 
-  
+
   const deadline = addDays(new Date(), BUYER_CONFIRM_DAYS);
   setOrderStatus(order, "delivered");
   order.deliveredAt = new Date();
@@ -232,7 +232,7 @@ async function markOrderDelivered(orderId, sellerId) {
   order.autoReleaseAt = deadline;
   await order.save();
 
-  
+
   sendNotification(getIO(), {
     userId: String(order.buyerId),
     type: "order_delivered",
@@ -261,23 +261,17 @@ async function buyerConfirmReceived(orderId, buyerId) {
       throw new Error("Đơn hàng này đã được xác nhận trước đó");
     }
 
-    
+
     if (isCOD(order)) {
       setOrderStatus(order, "completed");
       order.completedAt = new Date();
-      order.balanceCredited = false; 
+      order.balanceCredited = false;
       await order.save({ session });
 
       await Product.findByIdAndUpdate(order.productId, { status: "sold", isAvailable: false }, { session });
 
-      
-      sendNotification(getIO(), {
-        userId: String(order.buyerId),
-        type: "order_completed",
-        title: "Đơn hàng hoàn thành",
-        message: `Cảm ơn bạn đã mua hàng! Đơn hàng COD đã hoàn thành.`,
-        data: { orderId: order._id },
-      });
+
+
       sendNotification(getIO(), {
         userId: String(order.sellerId),
         type: "order_completed",
@@ -290,14 +284,14 @@ async function buyerConfirmReceived(orderId, buyerId) {
       return order;
     }
 
-    
+
     if (getEscrowStatus(order) !== "holding") {
       throw new Error("Tiền escrow không ở trạng thái đang giữ");
     }
 
     await releaseEscrowToSeller(order, "buyer_confirmed", session);
 
-    
+
     const sellerAmount = getSellerReceives(order);
     sendNotification(getIO(), {
       userId: String(order.sellerId),
@@ -307,7 +301,7 @@ async function buyerConfirmReceived(orderId, buyerId) {
       data: { orderId: order._id, amount: sellerAmount },
     });
 
-    
+
     sendNotification(getIO(), {
       userId: String(order.buyerId),
       type: "order_completed",
@@ -356,7 +350,7 @@ async function releaseEscrowToSeller(order, reason, session) {
 async function autoReleaseExpiredOrders() {
   const now = new Date();
   const expiredOrders = await Order.find({
-    paymentMethod: { $ne: "cod" }, 
+    paymentMethod: { $ne: "cod" },
     $or: [
       { orderStatus: "delivered", escrowStatus: "holding", paymentStatus: "paid", confirmDeadline: { $lte: now } },
       { status: "delivered", balanceCredited: false, autoReleaseAt: { $lte: now } },
@@ -371,7 +365,7 @@ async function autoReleaseExpiredOrders() {
       await buyerConfirmReceived(order._id, order.buyerId);
       success += 1;
 
-      
+
       const fullOrder = await Order.findById(order._id);
       if (fullOrder) {
         const sellerAmt = getSellerReceives(fullOrder);
@@ -413,7 +407,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
     const alreadyPaid = order.paymentStatus === "paid" || ["paid", "confirmed", "shipping", "delivered"].includes(currentStatus);
     const refundAmount = Number(order.escrowAmount || getOrderAmount(order) || 0);
 
-    
+
     if (!isCOD(order) && alreadyPaid && refundAmount > 0) {
       const buyerWallet = await ensureWallet(order.buyerId, session);
       buyerWallet.balance += refundAmount;
@@ -427,7 +421,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
         metadata: { direction: "credit", reason }, session,
       });
 
-      
+
       sendNotification(getIO(), {
         userId: String(order.buyerId),
         type: "wallet_refunded",
@@ -444,7 +438,7 @@ async function cancelOrderAndRefund(orderId, userId, reason = "") {
 
     await Product.findByIdAndUpdate(order.productId, { status: "available", isAvailable: true }, { session });
 
-    
+
     const notifyUserId = isBuyer ? String(order.sellerId) : String(order.buyerId);
     sendNotification(getIO(), {
       userId: notifyUserId,
@@ -491,7 +485,7 @@ async function openOrderDispute(orderId, userId, reason = "", evidences = []) {
 
   await order.save();
 
-  
+
   sendNotification(getIO(), {
     userId: String(order.sellerId),
     type: "order_disputed",
@@ -519,7 +513,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
     }
 
     if (resolution === "accept") {
-      
+
       const refundAmount = Number(order.escrowAmount || getOrderAmount(order) || 0);
       if (refundAmount > 0) {
         const buyerWallet = await ensureWallet(order.buyerId, session);
@@ -556,7 +550,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
 
       await order.save({ session });
 
-      
+
       await Product.findByIdAndUpdate(
         order.productId,
         { status: "available", isAvailable: true },
@@ -564,7 +558,7 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
       );
 
     } else if (resolution === "reject") {
-      
+
       await releaseEscrowToSeller(order, `dispute_rejected: ${note}`, session);
 
       if (order.complaint) {
@@ -588,31 +582,6 @@ async function resolveOrderDispute(orderId, resolution, note = "") {
 }
 
 
-
-async function autoCancelExpiredPendingOrders() {
-  const now = new Date();
-  const expired = await Order.find({
-    $or: [{ status: "pending" }, { orderStatus: "pending" }, { orderStatus: "pending_seller_confirm" }],
-    paymentStatus: { $ne: "paid" },
-    paymentMethod: "wallet",
-    paymentDeadline: { $lt: now },
-  });
-  let cancelled = 0;
-  for (const order of expired) {
-    try {
-      setOrderStatus(order, "cancelled");
-      order.cancelReason = "Hết hạn thanh toán (24h)";
-      order.cancelledAt = now;
-      await order.save();
-      await Product.findByIdAndUpdate(order.productId, { status: "available", isAvailable: true });
-      cancelled++;
-    } catch (e) {
-      console.error("[autoCancelExpiredPending] error:", e.message);
-    }
-  }
-  return { cancelled, total: expired.length };
-}
-
 async function rateSeller(orderId, buyerId, rating, comment, uploadedImages = []) {
   const order = await Order.findById(orderId);
   if (!order) throw new Error("Không tìm thấy đơn hàng");
@@ -633,7 +602,7 @@ async function rateSeller(orderId, buyerId, rating, comment, uploadedImages = []
   }
   return order;
 }
- 
+
 async function getSellerReviews(sellerId, { page = 1, limit = 20 } = {}) {
   const filter = { sellerId, "sellerRating.rating": { $exists: true, $gt: 0 } };
   const pageNum = Math.max(Number(page) || 1, 1);
@@ -657,11 +626,11 @@ async function getSellerReviews(sellerId, { page = 1, limit = 20 } = {}) {
     ratedAt: o.sellerRating.ratedAt,
     buyer: o.buyerId
       ? {
-          id: o.buyerId._id,
-          fullName: o.buyerId.fullName,
-          userName: o.buyerId.userName,
-          avatar: o.buyerId.avatar,
-        }
+        id: o.buyerId._id,
+        fullName: o.buyerId.fullName,
+        userName: o.buyerId.userName,
+        avatar: o.buyerId.avatar,
+      }
       : null,
     product: o.productId
       ? { id: o.productId._id, title: o.productId.title, thumbnail: o.productId.thumbnail }
@@ -696,8 +665,7 @@ module.exports = {
   buyerConfirmReceived,
   openOrderDispute,
   autoReleaseExpiredOrders,
-  autoCancelExpiredPendingOrders,
   rateSeller,
   resolveOrderDispute,
-   getSellerReviews,
+  getSellerReviews,
 };

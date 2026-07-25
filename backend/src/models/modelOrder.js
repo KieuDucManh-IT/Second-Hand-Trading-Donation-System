@@ -129,8 +129,6 @@ const orderSchema = new mongoose.Schema(
     ],
 
 
-    paymentDeadline: Date,
-
 
     sellerRating: {
       rating: { type: Number, min: 1, max: 5 },
@@ -150,13 +148,6 @@ orderSchema.pre("validate", function () {
     const rate = this.platformFeeRate ?? PLATFORM_FEE_RATE;
     this.platformFee = Math.round(this.totalPrice * rate);
     this.sellerReceives = this.totalPrice - this.platformFee;
-
-
-    if (!this.paymentDeadline && this.paymentMethod === "wallet") {
-      const deadline = new Date();
-      deadline.setHours(deadline.getHours() + 24);
-      this.paymentDeadline = deadline;
-    }
   }
 });
 
