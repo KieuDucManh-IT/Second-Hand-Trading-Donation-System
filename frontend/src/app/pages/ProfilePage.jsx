@@ -101,10 +101,10 @@ export function ProfilePage() {
         setReviewsLoading(true);
         setReviewsError(null);
         const res = await fetch(
-          `${API_BASE}/api/orders/seller/${userId}/reviews?page=${reviewsPage}&limit=${REVIEWS_PER_PAGE}`,
+          `${API_BASE}/api/auth/profile/${userId}/reviews?page=${reviewsPage}&limit=${REVIEWS_PER_PAGE}`,
         );
         if (!res.ok) {
-          throw new Error("Could not load reviews");
+          throw new Error("Không thể tải danh sách đánh giá");
         }
         const data = await res.json();
         setReviews(data.reviews || []);
@@ -112,7 +112,7 @@ export function ProfilePage() {
         setTotalReviews(data.totalReviews || 0);
         setReviewsTotalPages(data.pagination?.totalPages || 1);
       } catch (err) {
-        setReviewsError(err.message || "Something went wrong");
+        setReviewsError(err.message || "Đã có lỗi xảy ra");
       } finally {
         setReviewsLoading(false);
       }
@@ -171,6 +171,8 @@ export function ProfilePage() {
       ? profileUser.locations[0].address
       : "Chưa cập nhật địa chỉ";
   const isOwnProfile = currentUser?.id === profileUser.id;
+  const effectiveRating =
+    averageRating > 0 ? averageRating : profileUser?.rating ?? 5;
   const isActiveListing = (product) =>
     product.status === "available" || product.status === "reserved";
   const isTradedListing = (product) => product.status === "sold";
@@ -213,19 +215,18 @@ export function ProfilePage() {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-5 h-5 ${
-                          i < Math.round(averageRating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-gray-300"
-                        }`}
+                        className={`w-5 h-5 ${i < Math.round(effectiveRating)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-gray-300"
+                          }`}
                       />
                     ))}
                   </div>
                   <span className="font-semibold">
-                    {averageRating.toFixed(1)}
+                    {Number(effectiveRating).toFixed(1)}
                   </span>
                   <span className="text-gray-600 dark:text-gray-400">
-                    ({totalReviews} {totalReviews === 1 ? "review" : "reviews"})
+                    ({totalReviews} đánh giá)
                   </span>
                 </div>
 
@@ -494,7 +495,7 @@ export function ProfilePage() {
             {reviewsLoading ? (
               <Card>
                 <CardContent className="p-8 text-center text-gray-500">
-                  Loading reviews...
+                  Đang tải đánh giá...
                 </CardContent>
               </Card>
             ) : reviewsError ? (
@@ -506,7 +507,7 @@ export function ProfilePage() {
             ) : reviews.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center text-gray-500">
-                  No reviews yet
+                  Chưa có đánh giá nào
                 </CardContent>
               </Card>
             ) : (
@@ -533,11 +534,11 @@ export function ProfilePage() {
                               <p className="font-semibold">
                                 {review.buyer?.fullName ||
                                   review.buyer?.userName ||
-                                  "Anonymous"}
+                                  "Người dùng ẩn danh"}
                               </p>
                               <span className="text-xs text-gray-500">
                                 {new Date(review.ratedAt).toLocaleDateString(
-                                  "en-US",
+                                  "vi-VN",
                                   {
                                     year: "numeric",
                                     month: "long",
@@ -550,17 +551,16 @@ export function ProfilePage() {
                               {[...Array(5)].map((_, i) => (
                                 <Star
                                   key={i}
-                                  className={`w-4 h-4 ${
-                                    i < review.rating
-                                      ? "fill-yellow-400 text-yellow-400"
-                                      : "text-gray-300"
-                                  }`}
+                                  className={`w-4 h-4 ${i < review.rating
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
+                                    }`}
                                 />
                               ))}
                             </div>
                             {review.product && (
                               <p className="text-xs text-gray-500 mb-1">
-                                Product: {review.product.title}
+                                Sản phẩm: {review.product.title}
                               </p>
                             )}
                             {review.comment && (
@@ -584,10 +584,10 @@ export function ProfilePage() {
                       onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
                     >
                       <ChevronLeft className="w-4 h-4 mr-1" />
-                      Previous
+                      Trước
                     </Button>
                     <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Page {reviewsPage} of {reviewsTotalPages}
+                      Trang {reviewsPage} / {reviewsTotalPages}
                     </span>
                     <Button
                       variant="outline"
@@ -599,7 +599,7 @@ export function ProfilePage() {
                         )
                       }
                     >
-                      Next
+                      Sau
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </div>

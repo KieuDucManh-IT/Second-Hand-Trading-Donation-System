@@ -20,7 +20,11 @@ import {
 import { Upload, X, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-const API_URL = "http://localhost:5000/api";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
+
+const API_URL = `${API_BASE_URL}/api`;
 export function CreateProductPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isAuthReady } = useAuth();

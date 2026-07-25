@@ -47,7 +47,7 @@ export function ForgotPasswordPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/forgot-password/send-otp",
+        `${API_BASE}/auth/forgot-password/send-otp`,
         {
           method: "POST",
           headers: {
@@ -103,7 +103,7 @@ export function ForgotPasswordPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/forgot-password/verify-otp",
+        `${API_BASE}/auth/forgot-password/verify-otp`,
         {
           method: "POST",
           headers: {

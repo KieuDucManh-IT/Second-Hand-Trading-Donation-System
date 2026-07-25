@@ -15,7 +15,7 @@ export function MetricCards({ data, activeUsersCount, pendingReportsCount }) {
       <MetricCard
         title="Sản phẩm"
         value={data.statistics.totalProducts}
-        note={`Chờ kiểm duyệt: ${data.pendingProducts.length}`}
+        note={`Tổng số sản phẩm đang có: ${data.statistics.totalProducts}`}
         icon={Package}
         accent="from-sky-500 to-indigo-500"
       />
@@ -23,7 +23,7 @@ export function MetricCards({ data, activeUsersCount, pendingReportsCount }) {
       <MetricCard
         title="Báo cáo"
         value={data.statistics.totalReports}
-        note={`Đã xử lý: ${pendingReportsCount}`}
+        note={`Số lượng báo cáo ghi nhận: ${data.statistics.totalReports}`}
         icon={Flag}
         accent="from-amber-500 to-orange-500"
       />
@@ -31,7 +31,7 @@ export function MetricCards({ data, activeUsersCount, pendingReportsCount }) {
       <MetricCard
         title="Giao dịch"
         value={data.statistics.totalTransactions}
-        note={`Đơn hàng: ${data.statistics.totalOrders}`}
+        note={`Tổng số giao dịch được ghi nhận: ${data.statistics.totalTransactions}`}
         icon={BarChart3}
         accent="from-violet-500 to-fuchsia-500"
       />

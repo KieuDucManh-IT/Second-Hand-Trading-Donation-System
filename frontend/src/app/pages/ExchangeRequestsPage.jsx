@@ -28,8 +28,15 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { notifyProductCatalogChanged } from "../api/productApi";
 
-const API_BASE = "http://localhost:5000/api";
-const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
+const RAW_API_BASE = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
+
+const API_BASE = RAW_API_BASE.endsWith("/api")
+  ? RAW_API_BASE
+  : `${RAW_API_BASE}/api`;
+
+const API_ORIGIN = RAW_API_BASE.replace(/\/api$/, "");
 
 function getToken() {
   return (
