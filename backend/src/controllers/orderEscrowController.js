@@ -65,7 +65,7 @@ exports.buyerConfirmReceived = async (req, res) => {
     const userId = getUserId(req);
     const { orderId } = req.params;
     const order = await escrowService.buyerConfirmReceived(orderId, userId);
-    res.json({ success: true, message: "Đã xác nhận nhận hàng. Tiền đã được chuyển vào ví người bán.", order });
+    res.json({ success: true, message: "Đã xác nhận nhận hàng ", order });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message || "Không thể xác nhận nhận hàng" });
   }

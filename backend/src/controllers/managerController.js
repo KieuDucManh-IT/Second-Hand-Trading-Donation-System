@@ -752,6 +752,150 @@ const resolveDispute = async (req, res) => {
   }
 };
 
+const getRevenueStats = async (req, res) => {
+  try {
+    const WalletTransaction = require("../models/modelWalletTransaction");
+    const Order = require("../models/modelOrder");
+
+    const completedOrders = await Order.find({
+      $or: [
+        { orderStatus: { $in: ["confirmed", "shipping", "delivered", "completed"] } },
+        { paymentStatus: { $in: ["paid", "released"] } },
+        { escrowStatus: { $in: ["holding", "released"] } },
+      ],
+    }).lean();
+
+    const transactions = await WalletTransaction.find()
+      .populate("user", "fullName email avatar")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let totalDeposits = 0;
+    let totalWithdrawals = 0;
+    let exchangeFees = 0;
+    let escrowHolding = 0;
+
+    transactions.forEach((tx) => {
+      const amt = parseFloat(tx.amount?.toString() || 0);
+      if (tx.status === "completed") {
+        if (tx.type === "deposit") totalDeposits += amt;
+        if (tx.type === "withdraw") totalWithdrawals += amt;
+        if (tx.type === "exchange_fee") exchangeFees += amt;
+      }
+      if (tx.status === "pending" || tx.type === "escrow_hold") {
+        if (tx.status !== "failed" && tx.status !== "rejected") {
+          escrowHolding += amt;
+        }
+      }
+    });
+
+    const purchasePaymentTxs = transactions.filter(
+      (tx) => tx.type === "purchase_payment" && tx.status === "completed"
+    );
+
+    const purchasePaymentTotal = purchasePaymentTxs.reduce(
+      (sum, tx) => sum + parseFloat(tx.amount?.toString() || 0),
+      0
+    );
+
+    const orderGMV = completedOrders.reduce(
+      (sum, o) => sum + (Number(o.totalPrice) || 0),
+      0
+    );
+
+    const totalGMV = Math.max(orderGMV, purchasePaymentTotal);
+
+    const totalOrdersCount = Math.max(
+      completedOrders.length,
+      purchasePaymentTxs.length
+    );
+
+    const orderPlatformFees =
+      completedOrders.reduce(
+        (sum, o) =>
+          sum +
+          (Number(o.platformFee) ||
+            Math.round((Number(o.totalPrice) || 0) * 0.1)),
+        0
+      ) || Math.round(totalGMV * 0.1);
+
+    // Thực thu nền tảng = Phí hoa hồng đơn hàng + Phí giao dịch trao đổi
+    const platformRevenue = orderPlatformFees + exchangeFees;
+
+    const daysMap = {};
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      daysMap[dateStr] = {
+        date: dateStr,
+        gmv: 0,
+        revenue: 0,
+        transactionsCount: 0,
+      };
+    }
+
+    completedOrders.forEach((order) => {
+      const dateStr = new Date(order.createdAt).toISOString().split("T")[0];
+      if (daysMap[dateStr]) {
+        const gmvAmt = Number(order.totalPrice) || 0;
+        const feeAmt =
+          Number(order.platformFee) || Math.round(gmvAmt * 0.1);
+        daysMap[dateStr].gmv += gmvAmt;
+        daysMap[dateStr].revenue += feeAmt;
+        daysMap[dateStr].transactionsCount += 1;
+      }
+    });
+
+    transactions.forEach((tx) => {
+      if (tx.status === "completed" && tx.type === "exchange_fee") {
+        const dateStr = new Date(tx.createdAt).toISOString().split("T")[0];
+        if (daysMap[dateStr]) {
+          daysMap[dateStr].revenue += parseFloat(tx.amount?.toString() || 0);
+        }
+      }
+    });
+
+    const timeSeries = Object.values(daysMap);
+
+    const formattedTransactions = transactions.slice(0, 500).map((tx) => ({
+      id: tx._id,
+      code: tx.code || String(tx._id),
+      userName: tx.user?.fullName || tx.user?.email || "N/A",
+      type: tx.type,
+      amount: parseFloat(tx.amount?.toString() || 0),
+      status: tx.status,
+      createdAt: tx.createdAt,
+      note: tx.note || tx.transferContent || "",
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalGMV,
+          platformRevenue,
+          totalDeposits,
+          totalWithdrawals,
+          escrowHolding,
+          totalOrdersCount,
+          totalTransactionsCount: transactions.length,
+        },
+        timeSeries,
+        recentTransactions: formattedTransactions,
+      },
+    });
+  } catch (error) {
+    console.error("[Manager Controller] Lỗi getRevenueStats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Không thể lấy thống kê doanh thu",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   updateUserStatus,
@@ -774,4 +918,6 @@ module.exports = {
   getDisputes,
   resolveDispute,
   repairExchangeProducts,
+  getRevenueStats,
 };
+

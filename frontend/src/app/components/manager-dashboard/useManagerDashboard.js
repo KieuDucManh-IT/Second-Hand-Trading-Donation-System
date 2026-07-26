@@ -67,6 +67,7 @@ export function useManagerDashboard() {
           "categories",
           "config",
           "disputes",
+          "revenue",
         ].includes(savedTab)
       ) {
         return savedTab;
@@ -85,11 +86,12 @@ export function useManagerDashboard() {
         "disputes_tab_selected_status",
         "disputes_tab_show_history",
         "disputes_tab_current_page",
+        "revenue_tab_current_page",
       ];
       keys.forEach((key) => sessionStorage.removeItem(key));
     }
 
-    return "products";
+    return "revenue";
   });
 
   useEffect(() => {
@@ -119,6 +121,7 @@ export function useManagerDashboard() {
     orders: [],
     exchanges: [],
   });
+  const [revenueData, setRevenueData] = useState(null);
 
   useEffect(() => {
     if (isAuthReady && (!user || user.role !== "manager")) {
@@ -162,6 +165,22 @@ export function useManagerDashboard() {
     }
   };
 
+  const fetchRevenueData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/revenue`, {
+        headers: authHeaders(),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setRevenueData(result.data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch revenue data", err);
+    }
+  };
+
   const refreshDashboard = async () => {
     try {
       const response = await fetch(`${API_URL}/dashboard`, {
@@ -181,6 +200,7 @@ export function useManagerDashboard() {
       });
       await fetchAllProducts();
       await fetchDisputes();
+      await fetchRevenueData();
     } catch (err) {
       const message = err.message || "Không thể tải dữ liệu bảng quản lý";
       setError(message);
@@ -467,5 +487,7 @@ export function useManagerDashboard() {
     disputesData,
     resolveDispute,
     repairExchangeProducts,
+    revenueData,
+    fetchRevenueData,
   };
 }

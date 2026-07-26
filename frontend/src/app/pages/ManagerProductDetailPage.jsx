@@ -255,7 +255,7 @@ export function ManagerProductDetailPage() {
                   </div>
                 ) : (
                   <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                    {Number(product.price || 0).toLocaleString("vi-VN")} VND
+                    {`${new Intl.NumberFormat("vi-VN").format(Number(product.price || 0))} VND`}
                   </div>
                 )}
               </div>

@@ -117,6 +117,8 @@ export async function fetchOrderById(orderId) {
   if (!res.ok) throw new Error(body.message || "Không thể tải đơn hàng");
   return body;
 }
+const vndFormatter = new Intl.NumberFormat("vi-VN");
+
 export function formatVND(n) {
-  return n.toLocaleString("vi-VN") + " VND";
+  return `${vndFormatter.format(Number(n || 0))} VND`;
 }

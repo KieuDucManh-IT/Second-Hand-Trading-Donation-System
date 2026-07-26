@@ -11,11 +11,13 @@ import { CategoriesTab } from "./CategoriesTab";
 import { Modals } from "./Modals";
 import { ConfigTab } from "./ConfigTab";
 import { DisputesTab } from "./DisputesTab";
+import { RevenueTab } from "./RevenueTab";
 
 export function ManagerDashboardView(props) {
   const {
     user,
     logout,
+    loading,
     error,
     activeTab,
     setActiveTab,
@@ -40,6 +42,8 @@ export function ManagerDashboardView(props) {
     disputesData,
     resolveDispute,
     repairExchangeProducts,
+    revenueData,
+    fetchRevenueData,
   } = props;
 
   if (!user) return null;
@@ -73,7 +77,7 @@ export function ManagerDashboardView(props) {
             <MetricCards
               data={data}
               activeUsersCount={activeUsersCount}
-              pendingReportsCount={pendingReportsCount}
+              revenueData={revenueData}
             />
 
             <Card className="border-white/70 bg-white/80 shadow-[0_18px_60px_-26px_rgba(15,23,42,0.22)] backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/60">
@@ -83,26 +87,28 @@ export function ManagerDashboardView(props) {
                   onValueChange={(value) => setActiveTab(value)}
                 >
                   <div className="overflow-x-auto">
-                    <TabsList className="grid h-auto w-full min-w-[900px] grid-cols-6 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
+                    <TabsList className="grid h-auto w-full min-w-[900px] grid-cols-7 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/40">
                       {[
-                        "products",
+                        "revenue",
                         "reports",
+                        "disputes",
                         "users",
+                        "products",
                         "categories",
                         "config",
-                        "disputes",
                       ].map((tab) => (
                         <TabsTrigger
                           key={tab}
                           value={tab}
                           className="rounded-xl py-3 text-sm font-medium data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-slate-900"
                         >
-                          {tab === "products" && "Sản phẩm"}
+                          {tab === "revenue" && "Doanh thu"}
                           {tab === "reports" && "Báo cáo"}
+                          {tab === "disputes" && "Tranh chấp"}
                           {tab === "users" && "Người dùng"}
+                          {tab === "products" && "Sản phẩm"}
                           {tab === "categories" && "Danh mục"}
                           {tab === "config" && "Cấu hình"}
-                          {tab === "disputes" && "Tranh chấp"}
                         </TabsTrigger>
                       ))}
                     </TabsList>
@@ -145,6 +151,14 @@ export function ManagerDashboardView(props) {
                     <DisputesTab
                       disputesData={disputesData}
                       resolveDispute={resolveDispute}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="revenue" className="mt-6 space-y-6">
+                    <RevenueTab
+                      revenueData={revenueData}
+                      loading={loading}
+                      onRefresh={fetchRevenueData}
                     />
                   </TabsContent>
                 </Tabs>

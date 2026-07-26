@@ -179,7 +179,7 @@ export function ProductReviewsPage() {
                     <span className="text-2xl font-black text-slate-900 dark:text-white">
                       {product.type === "donate"
                         ? "Miễn phí"
-                        : `${product.price.toLocaleString("vi-VN")} VND`}
+                        : `${new Intl.NumberFormat("vi-VN").format(product.price || 0)} VND`}
                     </span>
                   </div>
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+const vndFormatter = new Intl.NumberFormat("vi-VN");
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import {
   Table,
@@ -341,7 +343,7 @@ export function DisputesTab({ disputesData, resolveDispute }) {
   };
 
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat("vi-VN").format(val) + " VND";
+    return `${vndFormatter.format(val || 0)} VND`;
   };
 
   const getResolutionButtonClass = () => {

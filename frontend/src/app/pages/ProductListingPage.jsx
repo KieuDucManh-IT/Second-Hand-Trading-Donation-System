@@ -251,8 +251,8 @@ export function ProductListingPage() {
 
       <div>
         <Label className="text-sm font-medium mb-3 block">
-          Khoảng giá: {priceRange[0].toLocaleString("vi-VN")} VND –{" "}
-          {priceRange[1].toLocaleString("vi-VN")} VND
+          Khoảng giá: {`${new Intl.NumberFormat("vi-VN").format(priceRange[0])} VND`} –{" "}
+          {`${new Intl.NumberFormat("vi-VN").format(priceRange[1])} VND`}
         </Label>
         <Slider
           min={0}
@@ -516,7 +516,7 @@ export function ProductListingPage() {
                               </span>
                             ) : (
                               <span className="text-xl font-bold text-gray-900 dark:text-white">
-                                {product.price.toLocaleString("vi-VN")} VND
+                                {`${new Intl.NumberFormat("vi-VN").format(product.price || 0)} VND`}
                               </span>
                             )}
                           </div>

@@ -323,7 +323,7 @@ export function OrderHistoryPage() {
               <div className="flex items-center gap-2">
                 {getStatusBadge(order.orderStatus, order.paymentStatus)}
                 <span className="text-lg font-bold text-gray-900 dark:text-white">
-                  {Number(order.totalPrice || 0).toLocaleString("vi-VN")} VND
+                  {`${new Intl.NumberFormat("vi-VN").format(Number(order.totalPrice || 0))} VND`}
                 </span>
               </div>
  
@@ -776,7 +776,7 @@ export function OrderHistoryPage() {
  
                           {donation.status === "pending" && (
                             <p className="text-yellow-600 mt-2">
-                              ⏳ Đang chờ người tặng xác nhận...
+                               Đang chờ người tặng xác nhận...
                             </p>
                           )}
  
@@ -884,7 +884,7 @@ export function OrderHistoryPage() {
                 />
                 <div>
                   <p className="font-semibold">{selectedOrderForDetail.productId?.title}</p>
-                  <p className="text-sm text-gray-500 font-medium">{Number(selectedOrderForDetail.totalPrice || 0).toLocaleString("vi-VN")} VND</p>
+                  <p className="text-sm text-gray-500 font-medium">{`${new Intl.NumberFormat("vi-VN").format(Number(selectedOrderForDetail.totalPrice || 0))} VND`}</p>
                 </div>
               </div>
  
@@ -896,7 +896,7 @@ export function OrderHistoryPage() {
                 <div>
                   <p className="text-gray-500 mb-1">Thanh toán cho Seller</p>
                   <p className="font-medium text-green-600">
-                    {selectedOrderForDetail.sellerReceives ? `${Number(selectedOrderForDetail.sellerReceives).toLocaleString("vi-VN")} VND` : 'Chưa tính toán'}
+                    {selectedOrderForDetail.sellerReceives ? `${new Intl.NumberFormat("vi-VN").format(Number(selectedOrderForDetail.sellerReceives))} VND` : 'Chưa tính toán'}
                   </p>
                 </div>
                 <div>
