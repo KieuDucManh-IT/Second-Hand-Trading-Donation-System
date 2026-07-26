@@ -193,7 +193,7 @@ export function ForgotPasswordPage() {
                 <Input
                   id="otp"
                   type="text"
-                  placeholder="Enter 6-digit OTP"
+                  placeholder="Nhập 6 Số OTP đã gửi"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   required
@@ -201,12 +201,12 @@ export function ForgotPasswordPage() {
                 />
 
                 <p className="text-xs text-gray-500">
-                  Please check your email and enter the OTP code.
+                  Vui lòng kiểm tra email của bạn và nhập mã OTP.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
+                <Label htmlFor="newPassword">Mật Khẩu mới</Label>
                 <div className="relative">
                   <Input
                     id="newPassword"
@@ -232,13 +232,13 @@ export function ForgotPasswordPage() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Must contain at least 8 characters, including uppercase,
-                  lowercase, number, and special character
+                  Phải chứa ít nhất 8 ký tự, bao gồm chữ hoa, 
+                  chữ thường, số và ký tự đặc biệt.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">Nhập Lại Mật Khẩu</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
