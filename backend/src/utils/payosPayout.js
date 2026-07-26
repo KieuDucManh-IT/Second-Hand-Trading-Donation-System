@@ -84,6 +84,21 @@ async function createSinglePayout({
   console.log("PAYOUT BODY:", body);
   console.log("PAYOUT SIGNATURE:", signature);
 
+  // THÊM ĐOẠN KIỂM TRA IP TẠI ĐÂY
+  try {
+    const ipResponse = await fetch("https://api.ipify.org?format=json");
+
+    if (!ipResponse.ok) {
+      throw new Error(`IP check failed: ${ipResponse.status}`);
+    }
+
+    const ipData = await ipResponse.json();
+    console.log("CURRENT OUTBOUND IP:", ipData.ip);
+  } catch (error) {
+    console.error("Cannot check outbound IP:", error.message);
+  }
+
+  // Sau đó mới gọi API payOS
   const res = await fetch(`${PAYOS_PAYOUT_BASE_URL}/v1/payouts`, {
     method: "POST",
     headers: {
@@ -101,7 +116,10 @@ async function createSinglePayout({
   console.log("PAYOS CREATE PAYOUT RESPONSE:", data);
 
   if (!res.ok || data.code !== "00") {
-    const error = new Error(data.desc || "Không thể tạo lệnh chi payOS");
+    const error = new Error(
+      data.desc || "Không thể tạo lệnh chi payOS"
+    );
+
     error.response = data;
     throw error;
   }
